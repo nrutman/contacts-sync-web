@@ -1,0 +1,582 @@
+<?php
+
+namespace App\Tests\Command;
+
+use App\Command\SetupCommand;
+use App\Entity\Organization;
+use App\Entity\User;
+use App\File\FileProvider;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityRepository;
+use Mockery\Adapter\Phpunit\MockeryTestCase;
+use Mockery as m;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
+class SetupCommandTest extends MockeryTestCase
+{
+    private EntityManagerInterface|m\MockInterface $entityManager;
+    private UserPasswordHasherInterface|m\MockInterface $passwordHasher;
+    private FileProvider|m\MockInterface $fileProvider;
+    private EntityRepository|m\MockInterface $userRepository;
+    private EntityRepository|m\MockInterface $organizationRepository;
+    private string $tempDir;
+    private string $varPath;
+
+    protected function setUp(): void
+    {
+        $this->entityManager = m::mock(EntityManagerInterface::class);
+        $this->passwordHasher = m::mock(UserPasswordHasherInterface::class);
+        $this->fileProvider = m::mock(FileProvider::class);
+        $this->userRepository = m::mock(EntityRepository::class);
+        $this->organizationRepository = m::mock(EntityRepository::class);
+
+        $this->tempDir = sys_get_temp_dir().'/contacts_sync_test_'.uniqid();
+        mkdir($this->tempDir);
+        $this->varPath = $this->tempDir.'/var';
+        mkdir($this->varPath);
+
+        $this->entityManager
+            ->shouldReceive('getRepository')
+            ->with(User::class)
+            ->andReturn($this->userRepository)
+            ->byDefault();
+
+        $this->entityManager
+            ->shouldReceive('getRepository')
+            ->with(Organization::class)
+            ->andReturn($this->organizationRepository)
+            ->byDefault();
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        // Clean up temp files
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        if (file_exists($envLocalPath)) {
+            unlink($envLocalPath);
+        }
+
+        if (is_dir($this->varPath)) {
+            rmdir($this->varPath);
+        }
+
+        if (is_dir($this->tempDir)) {
+            rmdir($this->tempDir);
+        }
+    }
+
+    public function testHasExistingConfigReturnsFalseWhenPlaceholders(): void
+    {
+        // When config has placeholder values, step 5 should auto-skip
+        $command = $this->createSetupCommand(
+            planningCenterAppId: 'REPLACE_ME',
+            googleDomain: 'REPLACE_ME',
+            lists: [],
+        );
+
+        $tester = $this->createCommandTester($command);
+
+        // We only need step 5 output — but the command will fail at step 1 (DB connection).
+        // Use non-interactive mode so it fails fast on DB.
+        // Instead, let's test the method indirectly by checking step 5 output.
+        // We need to use reflection to test hasExistingConfig directly.
+        $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
+        $result = $reflection->invoke($command);
+
+        self::assertFalse($result);
+    }
+
+    public function testHasExistingConfigReturnsTrueWhenRealValues(): void
+    {
+        $command = $this->createSetupCommand(
+            planningCenterAppId: 'real-app-id',
+            googleDomain: 'example.com',
+            lists: ['list1@example.com'],
+        );
+
+        $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
+        $result = $reflection->invoke($command);
+
+        self::assertTrue($result);
+    }
+
+    public function testHasExistingConfigReturnsFalseWhenEmptyAppId(): void
+    {
+        $command = $this->createSetupCommand(
+            planningCenterAppId: '',
+            googleDomain: 'example.com',
+            lists: ['list1@example.com'],
+        );
+
+        $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
+        $result = $reflection->invoke($command);
+
+        self::assertFalse($result);
+    }
+
+    public function testHasExistingConfigReturnsFalseWhenEmptyDomain(): void
+    {
+        $command = $this->createSetupCommand(
+            planningCenterAppId: 'real-app-id',
+            googleDomain: '',
+            lists: ['list1@example.com'],
+        );
+
+        $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
+        $result = $reflection->invoke($command);
+
+        self::assertFalse($result);
+    }
+
+    public function testHasExistingConfigReturnsFalseWhenNoLists(): void
+    {
+        $command = $this->createSetupCommand(
+            planningCenterAppId: 'real-app-id',
+            googleDomain: 'example.com',
+            lists: [],
+        );
+
+        $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
+        $result = $reflection->invoke($command);
+
+        self::assertFalse($result);
+    }
+
+    public function testWriteEnvLocalCreatesNewFile(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        $reflection = new \ReflectionMethod($command, 'writeEnvLocal');
+        $reflection->invoke($command, $envLocalPath, [
+            'DATABASE_URL' => 'postgresql://user:pass@localhost:5432/db?serverVersion=16&charset=utf8',
+            'APP_ENCRYPTION_KEY' => 'abc123def456',
+            'MAILER_DSN' => 'null://null',
+        ]);
+
+        self::assertFileExists($envLocalPath);
+        $contents = file_get_contents($envLocalPath);
+        self::assertStringContainsString(
+            'DATABASE_URL="postgresql://user:pass@localhost:5432/db?serverVersion=16&charset=utf8"',
+            $contents,
+        );
+        self::assertStringContainsString(
+            'APP_ENCRYPTION_KEY=abc123def456',
+            $contents,
+        );
+        self::assertStringContainsString('MAILER_DSN="null://null"', $contents);
+    }
+
+    public function testWriteEnvLocalMergesWithExistingFile(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        // Write an initial file with some values
+        file_put_contents(
+            $envLocalPath,
+            "EXISTING_KEY=existing_value\nAPP_ENCRYPTION_KEY=old_key\n",
+        );
+
+        $reflection = new \ReflectionMethod($command, 'writeEnvLocal');
+        $reflection->invoke($command, $envLocalPath, [
+            'APP_ENCRYPTION_KEY' => 'new_key',
+            'DATABASE_URL' => 'postgresql://localhost/test',
+        ]);
+
+        $contents = file_get_contents($envLocalPath);
+
+        // Existing unrelated keys should be preserved
+        self::assertStringContainsString(
+            'EXISTING_KEY=existing_value',
+            $contents,
+        );
+        // Updated key should have the new value
+        self::assertStringContainsString(
+            'APP_ENCRYPTION_KEY=new_key',
+            $contents,
+        );
+        // Old value should be gone
+        self::assertStringNotContainsString('old_key', $contents);
+        // New key should be appended
+        self::assertStringContainsString('DATABASE_URL', $contents);
+    }
+
+    public function testWriteEnvLocalPreservesOrderOfExistingKeys(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        file_put_contents(
+            $envLocalPath,
+            "FIRST_KEY=1\nSECOND_KEY=2\nTHIRD_KEY=3\n",
+        );
+
+        $reflection = new \ReflectionMethod($command, 'writeEnvLocal');
+        $reflection->invoke($command, $envLocalPath, [
+            'SECOND_KEY' => 'updated',
+        ]);
+
+        $contents = file_get_contents($envLocalPath);
+        $lines = array_filter(explode("\n", trim($contents)));
+
+        self::assertSame('FIRST_KEY=1', $lines[0]);
+        self::assertSame('SECOND_KEY=updated', $lines[1]);
+        self::assertSame('THIRD_KEY=3', $lines[2]);
+    }
+
+    public function testReadEnvLocalValueReturnsValueForExistingKey(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        file_put_contents(
+            $envLocalPath,
+            "APP_ENCRYPTION_KEY=abc123\nDATABASE_URL=\"postgresql://localhost\"\n",
+        );
+
+        $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
+
+        $result = $reflection->invoke(
+            $command,
+            $this->tempDir,
+            'APP_ENCRYPTION_KEY',
+        );
+        self::assertSame('abc123', $result);
+    }
+
+    public function testReadEnvLocalValueReturnsQuotedValue(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        file_put_contents(
+            $envLocalPath,
+            "DATABASE_URL=\"postgresql://user:pass@localhost:5432/db\"\n",
+        );
+
+        $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
+
+        $result = $reflection->invoke($command, $this->tempDir, 'DATABASE_URL');
+        self::assertSame('postgresql://user:pass@localhost:5432/db', $result);
+    }
+
+    public function testReadEnvLocalValueReturnsNullForMissingKey(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        file_put_contents($envLocalPath, "SOME_KEY=value\n");
+
+        $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
+
+        $result = $reflection->invoke($command, $this->tempDir, 'MISSING_KEY');
+        self::assertNull($result);
+    }
+
+    public function testReadEnvLocalValueReturnsNullWhenFileDoesNotExist(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
+
+        $result = $reflection->invoke($command, $this->tempDir, 'ANY_KEY');
+        self::assertNull($result);
+    }
+
+    public function testFormatEnvLineQuotesUrlValues(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'formatEnvLine');
+
+        $result = $reflection->invoke(
+            $command,
+            'DATABASE_URL',
+            'postgresql://user:pass@localhost:5432/db',
+        );
+        self::assertSame(
+            'DATABASE_URL="postgresql://user:pass@localhost:5432/db"',
+            $result,
+        );
+    }
+
+    public function testFormatEnvLineDoesNotQuoteSimpleValues(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'formatEnvLine');
+
+        $result = $reflection->invoke(
+            $command,
+            'APP_ENCRYPTION_KEY',
+            'abc123def456',
+        );
+        self::assertSame('APP_ENCRYPTION_KEY=abc123def456', $result);
+    }
+
+    public function testFormatEnvLineQuotesValuesWithSpaces(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'formatEnvLine');
+
+        $result = $reflection->invoke(
+            $command,
+            'SOME_KEY',
+            'value with spaces',
+        );
+        self::assertSame('SOME_KEY="value with spaces"', $result);
+    }
+
+    public function testGetProjectDirDerivedFromVarPath(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'getProjectDir');
+
+        $result = $reflection->invoke($command);
+        self::assertSame($this->tempDir, $result);
+    }
+
+    public function testStepCreateAdminUserSkipsInNonInteractiveWhenUsersExist(): void
+    {
+        $existingUser = new User();
+        $existingUser->setEmail('existing@example.com');
+        $existingUser->setFirstName('Existing');
+        $existingUser->setLastName('User');
+
+        $this->userRepository
+            ->shouldReceive('findAll')
+            ->andReturn([$existingUser]);
+
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'stepCreateAdminUser');
+
+        // Initialize io on the command via reflection
+        $io = $this->initializeIo($command);
+
+        $input = m::mock(
+            \Symfony\Component\Console\Input\InputInterface::class,
+        );
+        $input->shouldReceive('isInteractive')->andReturn(false);
+
+        $reflection->invoke($command, $input);
+
+        // No persist/flush should be called — user creation is skipped
+        $this->entityManager->shouldNotHaveReceived('persist');
+    }
+
+    public function testStepImportConfigurationSkipsWhenNoExistingConfig(): void
+    {
+        $command = $this->createSetupCommand(
+            planningCenterAppId: 'REPLACE_ME',
+            googleDomain: 'REPLACE_ME',
+            lists: [],
+        );
+
+        $reflection = new \ReflectionMethod(
+            $command,
+            'stepImportConfiguration',
+        );
+        $this->initializeIo($command);
+
+        $input = m::mock(
+            \Symfony\Component\Console\Input\InputInterface::class,
+        );
+        $input->shouldReceive('isInteractive')->andReturn(false);
+
+        $reflection->invoke($command, $input);
+
+        // No persist/flush should be called — import is skipped
+        $this->entityManager->shouldNotHaveReceived('persist');
+    }
+
+    public function testStepImportConfigurationSkipsInNonInteractiveWhenOrgExists(): void
+    {
+        $existingOrg = new Organization();
+        $existingOrg->setName('Existing Org');
+        $existingOrg->setPlanningCenterAppId('id');
+        $existingOrg->setPlanningCenterAppSecret('secret');
+        $existingOrg->setGoogleOAuthCredentials('{}');
+        $existingOrg->setGoogleDomain('example.com');
+
+        $this->organizationRepository
+            ->shouldReceive('findOneBy')
+            ->with([])
+            ->andReturn($existingOrg);
+
+        $command = $this->createSetupCommand(
+            planningCenterAppId: 'real-app-id',
+            googleDomain: 'example.com',
+            lists: ['list1@example.com'],
+        );
+
+        $reflection = new \ReflectionMethod(
+            $command,
+            'stepImportConfiguration',
+        );
+        $this->initializeIo($command);
+
+        $input = m::mock(
+            \Symfony\Component\Console\Input\InputInterface::class,
+        );
+        $input->shouldReceive('isInteractive')->andReturn(false);
+
+        $reflection->invoke($command, $input);
+
+        // Should not have removed the existing org or persisted a new one
+        $this->entityManager->shouldNotHaveReceived('remove');
+        $this->entityManager->shouldNotHaveReceived('beginTransaction');
+    }
+
+    public function testStepEncryptionKeyGeneratesNewKeyWhenNoExisting(): void
+    {
+        $command = $this->createSetupCommand();
+        $this->initializeIo($command);
+
+        $reflection = new \ReflectionMethod($command, 'stepEncryptionKey');
+        $reflection->invoke($command, $this->tempDir);
+
+        // Read back the encryptionKey property
+        $keyProperty = new \ReflectionProperty($command, 'encryptionKey');
+        $key = $keyProperty->getValue($command);
+
+        // A newly generated key should be 64 hex characters
+        self::assertSame(64, strlen($key));
+        self::assertTrue(ctype_xdigit($key));
+    }
+
+    public function testStepEncryptionKeyKeepsExistingByDefault(): void
+    {
+        $existingKey = bin2hex(sodium_crypto_secretbox_keygen());
+        $envLocalPath = $this->tempDir.'/.env.local';
+        file_put_contents(
+            $envLocalPath,
+            sprintf("APP_ENCRYPTION_KEY=%s\n", $existingKey),
+        );
+
+        $command = $this->createSetupCommand();
+
+        // Build a SymfonyStyle with a stream that answers "yes" to the confirm prompt
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, "yes\n");
+        rewind($stream);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(true);
+        $input->setStream($stream);
+
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $io = new \Symfony\Component\Console\Style\SymfonyStyle(
+            $input,
+            $output,
+        );
+
+        $ioProperty = new \ReflectionProperty($command, 'io');
+        $ioProperty->setValue($command, $io);
+
+        $reflection = new \ReflectionMethod($command, 'stepEncryptionKey');
+        $reflection->invoke($command, $this->tempDir);
+
+        // Read back the encryptionKey property — it should be the existing key
+        $keyProperty = new \ReflectionProperty($command, 'encryptionKey');
+        $key = $keyProperty->getValue($command);
+
+        self::assertSame($existingKey, $key);
+    }
+
+    public function testDatabaseConnectionTestWithInvalidHost(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'testDatabaseConnection');
+
+        // Use localhost on a port that nothing is listening on — connection
+        // is refused immediately instead of hanging until a timeout.
+        $result = $reflection->invoke(
+            $command,
+            '127.0.0.1',
+            '1',
+            'test',
+            'user',
+            'pass',
+        );
+
+        self::assertIsString($result);
+        self::assertNotSame(true, $result);
+    }
+
+    public function testQuoteIdentifier(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'quoteIdentifier');
+
+        self::assertSame(
+            '"contacts_sync"',
+            $reflection->invoke($command, 'contacts_sync'),
+        );
+        self::assertSame(
+            '"my""database"',
+            $reflection->invoke($command, 'my"database'),
+        );
+    }
+
+    private function createSetupCommand(
+        string $planningCenterAppId = 'REPLACE_ME',
+        string $planningCenterAppSecret = 'REPLACE_ME',
+        array $googleConfiguration = [],
+        string $googleDomain = 'REPLACE_ME',
+        array $lists = [],
+        array $inMemoryContacts = [],
+    ): SetupCommand {
+        return new SetupCommand(
+            $this->entityManager,
+            $this->passwordHasher,
+            $this->fileProvider,
+            $this->varPath,
+            $planningCenterAppId,
+            $planningCenterAppSecret,
+            $googleConfiguration,
+            $googleDomain,
+            $lists,
+            $inMemoryContacts,
+        );
+    }
+
+    private function createCommandTester(SetupCommand $command): CommandTester
+    {
+        $application = new Application();
+        $application->add($command);
+
+        return new CommandTester($application->find('app:setup'));
+    }
+
+    /**
+     * Initializes the SymfonyStyle `io` property on the command for unit-testing individual steps.
+     */
+    private function initializeIo(
+        SetupCommand $command,
+    ): \Symfony\Component\Console\Style\SymfonyStyle {
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(false);
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $io = new \Symfony\Component\Console\Style\SymfonyStyle(
+            $input,
+            $output,
+        );
+
+        $ioProperty = new \ReflectionProperty($command, 'io');
+        $ioProperty->setValue($command, $io);
+
+        return $io;
+    }
+}
