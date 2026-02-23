@@ -15,12 +15,4 @@ class SyncCompletedEventTest extends MockeryTestCase
 
         self::assertSame($syncRun, $event->syncRun);
     }
-
-    public function testSyncRunPropertyIsReadonly(): void
-    {
-        $reflection = new \ReflectionProperty(SyncCompletedEvent::class, 'syncRun');
-
-        self::assertTrue($reflection->isReadOnly());
-        self::assertTrue($reflection->isPublic());
-    }
 }

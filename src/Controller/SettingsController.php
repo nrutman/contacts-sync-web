@@ -37,8 +37,12 @@ class SettingsController extends AbstractController
         }
 
         // Store original encrypted values so we can detect "leave blank to keep current"
-        $originalSecret = $isEdit ? $organization->getPlanningCenterAppSecret() : null;
-        $originalCredentials = $isEdit ? $organization->getGoogleOAuthCredentials() : null;
+        $originalSecret = $isEdit
+            ? $organization->getPlanningCenterAppSecret()
+            : null;
+        $originalCredentials = $isEdit
+            ? $organization->getGoogleOAuthCredentials()
+            : null;
 
         $form = $this->createForm(OrganizationType::class, $organization, [
             'is_edit' => $isEdit,
@@ -47,12 +51,20 @@ class SettingsController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             // If the user left the secret blank during edit, restore the original value
-            if ($isEdit && ($organization->getPlanningCenterAppSecret() === '' || $organization->getPlanningCenterAppSecret() === null)) {
+            if (
+                $isEdit
+                && ($organization->getPlanningCenterAppSecret() === ''
+                    || $organization->getPlanningCenterAppSecret() === null)
+            ) {
                 $organization->setPlanningCenterAppSecret($originalSecret);
             }
 
             // If the user left the credentials blank during edit, restore the original value
-            if ($isEdit && ($organization->getGoogleOAuthCredentials() === '' || $organization->getGoogleOAuthCredentials() === null)) {
+            if (
+                $isEdit
+                && ($organization->getGoogleOAuthCredentials() === ''
+                    || $organization->getGoogleOAuthCredentials() === null)
+            ) {
                 $organization->setGoogleOAuthCredentials($originalCredentials);
             }
 
@@ -62,7 +74,10 @@ class SettingsController extends AbstractController
 
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Organization settings have been saved.');
+            $this->addFlash(
+                'success',
+                'Organization settings have been saved.',
+            );
 
             return $this->redirectToRoute('app_settings');
         }
@@ -73,13 +88,17 @@ class SettingsController extends AbstractController
 
         if ($isEdit && $organization->getGoogleToken() !== null) {
             try {
-                $googleClient = $this->googleClientFactory->create($organization);
+                $googleClient = $this->googleClientFactory->create(
+                    $organization,
+                );
                 $googleClient->initialize();
                 $googleConnected = true;
             } catch (InvalidGoogleTokenException) {
-                $googleError = 'Google token is invalid or expired. Please reconnect.';
+                $googleError =
+                    'Google token is invalid or expired. Please reconnect.';
             } catch (\Throwable $e) {
-                $googleError = 'Unable to verify Google connection: '.$e->getMessage();
+                $googleError =
+                    'Unable to verify Google connection: '.$e->getMessage();
             }
         }
 
@@ -92,54 +111,53 @@ class SettingsController extends AbstractController
         ]);
     }
 
-    #[Route('/google/connect', name: 'app_settings_google_connect', methods: ['GET'])]
+    #[Route(
+        '/google/connect',
+        name: 'app_settings_google_connect',
+        methods: ['GET'],
+    ),]
     public function googleConnect(): Response
     {
         $organization = $this->organizationRepository->findOne();
 
         if ($organization === null) {
-            $this->addFlash('warning', 'Please configure your organization settings first.');
+            $this->addFlash(
+                'warning',
+                'Please configure your organization settings first.',
+            );
 
             return $this->redirectToRoute('app_settings');
         }
 
         try {
-            $credentials = json_decode($organization->getGoogleOAuthCredentials(), true, 512, JSON_THROW_ON_ERROR);
-
-            // Override the redirect URI to point to our callback URL
-            $callbackUrl = $this->generateUrl('app_settings_google_callback', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-            if (isset($credentials['web'])) {
-                $credentials['web']['redirect_uris'] = [$callbackUrl];
-            } elseif (isset($credentials['installed'])) {
-                // Convert installed credentials to web-style for the redirect flow
-                $credentials['web'] = $credentials['installed'];
-                $credentials['web']['redirect_uris'] = [$callbackUrl];
-                unset($credentials['installed']);
-            }
-
-            // Temporarily update the credentials for the auth URL generation
-            $tempOrg = clone $organization;
-            $tempOrg->setGoogleOAuthCredentials(json_encode($credentials, JSON_THROW_ON_ERROR));
-
-            $googleClient = $this->googleClientFactory->create($tempOrg);
+            $googleClient = $this->buildOAuthGoogleClient($organization);
             $authUrl = $googleClient->createAuthUrl();
 
             return $this->redirect($authUrl);
         } catch (\Throwable $e) {
-            $this->addFlash('danger', 'Failed to initiate Google OAuth: '.$e->getMessage());
+            $this->addFlash(
+                'danger',
+                'Failed to initiate Google OAuth: '.$e->getMessage(),
+            );
 
             return $this->redirectToRoute('app_settings');
         }
     }
 
-    #[Route('/google/callback', name: 'app_settings_google_callback', methods: ['GET'])]
+    #[Route(
+        '/google/callback',
+        name: 'app_settings_google_callback',
+        methods: ['GET'],
+    ),]
     public function googleCallback(Request $request): Response
     {
         $organization = $this->organizationRepository->findOne();
 
         if ($organization === null) {
-            $this->addFlash('warning', 'Please configure your organization settings first.');
+            $this->addFlash(
+                'warning',
+                'Please configure your organization settings first.',
+            );
 
             return $this->redirectToRoute('app_settings');
         }
@@ -148,58 +166,102 @@ class SettingsController extends AbstractController
         $error = $request->query->get('error');
 
         if ($error !== null) {
-            $this->addFlash('danger', sprintf('Google OAuth was denied: %s', $error));
+            $this->addFlash(
+                'danger',
+                sprintf('Google OAuth was denied: %s', $error),
+            );
 
             return $this->redirectToRoute('app_settings');
         }
 
         if ($code === null || $code === '') {
-            $this->addFlash('danger', 'No authorization code received from Google.');
+            $this->addFlash(
+                'danger',
+                'No authorization code received from Google.',
+            );
 
             return $this->redirectToRoute('app_settings');
         }
 
         try {
-            $credentials = json_decode($organization->getGoogleOAuthCredentials(), true, 512, JSON_THROW_ON_ERROR);
-
-            // Override the redirect URI to match what was used in the connect step
-            $callbackUrl = $this->generateUrl('app_settings_google_callback', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-            if (isset($credentials['web'])) {
-                $credentials['web']['redirect_uris'] = [$callbackUrl];
-            } elseif (isset($credentials['installed'])) {
-                $credentials['web'] = $credentials['installed'];
-                $credentials['web']['redirect_uris'] = [$callbackUrl];
-                unset($credentials['installed']);
-            }
-
-            $tempOrg = clone $organization;
-            $tempOrg->setGoogleOAuthCredentials(json_encode($credentials, JSON_THROW_ON_ERROR));
-
-            $googleClient = $this->googleClientFactory->create($tempOrg);
+            $googleClient = $this->buildOAuthGoogleClient($organization);
             $googleClient->setAuthCode($code);
 
             // Persist the token to the organization
             $tokenData = $googleClient->getTokenData();
 
             if ($tokenData !== null) {
-                $organization->setGoogleToken(json_encode($tokenData, JSON_THROW_ON_ERROR));
+                $organization->setGoogleToken(
+                    json_encode($tokenData, JSON_THROW_ON_ERROR),
+                );
                 $this->entityManager->flush();
 
-                $this->addFlash('success', 'Google account connected successfully.');
+                $this->addFlash(
+                    'success',
+                    'Google account connected successfully.',
+                );
             } else {
-                $this->addFlash('danger', 'Failed to obtain a token from Google.');
+                $this->addFlash(
+                    'danger',
+                    'Failed to obtain a token from Google.',
+                );
             }
         } catch (InvalidGoogleTokenException) {
-            $this->addFlash('danger', 'Google returned an invalid token. Please try again.');
+            $this->addFlash(
+                'danger',
+                'Google returned an invalid token. Please try again.',
+            );
         } catch (\Throwable $e) {
-            $this->addFlash('danger', 'Failed to complete Google OAuth: '.$e->getMessage());
+            $this->addFlash(
+                'danger',
+                'Failed to complete Google OAuth: '.$e->getMessage(),
+            );
         }
 
         return $this->redirectToRoute('app_settings');
     }
 
-    #[Route('/google/disconnect', name: 'app_settings_google_disconnect', methods: ['POST'])]
+    /**
+     * Builds a GoogleClient from the organization's OAuth credentials,
+     * converting "installed" credentials to "web" format and overriding
+     * the redirect URI with the callback URL for this application.
+     */
+    private function buildOAuthGoogleClient(
+        Organization $organization,
+    ): \App\Client\Google\GoogleClient {
+        $credentials = json_decode(
+            $organization->getGoogleOAuthCredentials(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $callbackUrl = $this->generateUrl(
+            'app_settings_google_callback',
+            [],
+            UrlGeneratorInterface::ABSOLUTE_URL,
+        );
+
+        if (isset($credentials['web'])) {
+            $credentials['web']['redirect_uris'] = [$callbackUrl];
+        } elseif (isset($credentials['installed'])) {
+            $credentials['web'] = $credentials['installed'];
+            $credentials['web']['redirect_uris'] = [$callbackUrl];
+            unset($credentials['installed']);
+        }
+
+        $tempOrg = clone $organization;
+        $tempOrg->setGoogleOAuthCredentials(
+            json_encode($credentials, JSON_THROW_ON_ERROR),
+        );
+
+        return $this->googleClientFactory->create($tempOrg);
+    }
+
+    #[Route(
+        '/google/disconnect',
+        name: 'app_settings_google_disconnect',
+        methods: ['POST'],
+    ),]
     public function googleDisconnect(Request $request): Response
     {
         $organization = $this->organizationRepository->findOne();

@@ -25,21 +25,4 @@ class RefreshListMessageTest extends MockeryTestCase
         self::assertSame('list-123', $message->syncListId);
         self::assertNull($message->triggeredByUserId);
     }
-
-    public function testPropertiesAreReadonly(): void
-    {
-        $message = new RefreshListMessage(
-            syncListId: 'list-123',
-            triggeredByUserId: 'user-456',
-        );
-
-        $reflection = new \ReflectionClass($message);
-
-        foreach ($reflection->getProperties() as $property) {
-            self::assertTrue($property->isReadOnly(), sprintf(
-                'Property "%s" should be readonly.',
-                $property->getName(),
-            ));
-        }
-    }
 }

@@ -5,12 +5,14 @@
 Read these READMEs to understand the codebase before making changes:
 
 - [README.md](README.md) — installation, configuration, and usage
-- [src/README.md](src/README.md) — architecture, sync algorithm, dependency injection, project structure, developer guide
+- [src/README.md](src/README.md) — architecture, sync pipeline, data model, async processing, project structure, developer guide
 - [src/Client/README.md](src/Client/README.md) — client design and interface contracts
 - [src/Client/Google/README.md](src/Client/Google/README.md) — Google OAuth lifecycle and token management
 - [src/Client/PlanningCenter/README.md](src/Client/PlanningCenter/README.md) — Planning Center API integration and pagination
-- [src/Command/README.md](src/Command/README.md) — command orchestration details
+- [src/Command/README.md](src/Command/README.md) — CLI commands (sync, setup, user management, config migration, key rotation)
 - [src/Contact/README.md](src/Contact/README.md) — diff algorithm
+- [src/Security/README.md](src/Security/README.md) — encryption, key rotation, user verification, invitation flow
+- [src/Sync/README.md](src/Sync/README.md) — sync service orchestration and result DTO
 
 ## Commands
 
@@ -59,6 +61,9 @@ If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-
 - PHP 8.5 with Symfony 7.2. Use constructor promotion and PHP 8+ features (attributes, named arguments, readonly properties, etc.) where appropriate.
 - PSR-4 autoloading: `App\` → `src/`, `App\Tests\` → `tests/`.
 - Symfony autowiring and autoconfigure are enabled. New services placed in `src/` are registered automatically — no manual service definitions needed unless non-standard wiring is required.
-- Constructor parameters are bound to config values in `config/services.yaml`. If you add a new service that needs a config parameter, add the binding there.
-- `config/parameters.yml` contains secrets (API keys, OAuth credentials). Never commit real values or echo them in output.
-- `var/` contains runtime artifacts (Google OAuth token). It is not committed to version control.
+- Doctrine ORM entities live in `src/Entity/` and are excluded from the service container. Repositories in `src/Repository/` are auto-registered.
+- Sensitive data (API keys, OAuth tokens) is stored encrypted in PostgreSQL via `#[Encrypted]` attribute + `EncryptedFieldListener`. The encryption key is in `APP_ENCRYPTION_KEY` env var — never commit it.
+- `config/parameters.yml` contains legacy CLI config (API keys, OAuth credentials, lists). Once migrated to the database via `app:migrate-config`, the web app reads everything from `Organization` entities. Never commit real values.
+- Sync and refresh operations from the web UI are dispatched via Symfony Messenger (async transport). The worker (`messenger:consume async scheduler_sync`) must be running to process them.
+- Symfony Scheduler reads cron expressions from `SyncList` entities via `SyncScheduleProvider`. The `ScheduleCacheInvalidator` listener clears the scheduler cache when lists change.
+- `var/` contains runtime artifacts and is not committed to version control.

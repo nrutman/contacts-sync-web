@@ -29,29 +29,4 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
-
-    /**
-     * Returns all users who have opted in to notifications for the given result type.
-     *
-     * @param 'success'|'failure'|'no_changes' $resultType
-     *
-     * @return User[]
-     */
-    public function findByNotificationPreference(string $resultType): array
-    {
-        $field = match ($resultType) {
-            'success' => 'u.notifyOnSuccess',
-            'failure' => 'u.notifyOnFailure',
-            'no_changes' => 'u.notifyOnNoChanges',
-            default => throw new \InvalidArgumentException(sprintf('Unknown result type "%s".', $resultType)),
-        };
-
-        return $this->createQueryBuilder('u')
-            ->where($field.' = :enabled')
-            ->andWhere('u.isVerified = :verified')
-            ->setParameter('enabled', true)
-            ->setParameter('verified', true)
-            ->getQuery()
-            ->getResult();
-    }
 }

@@ -2,14 +2,17 @@
 
 namespace App\Controller;
 
+use App\Entity\SyncRun;
+use App\Message\SyncMessage;
 use App\Repository\OrganizationRepository;
 use App\Repository\SyncListRepository;
 use App\Repository\SyncRunRepository;
-use App\Sync\SyncService;
 use Cron\CronExpression as CronExpressionLib;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -19,7 +22,8 @@ class DashboardController extends AbstractController
         private readonly OrganizationRepository $organizationRepository,
         private readonly SyncListRepository $syncListRepository,
         private readonly SyncRunRepository $syncRunRepository,
-        private readonly SyncService $syncService,
+        private readonly MessageBusInterface $messageBus,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -100,42 +104,34 @@ class DashboardController extends AbstractController
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
 
-        $successCount = 0;
-        $failCount = 0;
-
         foreach ($enabledLists as $syncList) {
-            $result = $this->syncService->executeSync(
-                $syncList,
-                triggeredBy: $user,
-                trigger: 'manual',
-            );
+            // Create a pending SyncRun so the UI can display it immediately
+            $syncRun = new SyncRun();
+            $syncRun->setSyncList($syncList);
+            $syncRun->setTriggeredBy('manual');
+            $syncRun->setTriggeredByUser($user);
+            $syncRun->setStatus('pending');
+            $this->entityManager->persist($syncRun);
+            $this->entityManager->flush();
 
-            if ($result->success) {
-                ++$successCount;
-            } else {
-                ++$failCount;
-            }
-        }
-
-        if ($failCount === 0) {
-            $this->addFlash(
-                'success',
-                sprintf(
-                    'All %d sync lists completed successfully.',
-                    $successCount,
-                ),
-            );
-        } else {
-            $this->addFlash(
-                'warning',
-                sprintf(
-                    '%d of %d sync lists completed. %d failed.',
-                    $successCount,
-                    $successCount + $failCount,
-                    $failCount,
+            // Dispatch async message for the worker to process
+            $this->messageBus->dispatch(
+                new SyncMessage(
+                    syncListId: (string) $syncList->getId(),
+                    triggeredByUserId: (string) $user->getId(),
+                    trigger: 'manual',
+                    syncRunId: (string) $syncRun->getId(),
                 ),
             );
         }
+
+        $this->addFlash(
+            'info',
+            sprintf(
+                '%d sync(s) have been queued and will begin processing shortly.',
+                count($enabledLists),
+            ),
+        );
 
         return $this->redirectToRoute('app_dashboard');
     }

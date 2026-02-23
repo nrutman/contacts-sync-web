@@ -11,7 +11,6 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: InMemoryContactRepository::class)]
-#[ORM\HasLifecycleCallbacks]
 class InMemoryContact
 {
     #[ORM\Id]
