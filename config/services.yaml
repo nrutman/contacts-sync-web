@@ -12,6 +12,7 @@ services:
         autowire: true
         autoconfigure: true
         bind:
+            $encryptionKey: "%env(APP_ENCRYPTION_KEY)%"
             $googleConfiguration: "%google.authentication%"
             $googleDomain: "%google.domain%"
             $inMemoryContacts: "%contacts%"

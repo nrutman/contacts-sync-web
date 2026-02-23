@@ -35,3 +35,8 @@
 ###> symfony/runtime ###
 /.env.local
 ###< symfony/runtime ###
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
