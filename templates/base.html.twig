@@ -1,17 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" class="h-full bg-gray-50">
     <head>
         <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
-
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Contacts Sync{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>🔄</text></svg>">
+        {% block stylesheets %}{% endblock %}
         {% block javascripts %}
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </head>
-    <body>
-        {% block body %}{% endblock %}
+    <body class="h-full" data-controller="mobile-menu">
+        <div class="min-h-full">
+            {# Mobile menu overlay #}
+            <div class="relative z-50 lg:hidden hidden" data-mobile-menu-target="overlay">
+                <div class="fixed inset-0 bg-gray-900/80" data-action="click->mobile-menu#close"></div>
+                <div class="fixed inset-0 flex">
+                    <div class="relative mr-16 flex w-full max-w-xs flex-1">
+                        <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
+                            <button type="button" class="-m-2.5 p-2.5" data-action="click->mobile-menu#close">
+                                <span class="sr-only">Close sidebar</span>
+                                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        {# Mobile sidebar #}
+                        <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-600 px-6 pb-4">
+                            <div class="flex h-16 shrink-0 items-center">
+                                <span class="text-xl font-bold text-white">🔄 Contacts Sync</span>
+                            </div>
+                            <nav class="flex flex-1 flex-col">
+                                <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                                    <li>
+                                        <ul role="list" class="-mx-2 space-y-1">
+                                            {{ _self.nav_item('Dashboard', 'app_dashboard', _self.icon_dashboard()) }}
+                                            {{ _self.nav_item('Sync Lists', 'app_sync_list_index', _self.icon_lists()) }}
+                                            {{ _self.nav_item('In-Memory Contacts', 'app_contact_index', _self.icon_contacts()) }}
+                                            {{ _self.nav_item('Sync History', 'app_history_index', _self.icon_history()) }}
+                                            {% if is_granted('ROLE_ADMIN') %}
+                                                {{ _self.nav_item('Settings', 'app_settings', _self.icon_settings()) }}
+                                                {{ _self.nav_item('Users', 'app_user_index', _self.icon_users()) }}
+                                            {% endif %}
+                                        </ul>
+                                    </li>
+                                    <li class="mt-auto">
+                                        <a href="{{ path('app_logout') }}" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-indigo-200 hover:bg-indigo-700 hover:text-white">
+                                            {{ _self.icon_logout() }}
+                                            Log out
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Desktop sidebar #}
+            <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
+                <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-600 px-6 pb-4">
+                    <div class="flex h-16 shrink-0 items-center">
+                        <span class="text-xl font-bold text-white">🔄 Contacts Sync</span>
+                    </div>
+                    <nav class="flex flex-1 flex-col">
+                        <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                            <li>
+                                <ul role="list" class="-mx-2 space-y-1">
+                                    {{ _self.nav_item('Dashboard', 'app_dashboard', _self.icon_dashboard()) }}
+                                    {{ _self.nav_item('Sync Lists', 'app_sync_list_index', _self.icon_lists()) }}
+                                    {{ _self.nav_item('In-Memory Contacts', 'app_contact_index', _self.icon_contacts()) }}
+                                    {{ _self.nav_item('Sync History', 'app_history_index', _self.icon_history()) }}
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        {{ _self.nav_item('Settings', 'app_settings', _self.icon_settings()) }}
+                                        {{ _self.nav_item('Users', 'app_user_index', _self.icon_users()) }}
+                                    {% endif %}
+                                </ul>
+                            </li>
+                            <li class="mt-auto">
+                                <div class="mb-2 border-t border-indigo-500 pt-3">
+                                    <p class="truncate text-xs text-indigo-200">{{ app.user.fullName }}</p>
+                                    <p class="truncate text-xs text-indigo-300">{{ app.user.email }}</p>
+                                </div>
+                                <a href="{{ path('app_logout') }}" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-indigo-200 hover:bg-indigo-700 hover:text-white">
+                                    {{ _self.icon_logout() }}
+                                    Log out
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            {# Main content area #}
+            <div class="lg:pl-64">
+                {# Top bar with mobile hamburger #}
+                <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+                    <button type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden" data-action="click->mobile-menu#open">
+                        <span class="sr-only">Open sidebar</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+
+                    <div class="h-6 w-px bg-gray-200 lg:hidden"></div>
+
+                    <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+                        <div class="flex flex-1 items-center">
+                            <h1 class="text-lg font-semibold text-gray-900 lg:hidden">Contacts Sync</h1>
+                        </div>
+                        <div class="flex items-center gap-x-4 lg:gap-x-6">
+                            <span class="hidden sm:flex sm:items-center">
+                                <span class="text-sm text-gray-700">{{ app.user.fullName }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <main class="py-8">
+                    <div class="px-4 sm:px-6 lg:px-8">
+                        {# Flash messages #}
+                        {% for type in ['success', 'info', 'warning', 'danger'] %}
+                            {% for message in app.flashes(type) %}
+                                <div class="mb-4 rounded-md p-4 {{ _self.flash_classes(type) }}" data-controller="flash" data-flash-target="container">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0">
+                                            {{ _self.flash_icon(type) }}
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-medium">{{ message }}</p>
+                                        </div>
+                                        <div class="ml-auto pl-3">
+                                            <div class="-mx-1.5 -my-1.5">
+                                                <button type="button" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 {{ _self.flash_dismiss_classes(type) }}" data-action="click->flash#dismiss">
+                                                    <span class="sr-only">Dismiss</span>
+                                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+
+                        {% block body %}{% endblock %}
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        {# --- Twig macros for navigation and flash messages --- #}
+
+        {% macro nav_item(label, route, icon) %}
+            {% set current = app.request.attributes.get('_route') starts with route %}
+            <li>
+                <a href="{{ path(route) }}"
+                   class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold {{ current ? 'bg-indigo-700 text-white' : 'text-indigo-200 hover:bg-indigo-700 hover:text-white' }}">
+                    {{ icon|raw }}
+                    {{ label }}
+                </a>
+            </li>
+        {% endmacro %}
+
+        {% macro flash_classes(type) %}
+            {%- if type == 'success' -%}bg-green-50 border border-green-200
+            {%- elseif type == 'info' -%}bg-blue-50 border border-blue-200
+            {%- elseif type == 'warning' -%}bg-yellow-50 border border-yellow-200
+            {%- elseif type == 'danger' -%}bg-red-50 border border-red-200
+            {%- endif -%}
+        {% endmacro %}
+
+        {% macro flash_dismiss_classes(type) %}
+            {%- if type == 'success' -%}bg-green-50 text-green-500 hover:bg-green-100 focus:ring-green-600 focus:ring-offset-green-50
+            {%- elseif type == 'info' -%}bg-blue-50 text-blue-500 hover:bg-blue-100 focus:ring-blue-600 focus:ring-offset-blue-50
+            {%- elseif type == 'warning' -%}bg-yellow-50 text-yellow-500 hover:bg-yellow-100 focus:ring-yellow-600 focus:ring-offset-yellow-50
+            {%- elseif type == 'danger' -%}bg-red-50 text-red-500 hover:bg-red-100 focus:ring-red-600 focus:ring-offset-red-50
+            {%- endif -%}
+        {% endmacro %}
+
+        {% macro flash_icon(type) %}
+            {% if type == 'success' %}
+                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+            {% elseif type == 'info' %}
+                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" /></svg>
+            {% elseif type == 'warning' %}
+                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+            {% elseif type == 'danger' %}
+                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" /></svg>
+            {% endif %}
+        {% endmacro %}
+
+        {% macro icon_dashboard() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>{% endmacro %}
+        {% macro icon_lists() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>{% endmacro %}
+        {% macro icon_contacts() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>{% endmacro %}
+        {% macro icon_history() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{% endmacro %}
+        {% macro icon_settings() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{% endmacro %}
+        {% macro icon_users() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>{% endmacro %}
+        {% macro icon_logout() %}<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>{% endmacro %}
     </body>
 </html>

@@ -2,11 +2,12 @@
 
 namespace App\Entity;
 
+use App\Repository\SyncRunRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: SyncRunRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class SyncRun
 {
@@ -224,6 +225,7 @@ class SyncRun
             return null;
         }
 
-        return (float) $this->completedAt->format('U.u') - (float) $this->startedAt->format('U.u');
+        return (float) $this->completedAt->format('U.u') -
+            (float) $this->startedAt->format('U.u');
     }
 }

@@ -3,13 +3,14 @@
 namespace App\Entity;
 
 use App\Attribute\Encrypted;
+use App\Repository\OrganizationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: OrganizationRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Organization
 {
@@ -48,13 +49,23 @@ class Organization
     /**
      * @var Collection<int, SyncList>
      */
-    #[ORM\OneToMany(targetEntity: SyncList::class, mappedBy: 'organization', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(
+        targetEntity: SyncList::class,
+        mappedBy: 'organization',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true,
+    ),]
     private Collection $syncLists;
 
     /**
      * @var Collection<int, InMemoryContact>
      */
-    #[ORM\OneToMany(targetEntity: InMemoryContact::class, mappedBy: 'organization', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(
+        targetEntity: InMemoryContact::class,
+        mappedBy: 'organization',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true,
+    ),]
     private Collection $inMemoryContacts;
 
     public function __construct()
@@ -100,8 +111,9 @@ class Organization
         return $this->planningCenterAppSecret;
     }
 
-    public function setPlanningCenterAppSecret(string $planningCenterAppSecret): static
-    {
+    public function setPlanningCenterAppSecret(
+        string $planningCenterAppSecret,
+    ): static {
         $this->planningCenterAppSecret = $planningCenterAppSecret;
 
         return $this;
@@ -112,8 +124,9 @@ class Organization
         return $this->googleOAuthCredentials;
     }
 
-    public function setGoogleOAuthCredentials(string $googleOAuthCredentials): static
-    {
+    public function setGoogleOAuthCredentials(
+        string $googleOAuthCredentials,
+    ): static {
         $this->googleOAuthCredentials = $googleOAuthCredentials;
 
         return $this;
@@ -202,8 +215,9 @@ class Organization
         return $this;
     }
 
-    public function removeInMemoryContact(InMemoryContact $inMemoryContact): static
-    {
+    public function removeInMemoryContact(
+        InMemoryContact $inMemoryContact,
+    ): static {
         $this->inMemoryContacts->removeElement($inMemoryContact);
 
         return $this;

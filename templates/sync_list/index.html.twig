@@ -1,0 +1,151 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sync Lists — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Sync Lists</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage the Google Groups that contacts are synced to.</p>
+    </div>
+    {% if is_granted('ROLE_ADMIN') %}
+        <div class="mt-4 sm:mt-0">
+            <a href="{{ path('app_sync_list_new') }}"
+               class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+                </svg>
+                New Sync List
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% if sync_lists|length > 0 %}
+    <div class="overflow-hidden bg-white shadow ring-1 ring-black/5 sm:rounded-lg">
+        <table class="min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Schedule</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Contacts</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Last Sync</th>
+                    <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                {% for list in sync_lists %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            <a href="{{ path('app_sync_list_history', { id: list.id }) }}" class="text-indigo-600 hover:text-indigo-900">
+                                {{ list.name }}
+                            </a>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                            {% if list.isEnabled %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                    <svg class="-ml-0.5 mr-1 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>
+                                    Enabled
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                                    <svg class="-ml-0.5 mr-1 h-2 w-2 text-gray-400" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>
+                                    Disabled
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {% if list.cronExpression %}
+                                <code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">{{ list.cronExpression }}</code>
+                            {% else %}
+                                <span class="text-gray-400">Manual only</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {{ list.inMemoryContacts|length }} in-memory
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {% if list.syncRuns|length > 0 %}
+                                {% set lastRun = list.syncRuns|first %}
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                                    {% if lastRun.status == 'success' %}bg-green-100 text-green-800
+                                    {% elseif lastRun.status == 'failed' %}bg-red-100 text-red-800
+                                    {% elseif lastRun.status == 'running' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ lastRun.status|capitalize }}
+                                </span>
+                                <span class="ml-1 text-xs text-gray-400" title="{{ lastRun.createdAt|date('Y-m-d H:i:s T') }}">
+                                    {{ lastRun.createdAt|date('M j, g:ia') }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-400">Never</span>
+                            {% endif %}
+                        </td>
+                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                            <div class="flex items-center justify-end gap-x-3">
+                                <a href="{{ path('app_sync_list_history', { id: list.id }) }}" class="text-gray-600 hover:text-gray-900" title="History">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </a>
+                                {% if is_granted('ROLE_ADMIN') %}
+                                    <form action="{{ path('app_sync_list_toggle', { id: list.id }) }}" method="post" class="inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('toggle-sync-list-' ~ list.id) }}">
+                                        <button type="submit" class="text-gray-600 hover:text-gray-900" title="{{ list.isEnabled ? 'Disable' : 'Enable' }}">
+                                            {% if list.isEnabled %}
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9v6m-4.5 0V9M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            {% else %}
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                                                </svg>
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    <a href="{{ path('app_sync_list_edit', { id: list.id }) }}" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                        </svg>
+                                    </a>
+                                    <form action="{{ path('app_sync_list_delete', { id: list.id }) }}" method="post" class="inline"
+                                          data-controller="confirm"
+                                          data-confirm-message-value="Are you sure you want to delete the sync list &quot;{{ list.name }}&quot;? This will also delete all associated sync history.">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-sync-list-' ~ list.id) }}">
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-semibold text-gray-900">No sync lists</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by creating your first sync list.</p>
+        {% if is_granted('ROLE_ADMIN') %}
+            <div class="mt-6">
+                <a href="{{ path('app_sync_list_new') }}"
+                   class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                    <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+                    </svg>
+                    New Sync List
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

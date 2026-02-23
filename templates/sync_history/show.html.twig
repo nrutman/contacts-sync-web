@@ -1,0 +1,246 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sync Run Detail — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <nav class="flex" aria-label="Breadcrumb">
+        <ol role="list" class="flex items-center space-x-4">
+            <li>
+                <a href="{{ path('app_history_index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">Sync History</a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="h-5 w-5 flex-shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="ml-4 text-sm font-medium text-gray-900">Run Detail</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+    <div class="mt-4 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Sync Run Detail</h1>
+            <p class="mt-1 text-sm text-gray-500">
+                {{ sync_run.syncList.name }} — {{ sync_run.createdAt|date('M j, Y g:ia') }}
+            </p>
+        </div>
+        <div class="mt-4 sm:mt-0 flex gap-x-3">
+            <a href="{{ path('app_sync_list_history', { id: sync_run.syncList.id }) }}"
+               class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors">
+                <svg class="-ml-0.5 mr-1.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                List History
+            </a>
+        </div>
+    </div>
+</div>
+
+{# Status and metadata cards #}
+<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    {# Status #}
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-5">
+            <dt class="truncate text-sm font-medium text-gray-500">Status</dt>
+            <dd class="mt-1">
+                <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium
+                    {% if sync_run.status == 'success' %}bg-green-100 text-green-800
+                    {% elseif sync_run.status == 'failed' %}bg-red-100 text-red-800
+                    {% elseif sync_run.status == 'running' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {% if sync_run.status == 'success' %}
+                        <svg class="-ml-0.5 mr-1.5 h-4 w-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                        </svg>
+                    {% elseif sync_run.status == 'failed' %}
+                        <svg class="-ml-0.5 mr-1.5 h-4 w-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                        </svg>
+                    {% elseif sync_run.status == 'running' %}
+                        <svg class="-ml-0.5 mr-1.5 h-4 w-4 text-yellow-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    {% endif %}
+                    {{ sync_run.status|capitalize }}
+                </span>
+            </dd>
+        </div>
+    </div>
+
+    {# Trigger #}
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-5">
+            <dt class="truncate text-sm font-medium text-gray-500">Triggered By</dt>
+            <dd class="mt-1">
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                    {% if sync_run.triggeredBy == 'manual' %}bg-blue-100 text-blue-700
+                    {% elseif sync_run.triggeredBy == 'schedule' %}bg-purple-100 text-purple-700
+                    {% elseif sync_run.triggeredBy == 'cli' %}bg-gray-100 text-gray-700
+                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                    {{ sync_run.triggeredBy|capitalize }}
+                </span>
+                {% if sync_run.triggeredByUser %}
+                    <span class="ml-1 text-sm text-gray-600">{{ sync_run.triggeredByUser.fullName }}</span>
+                {% endif %}
+            </dd>
+        </div>
+    </div>
+
+    {# Changes #}
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-5">
+            <dt class="truncate text-sm font-medium text-gray-500">Changes</dt>
+            <dd class="mt-1 text-lg font-semibold">
+                {% if sync_run.addedCount is not null or sync_run.removedCount is not null %}
+                    <span class="text-green-600">+{{ sync_run.addedCount ?? 0 }}</span>
+                    <span class="text-gray-400 mx-1">/</span>
+                    <span class="text-red-600">-{{ sync_run.removedCount ?? 0 }}</span>
+                {% else %}
+                    <span class="text-sm font-normal text-gray-500">—</span>
+                {% endif %}
+            </dd>
+        </div>
+    </div>
+
+    {# Duration #}
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-5 sm:p-5">
+            <dt class="truncate text-sm font-medium text-gray-500">Duration</dt>
+            <dd class="mt-1 text-lg font-semibold text-gray-900">
+                {% if sync_run.durationSeconds is not null %}
+                    {{ sync_run.durationSeconds|number_format(2) }}s
+                {% else %}
+                    <span class="text-sm font-normal text-gray-500">—</span>
+                {% endif %}
+            </dd>
+        </div>
+    </div>
+</div>
+
+{# Detailed Info #}
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-8">
+    <div class="lg:col-span-1">
+        <div class="bg-white shadow sm:rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-base font-semibold text-gray-900 mb-4">Details</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Sync List</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            <a href="{{ path('app_sync_list_history', { id: sync_run.syncList.id }) }}" class="text-indigo-600 hover:text-indigo-900">
+                                {{ sync_run.syncList.name }}
+                            </a>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Created</dt>
+                        <dd class="mt-1 text-sm text-gray-900" title="{{ sync_run.createdAt|date('Y-m-d H:i:s T') }}">
+                            {{ sync_run.createdAt|date('M j, Y g:i:sa T') }}
+                        </dd>
+                    </div>
+                    {% if sync_run.startedAt %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Started</dt>
+                            <dd class="mt-1 text-sm text-gray-900" title="{{ sync_run.startedAt|date('Y-m-d H:i:s T') }}">
+                                {{ sync_run.startedAt|date('M j, Y g:i:sa T') }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.completedAt %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Completed</dt>
+                            <dd class="mt-1 text-sm text-gray-900" title="{{ sync_run.completedAt|date('Y-m-d H:i:s T') }}">
+                                {{ sync_run.completedAt|date('M j, Y g:i:sa T') }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.sourceCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Source Contacts</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ sync_run.sourceCount }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.destinationCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Destination Contacts</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ sync_run.destinationCount }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.addedCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Contacts Added</dt>
+                            <dd class="mt-1 text-sm font-medium {{ sync_run.addedCount > 0 ? 'text-green-600' : 'text-gray-900' }}">
+                                {{ sync_run.addedCount }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.removedCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Contacts Removed</dt>
+                            <dd class="mt-1 text-sm font-medium {{ sync_run.removedCount > 0 ? 'text-red-600' : 'text-gray-900' }}">
+                                {{ sync_run.removedCount }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2">
+        {# Error Message #}
+        {% if sync_run.errorMessage %}
+            <div class="mb-6 rounded-md bg-red-50 border border-red-200 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Error</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>{{ sync_run.errorMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {# Log Output #}
+        <div class="bg-white shadow sm:rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-base font-semibold text-gray-900">Log Output</h3>
+                </div>
+                {% if sync_run.log %}
+                    <div class="rounded-md bg-gray-900 p-4 overflow-x-auto">
+                        <pre class="text-sm text-gray-100 font-mono whitespace-pre-wrap break-words leading-relaxed">{{ sync_run.log }}</pre>
+                    </div>
+                {% else %}
+                    <div class="rounded-lg border-2 border-dashed border-gray-200 p-8 text-center">
+                        <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        <p class="mt-2 text-sm text-gray-500">No log output available for this sync run.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Back navigation #}
+<div class="flex items-center gap-x-4">
+    <a href="{{ path('app_history_index') }}"
+       class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700">
+        <svg class="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Sync History
+    </a>
+</div>
+{% endblock %}

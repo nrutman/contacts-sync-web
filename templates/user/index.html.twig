@@ -1,0 +1,134 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Users</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage who has access to Contacts Sync.</p>
+    </div>
+    <div class="mt-4 sm:mt-0">
+        <a href="{{ path('app_user_new') }}"
+           class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+            <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+            </svg>
+            Invite User
+        </a>
+    </div>
+</div>
+
+{% if users|length > 0 %}
+    <div class="overflow-hidden bg-white shadow ring-1 ring-black/5 sm:rounded-lg">
+        <table class="min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Role</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Joined</th>
+                    <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                {% for user in users %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            <div class="flex items-center gap-x-3">
+                                <div class="flex-shrink-0 h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                                    <span class="text-xs font-medium text-indigo-700">{{ user.firstName|first|upper }}{{ user.lastName|first|upper }}</span>
+                                </div>
+                                <span>{{ user.fullName }}</span>
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {{ user.email }}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                            {% if 'ROLE_ADMIN' in user.roles %}
+                                <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
+                                    Admin
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                                    User
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                            {% if user.isVerified %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                    <svg class="-ml-0.5 mr-1 h-3 w-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                                    </svg>
+                                    Active
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                                    <svg class="-ml-0.5 mr-1 h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+                                    </svg>
+                                    Pending Invitation
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500" title="{{ user.createdAt|date('Y-m-d H:i:s T') }}">
+                            {{ user.createdAt|date('M j, Y') }}
+                        </td>
+                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                            <div class="flex items-center justify-end gap-x-3">
+                                {% if not user.isVerified %}
+                                    <form action="{{ path('app_user_resend_invitation', { id: user.id }) }}" method="post" class="inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('resend-invitation-' ~ user.id) }}">
+                                        <button type="submit" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium" title="Resend invitation email">
+                                            Resend Invite
+                                        </button>
+                                    </form>
+                                    <span class="text-gray-300">|</span>
+                                {% endif %}
+                                <a href="{{ path('app_user_edit', { id: user.id }) }}" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                    </svg>
+                                </a>
+                                {% if app.user.id != user.id %}
+                                    <form action="{{ path('app_user_delete', { id: user.id }) }}" method="post" class="inline"
+                                          data-controller="confirm"
+                                          data-confirm-message-value="Are you sure you want to delete the user &quot;{{ user.fullName }}&quot;? This action cannot be undone.">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-user-' ~ user.id) }}">
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-semibold text-gray-900">No users</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by inviting your first user.</p>
+        <div class="mt-6">
+            <a href="{{ path('app_user_new') }}"
+               class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+                </svg>
+                Invite User
+            </a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

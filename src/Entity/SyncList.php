@@ -2,13 +2,14 @@
 
 namespace App\Entity;
 
+use App\Repository\SyncListRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: SyncListRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class SyncList
 {
@@ -38,14 +39,22 @@ class SyncList
     /**
      * @var Collection<int, SyncRun>
      */
-    #[ORM\OneToMany(targetEntity: SyncRun::class, mappedBy: 'syncList', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(
+        targetEntity: SyncRun::class,
+        mappedBy: 'syncList',
+        cascade: ['remove'],
+        orphanRemoval: true,
+    ),]
     #[ORM\OrderBy(['createdAt' => 'DESC'])]
     private Collection $syncRuns;
 
     /**
      * @var Collection<int, InMemoryContact>
      */
-    #[ORM\ManyToMany(targetEntity: InMemoryContact::class, mappedBy: 'syncLists')]
+    #[ORM\ManyToMany(
+        targetEntity: InMemoryContact::class,
+        mappedBy: 'syncLists',
+    ),]
     private Collection $inMemoryContacts;
 
     public function __construct()
@@ -169,8 +178,9 @@ class SyncList
         return $this;
     }
 
-    public function removeInMemoryContact(InMemoryContact $inMemoryContact): static
-    {
+    public function removeInMemoryContact(
+        InMemoryContact $inMemoryContact,
+    ): static {
         if ($this->inMemoryContacts->removeElement($inMemoryContact)) {
             $inMemoryContact->removeSyncList($this);
         }
