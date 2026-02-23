@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Client;
+
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
+
+class WebClientFactory implements WebClientFactoryInterface
+{
+    /**
+     * @param array $defaultConfiguration default configuration for creating Guzzle clients
+     */
+    public function __construct(protected array $defaultConfiguration = [])
+    {
+    }
+
+    /**
+     * Creates a new web client.
+     *
+     * @param array $guzzleConfiguration Configuration for the Guzzle Client
+     *
+     * @return ClientInterface The instantiated Guzzle Client
+     */
+    public function create(array $guzzleConfiguration = []): ClientInterface
+    {
+        return new Client(
+            array_merge($guzzleConfiguration, $this->defaultConfiguration),
+        );
+    }
+}
