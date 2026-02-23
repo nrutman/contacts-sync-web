@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: InMemoryContactRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -25,9 +26,16 @@ class InMemoryContact
     private Organization $organization;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Contact name must not be blank.')]
+    #[Assert\Length(max: 255)]
     private string $name;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Contact email must not be blank.')]
+    #[Assert\Email(
+        message: 'The email "{{ value }}" is not a valid email address.',
+    ),]
+    #[Assert\Length(max: 255)]
     private string $email;
 
     #[ORM\Column]

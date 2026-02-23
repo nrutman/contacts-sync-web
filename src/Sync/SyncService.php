@@ -15,6 +15,8 @@ use App\Entity\User;
 use App\Event\SyncCompletedEvent;
 use App\Repository\InMemoryContactRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class SyncService
@@ -25,6 +27,8 @@ class SyncService
         private readonly InMemoryContactRepository $inMemoryContactRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly EventDispatcherInterface $eventDispatcher,
+        #[Autowire(service: 'monolog.logger.sync'),]
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -33,19 +37,34 @@ class SyncService
         bool $dryRun = false,
         ?User $triggeredBy = null,
         string $trigger = 'manual',
+        ?SyncRun $existingSyncRun = null,
     ): SyncResult {
         $organization = $syncList->getOrganization();
         $listName = $syncList->getName();
         $log = '';
 
-        // Create and persist a SyncRun record
-        $syncRun = new SyncRun();
-        $syncRun->setSyncList($syncList);
-        $syncRun->setTriggeredBy($trigger);
-        $syncRun->setTriggeredByUser($triggeredBy);
+        $this->logger->info('Starting sync for list "{list}".', [
+            'list' => $listName,
+            'sync_list_id' => (string) $syncList->getId(),
+            'trigger' => $trigger,
+            'dry_run' => $dryRun,
+            'triggered_by' => $triggeredBy?->getEmail(),
+        ]);
+
+        // Use an existing SyncRun (e.g. pre-created as 'pending' by the controller)
+        // or create a new one
+        if ($existingSyncRun !== null) {
+            $syncRun = $existingSyncRun;
+        } else {
+            $syncRun = new SyncRun();
+            $syncRun->setSyncList($syncList);
+            $syncRun->setTriggeredBy($trigger);
+            $syncRun->setTriggeredByUser($triggeredBy);
+            $this->entityManager->persist($syncRun);
+        }
+
         $syncRun->setStatus('running');
         $syncRun->setStartedAt(new \DateTimeImmutable());
-        $this->entityManager->persist($syncRun);
         $this->entityManager->flush();
 
         try {
@@ -162,6 +181,20 @@ class SyncService
             $syncRun->setCompletedAt(new \DateTimeImmutable());
             $this->entityManager->flush();
 
+            $this->logger->info(
+                'Sync completed for list "{list}": +{added} added, -{removed} removed.',
+                [
+                    'list' => $listName,
+                    'sync_list_id' => (string) $syncList->getId(),
+                    'sync_run_id' => (string) $syncRun->getId(),
+                    'source_count' => $result->sourceCount,
+                    'destination_count' => $result->destinationCount,
+                    'added' => $result->addedCount,
+                    'removed' => $result->removedCount,
+                    'dry_run' => $dryRun,
+                ],
+            );
+
             $this->eventDispatcher->dispatch(new SyncCompletedEvent($syncRun));
 
             return $result;
@@ -183,6 +216,14 @@ class SyncService
             $syncRun->setErrorMessage($result->errorMessage);
             $syncRun->setCompletedAt(new \DateTimeImmutable());
             $this->entityManager->flush();
+
+            $this->logger->error('Sync failed for list "{list}": {error}', [
+                'list' => $listName,
+                'sync_list_id' => (string) $syncList->getId(),
+                'sync_run_id' => (string) $syncRun->getId(),
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
 
             $this->eventDispatcher->dispatch(new SyncCompletedEvent($syncRun));
 

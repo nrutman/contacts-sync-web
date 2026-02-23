@@ -1,0 +1,15 @@
+framework:
+    rate_limiter:
+        # Prevent brute-force login attempts: 5 per minute per IP
+        login:
+            policy: sliding_window
+            limit: 5
+            interval: '1 minute'
+            lock_factory: null
+
+        # Prevent sync abuse: 1 sync per list per minute
+        sync_trigger:
+            policy: sliding_window
+            limit: 1
+            interval: '1 minute'
+            lock_factory: null

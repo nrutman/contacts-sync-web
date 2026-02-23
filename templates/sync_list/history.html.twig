@@ -133,7 +133,13 @@
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white">
                 {% for run in sync_runs %}
-                    <tr class="hover:bg-gray-50">
+                    {% set is_in_progress = run.status in ['pending', 'running'] %}
+                    <tr class="hover:bg-gray-50"
+                        {% if is_in_progress %}
+                            data-controller="sync-status"
+                            data-sync-status-url-value="{{ path('api_sync_run_status', { id: run.id }) }}"
+                            data-sync-status-interval-value="2000"
+                        {% endif %}>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6" title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
                             {{ run.createdAt|date('M j, Y g:ia') }}
                         </td>
@@ -149,22 +155,25 @@
                                 <span class="ml-1 text-xs text-gray-400">by {{ run.triggeredByUser.fullName }}</span>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm" {% if is_in_progress %}data-sync-status-target="status"{% endif %}>
                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                                 {% if run.status == 'success' %}bg-green-100 text-green-800
                                 {% elseif run.status == 'failed' %}bg-red-100 text-red-800
                                 {% elseif run.status == 'running' %}bg-yellow-100 text-yellow-800
                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
                                 {{ run.status|capitalize }}
+                                {% if is_in_progress %}
+                                    <svg class="ml-1 h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                {% endif %}
                             </span>
                         </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500" {% if is_in_progress %}data-sync-status-target="source"{% endif %}>
                             {{ run.sourceCount ?? '—' }}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500" {% if is_in_progress %}data-sync-status-target="destination"{% endif %}>
                             {{ run.destinationCount ?? '—' }}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm" {% if is_in_progress %}data-sync-status-target="added"{% endif %}>
                             {% if run.addedCount is not null %}
                                 <span class="{% if run.addedCount > 0 %}text-green-600 font-medium{% else %}text-gray-500{% endif %}">
                                     +{{ run.addedCount }}
@@ -173,7 +182,7 @@
                                 <span class="text-gray-400">—</span>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm" {% if is_in_progress %}data-sync-status-target="removed"{% endif %}>
                             {% if run.removedCount is not null %}
                                 <span class="{% if run.removedCount > 0 %}text-red-600 font-medium{% else %}text-gray-500{% endif %}">
                                     -{{ run.removedCount }}
@@ -182,7 +191,7 @@
                                 <span class="text-gray-400">—</span>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500" {% if is_in_progress %}data-sync-status-target="duration"{% endif %}>
                             {% if run.durationSeconds is not null %}
                                 {{ run.durationSeconds|number_format(1) }}s
                             {% else %}

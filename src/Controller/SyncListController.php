@@ -3,15 +3,18 @@
 namespace App\Controller;
 
 use App\Entity\SyncList;
+use App\Entity\SyncRun;
 use App\Form\SyncListType;
+use App\Message\SyncMessage;
 use App\Repository\OrganizationRepository;
 use App\Repository\SyncListRepository;
 use App\Repository\SyncRunRepository;
-use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -23,7 +26,8 @@ class SyncListController extends AbstractController
         private readonly SyncListRepository $syncListRepository,
         private readonly SyncRunRepository $syncRunRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly SyncService $syncService,
+        private readonly MessageBusInterface $messageBus,
+        private readonly RateLimiterFactory $syncTriggerLimiter,
     ) {
     }
 
@@ -208,40 +212,60 @@ class SyncListController extends AbstractController
             ]);
         }
 
+        // Rate-limit: 1 sync per list per minute
+        $limiter = $this->syncTriggerLimiter->create(
+            (string) $syncList->getId(),
+        );
+        $limit = $limiter->consume();
+
+        if (!$limit->isAccepted()) {
+            $this->addFlash(
+                'warning',
+                sprintf(
+                    'Please wait before syncing "%s" again. Try again in a moment.',
+                    $syncList->getName(),
+                ),
+            );
+
+            return $this->redirectToRoute('app_sync_list_history', [
+                'id' => $syncList->getId(),
+            ]);
+        }
+
         $dryRun = $request->query->getBoolean('dry_run', false);
 
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
 
-        $result = $this->syncService->executeSync(
-            $syncList,
-            dryRun: $dryRun,
-            triggeredBy: $user,
-            trigger: 'manual',
+        // Create a pending SyncRun so the UI can display it immediately
+        $syncRun = new SyncRun();
+        $syncRun->setSyncList($syncList);
+        $syncRun->setTriggeredBy('manual');
+        $syncRun->setTriggeredByUser($user);
+        $syncRun->setStatus('pending');
+        $this->entityManager->persist($syncRun);
+        $this->entityManager->flush();
+
+        // Dispatch async message for the worker to process
+        $this->messageBus->dispatch(
+            new SyncMessage(
+                syncListId: (string) $syncList->getId(),
+                dryRun: $dryRun,
+                triggeredByUserId: (string) $user->getId(),
+                trigger: 'manual',
+                syncRunId: (string) $syncRun->getId(),
+            ),
         );
 
-        if ($result->success) {
-            $label = $dryRun ? 'Dry run' : 'Sync';
-            $this->addFlash(
-                'success',
-                sprintf(
-                    '%s completed for "%s": +%d added, -%d removed.',
-                    $label,
-                    $syncList->getName(),
-                    $result->addedCount,
-                    $result->removedCount,
-                ),
-            );
-        } else {
-            $this->addFlash(
-                'danger',
-                sprintf(
-                    'Sync failed for "%s": %s',
-                    $syncList->getName(),
-                    $result->errorMessage ?? 'Unknown error',
-                ),
-            );
-        }
+        $label = $dryRun ? 'Dry run' : 'Sync';
+        $this->addFlash(
+            'info',
+            sprintf(
+                '%s has been queued for "%s". It will begin processing shortly.',
+                $label,
+                $syncList->getName(),
+            ),
+        );
 
         return $this->redirectToRoute('app_sync_list_history', [
             'id' => $syncList->getId(),

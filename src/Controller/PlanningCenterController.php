@@ -2,53 +2,65 @@
 
 namespace App\Controller;
 
-use App\Client\PlanningCenter\PlanningCenterClientFactory;
 use App\Entity\SyncList;
-use App\Repository\OrganizationRepository;
+use App\Message\RefreshListMessage;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class PlanningCenterController extends AbstractController
 {
     public function __construct(
-        private readonly PlanningCenterClientFactory $planningCenterClientFactory,
-        private readonly OrganizationRepository $organizationRepository,
+        private readonly MessageBusInterface $messageBus,
     ) {
     }
 
-    #[Route('/lists/{id}/refresh', name: 'app_sync_list_refresh', methods: ['POST'])]
+    #[Route(
+        '/lists/{id}/refresh',
+        name: 'app_sync_list_refresh',
+        methods: ['POST'],
+    ),]
     #[IsGranted('ROLE_USER')]
     public function refresh(Request $request, SyncList $syncList): Response
     {
         $token = $request->request->get('_token');
 
-        if (!$this->isCsrfTokenValid('refresh-sync-list-'.$syncList->getId(), $token)) {
+        if (
+            !$this->isCsrfTokenValid(
+                'refresh-sync-list-'.$syncList->getId(),
+                $token,
+            )
+        ) {
             $this->addFlash('danger', 'Invalid CSRF token.');
 
-            return $this->redirectToRoute('app_sync_list_history', ['id' => $syncList->getId()]);
+            return $this->redirectToRoute('app_sync_list_history', [
+                'id' => $syncList->getId(),
+            ]);
         }
 
-        $organization = $syncList->getOrganization();
+        /** @var \App\Entity\User $user */
+        $user = $this->getUser();
 
-        try {
-            $planningCenterClient = $this->planningCenterClientFactory->create($organization);
-            $planningCenterClient->refreshList($syncList->getName());
+        $this->messageBus->dispatch(
+            new RefreshListMessage(
+                syncListId: (string) $syncList->getId(),
+                triggeredByUserId: (string) $user->getId(),
+            ),
+        );
 
-            $this->addFlash('success', sprintf(
-                'Planning Center list "%s" has been refreshed.',
+        $this->addFlash(
+            'info',
+            sprintf(
+                'Refresh has been queued for Planning Center list "%s". It will begin processing shortly.',
                 $syncList->getName(),
-            ));
-        } catch (\Throwable $e) {
-            $this->addFlash('danger', sprintf(
-                'Failed to refresh Planning Center list "%s": %s',
-                $syncList->getName(),
-                $e->getMessage(),
-            ));
-        }
+            ),
+        );
 
-        return $this->redirectToRoute('app_sync_list_history', ['id' => $syncList->getId()]);
+        return $this->redirectToRoute('app_sync_list_history', [
+            'id' => $syncList->getId(),
+        ]);
     }
 }

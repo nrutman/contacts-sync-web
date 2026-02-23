@@ -13,6 +13,7 @@ services:
         autoconfigure: true
         bind:
             $encryptionKey: "%env(APP_ENCRYPTION_KEY)%"
+            $previousEncryptionKeys: "%env(default::APP_PREVIOUS_ENCRYPTION_KEYS)%"
             $googleConfiguration: "%google.authentication%"
             $googleDomain: "%google.domain%"
             $inMemoryContacts: "%contacts%"

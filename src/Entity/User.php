@@ -8,6 +8,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -19,6 +20,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Uuid $id;
 
     #[ORM\Column(length: 180, unique: true)]
+    #[Assert\NotBlank(message: 'Email must not be blank.')]
+    #[Assert\Email(
+        message: 'The email "{{ value }}" is not a valid email address.',
+    ),]
+    #[Assert\Length(max: 180)]
     private string $email;
 
     #[ORM\Column(nullable: true)]
@@ -34,9 +40,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private array $roles = [];
 
     #[ORM\Column(length: 100)]
+    #[Assert\NotBlank(message: 'First name must not be blank.')]
+    #[Assert\Length(max: 100)]
     private string $firstName;
 
     #[ORM\Column(length: 100)]
+    #[Assert\NotBlank(message: 'Last name must not be blank.')]
+    #[Assert\Length(max: 100)]
     private string $lastName;
 
     #[ORM\Column]

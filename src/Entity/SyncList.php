@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SyncListRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -22,12 +23,16 @@ class SyncList
     private Organization $organization;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'List name must not be blank.')]
+    #[Assert\Length(max: 255)]
     private string $name;
 
     #[ORM\Column]
     private bool $isEnabled = true;
 
     #[ORM\Column(length: 100, nullable: true)]
+    #[Assert\Length(max: 100)]
+    #[\App\Validator\CronExpression]
     private ?string $cronExpression = null;
 
     #[ORM\Column]

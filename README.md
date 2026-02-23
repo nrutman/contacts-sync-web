@@ -100,6 +100,101 @@ bin/console planning-center:refresh all
 |------------|-------------|
 | list-name  | The name of the list to refresh. Pass `all` to refresh all configured lists. |
 
+## 🚀 Production Deployment
+
+### Prerequisites
+
+- PHP 8.5+ with `sodium`, `pdo_pgsql`, and `intl` extensions
+- PostgreSQL 16+
+- A web server (nginx + php-fpm, Caddy, or Apache)
+- SSL/TLS certificate (required for secure cookies and OAuth callbacks)
+- SMTP server or transactional email service for outbound email
+
+### Deployment Checklist
+
+```bash
+# 1. Set environment to production
+#    In .env.local or your hosting environment:
+#    APP_ENV=prod
+#    APP_DEBUG=0
+
+# 2. Install dependencies without dev packages
+composer install --no-dev --optimize-autoloader
+
+# 3. Clear and warm the production cache
+php bin/console cache:clear --env=prod
+
+# 4. Compile frontend assets
+php bin/console asset-map:compile
+php bin/console tailwind:build --minify
+
+# 5. Run database migrations
+php bin/console doctrine:migrations:migrate --no-interaction
+
+# 6. Run the interactive setup wizard (first deploy only)
+#    This configures the database, encryption key, mailer, imports
+#    config from parameters.yml, and creates the first admin user.
+php bin/console app:setup
+
+# 7. Configure MAILER_DSN for outbound email delivery
+#    Example: MAILER_DSN=smtp://user:pass@smtp.example.com:587
+#    Set MAILER_FROM to the sender address (e.g. noreply@your-domain.com)
+
+# 8. Start the Messenger worker (see systemd unit below)
+php bin/console messenger:consume async scheduler_sync --time-limit=3600
+```
+
+### Messenger Worker (systemd)
+
+Create `/etc/systemd/system/contacts-sync-worker.service`:
+
+```ini
+[Unit]
+Description=Contacts Sync Messenger Worker
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/php /path/to/contacts-sync/bin/console messenger:consume async scheduler_sync --time-limit=3600
+Restart=always
+RestartSec=5
+User=www-data
+WorkingDirectory=/path/to/contacts-sync
+Environment=APP_ENV=prod
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start it:
+
+```bash
+sudo systemctl enable contacts-sync-worker
+sudo systemctl start contacts-sync-worker
+```
+
+The `--time-limit=3600` flag restarts the worker every hour to prevent memory leaks. systemd's `Restart=always` brings it back up immediately. The worker processes both manually triggered syncs and scheduled syncs defined via cron expressions on sync lists.
+
+### Encryption Key Management
+
+The `APP_ENCRYPTION_KEY` env var holds the 64-character hex key used to encrypt sensitive data at rest (API keys, OAuth tokens). For production, use Symfony Secrets:
+
+```bash
+php bin/console secrets:set APP_ENCRYPTION_KEY --env=prod
+```
+
+To rotate keys, set the old key as a previous key and generate a new current key:
+
+```bash
+# 1. Move current key to previous keys list
+#    APP_PREVIOUS_ENCRYPTION_KEYS="1:<old-64-char-hex-key>"
+
+# 2. Generate and set a new current key
+#    APP_ENCRYPTION_KEY=<new-64-char-hex-key>
+
+# 3. Re-encrypt all data with the new key
+php bin/console app:rotate-encryption-keys --force
+```
+
 ## 🔧 Troubleshooting
 
 | Problem | Solution |

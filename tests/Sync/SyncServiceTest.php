@@ -19,6 +19,7 @@ use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class SyncServiceTest extends MockeryTestCase
@@ -41,6 +42,9 @@ class SyncServiceTest extends MockeryTestCase
     /** @var EventDispatcherInterface|m\LegacyMockInterface|m\MockInterface */
     private $eventDispatcher;
 
+    /** @var LoggerInterface|m\LegacyMockInterface|m\MockInterface */
+    private $logger;
+
     /** @var GoogleClient|m\LegacyMockInterface|m\MockInterface */
     private $googleClient;
 
@@ -62,6 +66,9 @@ class SyncServiceTest extends MockeryTestCase
         );
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->eventDispatcher = m::mock(EventDispatcherInterface::class);
+        $this->logger = m::mock(LoggerInterface::class);
+        $this->logger->shouldReceive('info')->byDefault();
+        $this->logger->shouldReceive('error')->byDefault();
         $this->googleClient = m::mock(GoogleClient::class);
         $this->planningCenterClient = m::mock(PlanningCenterClient::class);
 
@@ -83,6 +90,7 @@ class SyncServiceTest extends MockeryTestCase
             $this->inMemoryContactRepository,
             $this->entityManager,
             $this->eventDispatcher,
+            $this->logger,
         );
     }
 

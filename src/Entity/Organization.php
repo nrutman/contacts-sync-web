@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: OrganizationRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -19,21 +20,29 @@ class Organization
     private Uuid $id;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Organization name must not be blank.')]
+    #[Assert\Length(max: 255)]
     private string $name;
 
     #[Encrypted]
     #[ORM\Column(type: 'text')]
+    #[Assert\NotBlank(message: 'Planning Center App ID is required.')]
     private string $planningCenterAppId;
 
     #[Encrypted]
     #[ORM\Column(type: 'text')]
+    #[Assert\NotBlank(message: 'Planning Center App Secret is required.')]
     private string $planningCenterAppSecret;
 
     #[Encrypted]
     #[ORM\Column(type: 'text')]
+    #[Assert\NotBlank(message: 'Google OAuth credentials are required.')]
+    #[Assert\Json(message: 'Google OAuth credentials must be valid JSON.')]
     private string $googleOAuthCredentials;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Google domain must not be blank.')]
+    #[Assert\Length(max: 255)]
     private string $googleDomain;
 
     #[Encrypted]
