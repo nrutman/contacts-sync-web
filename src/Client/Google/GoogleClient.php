@@ -24,6 +24,7 @@ class GoogleClient implements
     protected FileProvider $fileProvider;
     protected Directory $service;
     protected string $varPath;
+    private bool $tokenPreSet = false;
 
     /**
      * @param array<string, mixed> $googleConfiguration
@@ -64,11 +65,14 @@ class GoogleClient implements
         $this->client->setPrompt('select_account consent');
         $this->client->setHostedDomain($this->domain);
 
-        // try to load the token from the saved file
-        try {
-            $this->client->setAccessToken($this->getToken());
-        } catch (\InvalidArgumentException $invalidArgumentException) {
-            throw new InvalidGoogleTokenException($invalidArgumentException);
+        // If a token was pre-set via setTokenData(), use it directly;
+        // otherwise fall back to loading from the saved file.
+        if (!$this->tokenPreSet) {
+            try {
+                $this->client->setAccessToken($this->getToken());
+            } catch (\InvalidArgumentException $invalidArgumentException) {
+                throw new InvalidGoogleTokenException($invalidArgumentException);
+            }
         }
 
         if ($this->client->isAccessTokenExpired()) {
@@ -82,6 +86,28 @@ class GoogleClient implements
         }
 
         return $this;
+    }
+
+    /**
+     * Pre-sets the OAuth token data from an external source (e.g. database).
+     * When set, initialize() will skip file-based token loading.
+     *
+     * @param array<string, mixed> $token
+     */
+    public function setTokenData(array $token): void
+    {
+        $this->client->setAccessToken($token);
+        $this->tokenPreSet = true;
+    }
+
+    /**
+     * Returns the current OAuth token data from the underlying Google Client.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getTokenData(): ?array
+    {
+        return $this->client->getAccessToken() ?: null;
     }
 
     public function createAuthUrl(): string

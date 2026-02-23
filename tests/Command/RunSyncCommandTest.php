@@ -2,68 +2,76 @@
 
 namespace App\Tests\Command;
 
-use App\Client\Google\GoogleClient;
-use App\Client\PlanningCenter\PlanningCenterClient;
 use App\Command\RunSyncCommand;
-use App\Contact\Contact;
-use App\Contact\InMemoryContactManager;
+use App\Entity\Organization;
+use App\Entity\SyncList;
+use App\Sync\SyncResult;
+use App\Sync\SyncService;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityRepository;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 use Symfony\Component\Console\Tester\CommandTester;
-use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 
 class RunSyncCommandTest extends MockeryTestCase
 {
     private const LIST_ONE = 'list1@domain.com';
     private const LIST_TWO = 'list2@domain.com';
 
-    /** @var GoogleClient|m\LegacyMockInterface|m\MockInterface */
-    private $googleClient;
+    /** @var SyncService|m\LegacyMockInterface|m\MockInterface */
+    private $syncService;
 
-    /** @var PlanningCenterClient|m\LegacyMockInterface|m\MockInterface */
-    private $planningCenterClient;
+    /** @var EntityManagerInterface|m\LegacyMockInterface|m\MockInterface */
+    private $entityManager;
 
-    /** @var InMemoryContactManager|m\LegacyMockInterface|m\MockInterface */
-    private $inMemoryContactManager;
+    /** @var EntityRepository|m\LegacyMockInterface|m\MockInterface */
+    private $syncListRepository;
 
     public function setUp(): void
     {
-        $this->googleClient = m::mock(GoogleClient::class);
-        $this->planningCenterClient = m::mock(PlanningCenterClient::class);
-        $this->inMemoryContactManager = m::mock(InMemoryContactManager::class);
+        $this->syncService = m::mock(SyncService::class);
+        $this->entityManager = m::mock(EntityManagerInterface::class);
+        $this->syncListRepository = m::mock(EntityRepository::class);
+
+        $this->entityManager
+            ->shouldReceive('getRepository')
+            ->with(SyncList::class)
+            ->andReturn($this->syncListRepository);
     }
 
     public function testExecuteSuccessfulSync(): void
     {
-        $sourceContact = $this->makeContact('source@test.com', 'John', 'Doe');
-        $destContact = $this->makeContact('old@test.com');
+        $syncList = $this->makeSyncList(self::LIST_ONE);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$sourceContact]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$destContact]);
-        $this->googleClient
-            ->shouldReceive('removeContact')
-            ->once()
-            ->with(self::LIST_ONE, $destContact);
-        $this->googleClient
-            ->shouldReceive('addContact')
-            ->once()
-            ->with(self::LIST_ONE, $sourceContact);
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
 
-        $tester = $this->executeSyncCommand([self::LIST_ONE]);
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() ===
+                        self::LIST_ONE,
+                ),
+                false,
+                null,
+                'cli',
+            )
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 5,
+                    destinationCount: 3,
+                    addedCount: 1,
+                    removedCount: 1,
+                    log: "Adding source@test.com\nRemoving old@test.com\n",
+                    success: true,
+                ),
+            );
+
+        $tester = $this->executeCommand();
 
         self::assertEquals(0, $tester->getStatusCode());
         self::assertStringContainsString(
@@ -75,193 +83,254 @@ class RunSyncCommandTest extends MockeryTestCase
 
     public function testExecuteDryRun(): void
     {
-        $sourceContact = $this->makeContact('source@test.com');
-        $destContact = $this->makeContact('old@test.com');
+        $syncList = $this->makeSyncList(self::LIST_ONE);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
             ->once()
-            ->andReturn($this->googleClient);
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$sourceContact]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$destContact]);
-        $this->googleClient->shouldNotReceive('removeContact');
-        $this->googleClient->shouldNotReceive('addContact');
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() ===
+                        self::LIST_ONE,
+                ),
+                true,
+                null,
+                'cli',
+            )
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 2,
+                    destinationCount: 1,
+                    addedCount: 1,
+                    removedCount: 0,
+                    log: "Dry run — no changes applied.\n",
+                    success: true,
+                ),
+            );
 
-        $tester = $this->executeSyncCommand(
-            [self::LIST_ONE],
-            ['--dry-run' => true],
-        );
+        $tester = $this->executeCommand(['--dry-run' => true]);
 
         self::assertEquals(0, $tester->getStatusCode());
         self::assertStringContainsString('dry run', $tester->getDisplay());
     }
 
-    public function testExecuteGoogleNotConfigured(): void
+    public function testExecuteNoSyncListsFound(): void
     {
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andThrow(new FileNotFoundException());
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([]);
 
-        $tester = $this->executeSyncCommand([self::LIST_ONE]);
+        $tester = $this->executeCommand();
 
         self::assertEquals(1, $tester->getStatusCode());
         self::assertStringContainsString(
-            'cannot authenticate',
+            'No sync lists found',
             $tester->getDisplay(),
         );
     }
 
     public function testExecuteMultipleLists(): void
     {
-        $contact1 = $this->makeContact('a@test.com');
-        $contact2 = $this->makeContact('b@test.com');
+        $syncList1 = $this->makeSyncList(self::LIST_ONE);
+        $syncList2 = $this->makeSyncList(self::LIST_TWO);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList1, $syncList2]);
 
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$contact1]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$contact1]);
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->twice()
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 3,
+                    destinationCount: 3,
+                    addedCount: 0,
+                    removedCount: 0,
+                    log: '',
+                    success: true,
+                ),
+            );
 
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_TWO)
-            ->andReturn([$contact2]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_TWO)
-            ->andReturn([]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_TWO)
-            ->andReturn([$contact2]);
-
-        $tester = $this->executeSyncCommand([self::LIST_ONE, self::LIST_TWO]);
+        $tester = $this->executeCommand();
 
         self::assertEquals(0, $tester->getStatusCode());
         self::assertStringContainsString('1/2', $tester->getDisplay());
         self::assertStringContainsString('2/2', $tester->getDisplay());
     }
 
-    public function testExecuteMergesInMemoryContacts(): void
+    public function testExecuteWithListFilterOption(): void
     {
-        $pcContact = $this->makeContact('pc@test.com');
-        $memContact = $this->makeContact('mem@test.com');
+        $syncList = $this->makeSyncList(self::LIST_ONE);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['name' => self::LIST_ONE])
+            ->andReturn([$syncList]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
             ->once()
-            ->andReturn($this->googleClient);
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$pcContact]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$memContact]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([]);
-        $this->googleClient->shouldReceive('addContact')->twice();
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 1,
+                    destinationCount: 1,
+                    addedCount: 0,
+                    removedCount: 0,
+                    log: '',
+                    success: true,
+                ),
+            );
 
-        $tester = $this->executeSyncCommand([self::LIST_ONE]);
-
-        self::assertEquals(0, $tester->getStatusCode());
-        self::assertStringContainsString('pc@test.com', $tester->getDisplay());
-        self::assertStringContainsString('mem@test.com', $tester->getDisplay());
-    }
-
-    public function testExecuteMergeDeduplicatesContacts(): void
-    {
-        $pcContact = $this->makeContact('same@test.com');
-        $memContact = $this->makeContact('same@test.com');
-
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$pcContact]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$memContact]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([]);
-        $this->googleClient->shouldReceive('addContact')->once();
-
-        $tester = $this->executeSyncCommand([self::LIST_ONE]);
+        $tester = $this->executeCommand(['--list' => self::LIST_ONE]);
 
         self::assertEquals(0, $tester->getStatusCode());
     }
 
-    public function testExecuteNoChangesNeeded(): void
+    public function testExecuteSyncFailure(): void
     {
-        $contact = $this->makeContact('shared@test.com');
-        $destContact = $this->makeContact('shared@test.com');
+        $syncList = $this->makeSyncList(self::LIST_ONE);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
             ->once()
-            ->andReturn($this->googleClient);
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$contact]);
-        $this->inMemoryContactManager
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([]);
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_ONE)
-            ->andReturn([$destContact]);
-        $this->googleClient->shouldNotReceive('addContact');
-        $this->googleClient->shouldNotReceive('removeContact');
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 0,
+                    destinationCount: 0,
+                    addedCount: 0,
+                    removedCount: 0,
+                    log: "ERROR: Connection refused\n",
+                    success: false,
+                    errorMessage: 'Connection refused',
+                ),
+            );
 
-        $tester = $this->executeSyncCommand([self::LIST_ONE]);
+        $tester = $this->executeCommand();
 
-        self::assertEquals(0, $tester->getStatusCode());
-    }
-
-    private function executeSyncCommand(
-        array $lists,
-        array $options = [],
-    ): CommandTester {
-        $command = new RunSyncCommand(
-            $lists,
-            $this->googleClient,
-            $this->planningCenterClient,
-            $this->inMemoryContactManager,
+        self::assertEquals(1, $tester->getStatusCode());
+        self::assertStringContainsString('Sync failed', $tester->getDisplay());
+        self::assertStringContainsString(
+            'Connection refused',
+            $tester->getDisplay(),
         );
+    }
+
+    public function testExecutePartialFailure(): void
+    {
+        $syncList1 = $this->makeSyncList(self::LIST_ONE);
+        $syncList2 = $this->makeSyncList(self::LIST_TWO);
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList1, $syncList2]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() ===
+                        self::LIST_ONE,
+                ),
+                false,
+                null,
+                'cli',
+            )
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 3,
+                    destinationCount: 3,
+                    addedCount: 0,
+                    removedCount: 0,
+                    log: '',
+                    success: true,
+                ),
+            );
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() ===
+                        self::LIST_TWO,
+                ),
+                false,
+                null,
+                'cli',
+            )
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 0,
+                    destinationCount: 0,
+                    addedCount: 0,
+                    removedCount: 0,
+                    log: '',
+                    success: false,
+                    errorMessage: 'API error',
+                ),
+            );
+
+        $tester = $this->executeCommand();
+
+        self::assertEquals(1, $tester->getStatusCode());
+        self::assertStringContainsString('Sync failed', $tester->getDisplay());
+    }
+
+    public function testExecuteDisplaysTableWithCounts(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE);
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 10,
+                    destinationCount: 8,
+                    addedCount: 3,
+                    removedCount: 1,
+                    log: '',
+                    success: true,
+                ),
+            );
+
+        $tester = $this->executeCommand();
+
+        $display = $tester->getDisplay();
+
+        self::assertEquals(0, $tester->getStatusCode());
+        self::assertStringContainsString('Source', $display);
+        self::assertStringContainsString('Destination', $display);
+        self::assertStringContainsString('To Remove', $display);
+        self::assertStringContainsString('To Add', $display);
+        self::assertStringContainsString('10', $display);
+        self::assertStringContainsString('8', $display);
+        self::assertStringContainsString('3', $display);
+    }
+
+    private function executeCommand(array $options = []): CommandTester
+    {
+        $command = new RunSyncCommand($this->syncService, $this->entityManager);
 
         $tester = new CommandTester($command);
         $tester->execute($options);
@@ -269,16 +338,19 @@ class RunSyncCommandTest extends MockeryTestCase
         return $tester;
     }
 
-    private function makeContact(
-        string $email,
-        ?string $firstName = null,
-        ?string $lastName = null,
-    ): Contact {
-        $contact = new Contact();
-        $contact->email = $email;
-        $contact->firstName = $firstName;
-        $contact->lastName = $lastName;
+    private function makeSyncList(string $name): SyncList
+    {
+        $organization = new Organization();
+        $organization->setName('Test Org');
+        $organization->setPlanningCenterAppId('pc-id');
+        $organization->setPlanningCenterAppSecret('pc-secret');
+        $organization->setGoogleOAuthCredentials('{}');
+        $organization->setGoogleDomain('example.com');
 
-        return $contact;
+        $syncList = new SyncList();
+        $syncList->setName($name);
+        $syncList->setOrganization($organization);
+
+        return $syncList;
     }
 }

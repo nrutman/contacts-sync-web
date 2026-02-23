@@ -2,8 +2,10 @@
 
 namespace App\Command;
 
-use App\Client\Google\GoogleClient;
+use App\Client\Google\GoogleClientFactory;
 use App\Client\Google\InvalidGoogleTokenException;
+use App\Entity\Organization;
+use Doctrine\ORM\EntityManagerInterface;
 use Google\Exception as GoogleException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,8 +22,8 @@ use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 class ConfigureSyncCommand extends Command
 {
     public function __construct(
-        private readonly GoogleClient $googleClient,
-        private readonly string $googleDomain,
+        private readonly GoogleClientFactory $googleClientFactory,
+        private readonly EntityManagerInterface $entityManager,
     ) {
         parent::__construct();
     }
@@ -49,14 +51,31 @@ class ConfigureSyncCommand extends Command
     ): int {
         $io = new SymfonyStyle($input, $output);
 
-        if (!$this->isGoogleClientConfigured() || $input->getOption('force')) {
+        $organization = $this->entityManager
+            ->getRepository(Organization::class)
+            ->findOneBy([]);
+
+        if ($organization === null) {
+            $io->error(
+                'No organization found. Please run app:setup first to create an organization.',
+            );
+
+            return Command::FAILURE;
+        }
+
+        $googleClient = $this->googleClientFactory->create($organization);
+
+        if (
+            !$this->isGoogleClientConfigured($googleClient)
+            || $input->getOption('force')
+        ) {
             $io->block(
                 sprintf(
                     'This utility requires a valid token for authentication with your Google account (%s). Please visit the following URL in a web browser and paste the provided authentication code into the prompt below.',
-                    $this->googleDomain,
+                    $organization->getGoogleDomain(),
                 ),
             );
-            $io->writeln($this->googleClient->createAuthUrl().PHP_EOL);
+            $io->writeln($googleClient->createAuthUrl().PHP_EOL);
 
             $authCode = trim($io->ask('Paste the auth code here:') ?? '');
 
@@ -66,7 +85,19 @@ class ConfigureSyncCommand extends Command
                 return Command::FAILURE;
             }
 
-            $this->googleClient->setAuthCode($authCode);
+            $googleClient->setAuthCode($authCode);
+
+            // Persist the new token to the Organization entity
+            $tokenData = $googleClient->getTokenData();
+
+            if ($tokenData !== null) {
+                $organization->setGoogleToken(
+                    json_encode($tokenData, JSON_THROW_ON_ERROR),
+                );
+                $this->entityManager->flush();
+            }
+
+            $io->success('Google authentication configured successfully.');
 
             return Command::SUCCESS;
         }
@@ -83,10 +114,11 @@ class ConfigureSyncCommand extends Command
      *
      * @throws GoogleException
      */
-    private function isGoogleClientConfigured(): bool
-    {
+    private function isGoogleClientConfigured(
+        \App\Client\Google\GoogleClient $googleClient,
+    ): bool {
         try {
-            $this->googleClient->initialize();
+            $googleClient->initialize();
         } catch (InvalidGoogleTokenException|FileNotFoundException) {
             return false;
         }

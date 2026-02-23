@@ -257,6 +257,104 @@ class GoogleClientTest extends MockeryTestCase
         $this->target->setAuthCode(self::AUTH_CODE);
     }
 
+    public function testSetTokenData(): void
+    {
+        $this->client
+            ->shouldReceive('setAccessToken')
+            ->once()
+            ->with(self::TOKEN_ARRAY);
+
+        $this->target->setTokenData(self::TOKEN_ARRAY);
+
+        // Verify the token was set by checking getTokenData
+        $this->client
+            ->shouldReceive('getAccessToken')
+            ->once()
+            ->andReturn(self::TOKEN_ARRAY);
+
+        $result = $this->target->getTokenData();
+
+        self::assertEquals(self::TOKEN_ARRAY, $result);
+    }
+
+    public function testGetTokenDataReturnsNullWhenNoToken(): void
+    {
+        $this->client->shouldReceive('getAccessToken')->once()->andReturn([]);
+
+        $result = $this->target->getTokenData();
+
+        self::assertNull($result);
+    }
+
+    public function testGetTokenDataReturnsTokenArray(): void
+    {
+        $this->client
+            ->shouldReceive('getAccessToken')
+            ->once()
+            ->andReturn(self::TOKEN_ARRAY);
+
+        $result = $this->target->getTokenData();
+
+        self::assertEquals(self::TOKEN_ARRAY, $result);
+    }
+
+    public function testInitializeWithPreSetTokenSkipsFileLoading(): void
+    {
+        $this->setupInitializeExpectations();
+
+        // Pre-set the token
+        $this->client->shouldReceive('setAccessToken')->with(self::TOKEN_ARRAY);
+
+        $this->target->setTokenData(self::TOKEN_ARRAY);
+
+        // File provider should NOT be called since token is pre-set
+        $this->fileProvider->shouldNotReceive('getContents');
+
+        $result = $this->target->initialize();
+
+        self::assertSame($this->target, $result);
+    }
+
+    public function testInitializeWithPreSetTokenStillRefreshesIfExpired(): void
+    {
+        $this->setupInitializeExpectations([
+            'isAccessTokenExpired' => true,
+            'getRefreshToken' => self::TOKEN_REFRESH,
+            'fetchAccessTokenWithRefreshToken' => null,
+            'getAccessToken' => self::TOKEN_ARRAY,
+        ]);
+
+        // Pre-set the token
+        $this->client->shouldReceive('setAccessToken')->with(self::TOKEN_ARRAY);
+
+        $this->target->setTokenData(self::TOKEN_ARRAY);
+
+        // File provider should NOT be called for getContents (no file-based loading)
+        // but saveContents IS called when the token is refreshed
+        $this->fileProvider->shouldNotReceive('getContents');
+        $this->fileProvider->shouldReceive('saveContents')->once();
+
+        $result = $this->target->initialize();
+
+        self::assertSame($this->target, $result);
+    }
+
+    public function testInitializeWithoutPreSetTokenLoadsFromFile(): void
+    {
+        $this->setupInitializeExpectations();
+
+        $this->client->shouldReceive('setAccessToken')->with(self::TOKEN_ARRAY);
+
+        $this->fileProvider
+            ->shouldReceive('getContents')
+            ->with(self::TEMP_PATH.'/'.self::TOKEN_FILENAME)
+            ->andReturn(self::TOKEN_STRING);
+
+        $result = $this->target->initialize();
+
+        self::assertSame($this->target, $result);
+    }
+
     private function setupInitializeExpectations(array $overrides = []): void
     {
         $defaults = [

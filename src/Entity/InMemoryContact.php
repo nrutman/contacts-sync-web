@@ -2,13 +2,14 @@
 
 namespace App\Entity;
 
+use App\Repository\InMemoryContactRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: InMemoryContactRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class InMemoryContact
 {
@@ -16,7 +17,10 @@ class InMemoryContact
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: Organization::class, inversedBy: 'inMemoryContacts')]
+    #[ORM\ManyToOne(
+        targetEntity: Organization::class,
+        inversedBy: 'inMemoryContacts',
+    ),]
     #[ORM\JoinColumn(nullable: false)]
     private Organization $organization;
 
@@ -32,7 +36,10 @@ class InMemoryContact
     /**
      * @var Collection<int, SyncList>
      */
-    #[ORM\ManyToMany(targetEntity: SyncList::class, inversedBy: 'inMemoryContacts')]
+    #[ORM\ManyToMany(
+        targetEntity: SyncList::class,
+        inversedBy: 'inMemoryContacts',
+    ),]
     #[ORM\JoinTable(name: 'in_memory_contact_sync_list')]
     private Collection $syncLists;
 
