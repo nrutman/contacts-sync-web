@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync {{ syncRun.status == 'failed' ? 'Failed' : 'Completed' }} — {{ syncRun.syncList.name }}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    {# Header #}
+                    <tr>
+                        <td style="background-color: {% if syncRun.status == 'failed' %}#dc2626{% else %}#16a34a{% endif %}; padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">
+                                {% if syncRun.status == 'failed' %}
+                                    &#x274C; Sync Failed
+                                {% else %}
+                                    &#x2705; Sync Completed
+                                {% endif %}
+                            </h1>
+                        </td>
+                    </tr>
+
+                    {# Body #}
+                    <tr>
+                        <td style="padding: 40px;">
+                            <p style="margin: 0 0 16px 0; color: #4b5563; font-size: 15px; line-height: 1.6;">
+                                Hello {{ user.firstName }},
+                            </p>
+
+                            <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 15px; line-height: 1.6;">
+                                {% if syncRun.status == 'failed' %}
+                                    A sync run for <strong>{{ syncRun.syncList.name }}</strong> has failed.
+                                {% else %}
+                                    {% set hasChanges = (syncRun.addedCount ?? 0) > 0 or (syncRun.removedCount ?? 0) > 0 %}
+                                    {% if hasChanges %}
+                                        A sync run for <strong>{{ syncRun.syncList.name }}</strong> completed with changes.
+                                    {% else %}
+                                        A sync run for <strong>{{ syncRun.syncList.name }}</strong> completed with no changes.
+                                    {% endif %}
+                                {% endif %}
+                            </p>
+
+                            {# Summary Table #}
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">
+                                <tr style="background-color: #f9fafb;">
+                                    <td style="padding: 10px 16px; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; width: 50%;">Detail</td>
+                                    <td style="padding: 10px 16px; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Value</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">List</td>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #111827; font-weight: 500; border-bottom: 1px solid #e5e7eb;">{{ syncRun.syncList.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Status</td>
+                                    <td style="padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #e5e7eb;">
+                                        {% if syncRun.status == 'failed' %}
+                                            <span style="color: #dc2626; font-weight: 600;">Failed</span>
+                                        {% elseif syncRun.status == 'success' %}
+                                            <span style="color: #16a34a; font-weight: 600;">Success</span>
+                                        {% else %}
+                                            <span style="color: #6b7280;">{{ syncRun.status|capitalize }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% if syncRun.status == 'success' %}
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Source Contacts</td>
+                                        <td style="padding: 10px 16px; font-size: 14px; color: #111827; border-bottom: 1px solid #e5e7eb;">{{ syncRun.sourceCount ?? '—' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Destination Contacts</td>
+                                        <td style="padding: 10px 16px; font-size: 14px; color: #111827; border-bottom: 1px solid #e5e7eb;">{{ syncRun.destinationCount ?? '—' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Contacts Added</td>
+                                        <td style="padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #e5e7eb;">
+                                            <span style="color: {% if (syncRun.addedCount ?? 0) > 0 %}#16a34a{% else %}#111827{% endif %}; font-weight: {% if (syncRun.addedCount ?? 0) > 0 %}600{% else %}400{% endif %};">
+                                                +{{ syncRun.addedCount ?? 0 }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Contacts Removed</td>
+                                        <td style="padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #e5e7eb;">
+                                            <span style="color: {% if (syncRun.removedCount ?? 0) > 0 %}#dc2626{% else %}#111827{% endif %}; font-weight: {% if (syncRun.removedCount ?? 0) > 0 %}600{% else %}400{% endif %};">
+                                                -{{ syncRun.removedCount ?? 0 }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Triggered By</td>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #111827; border-bottom: 1px solid #e5e7eb;">
+                                        {{ syncRun.triggeredBy|capitalize }}{% if syncRun.triggeredByUser %} ({{ syncRun.triggeredByUser.fullName }}){% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Started</td>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #111827; border-bottom: 1px solid #e5e7eb;">
+                                        {{ syncRun.startedAt ? syncRun.startedAt|date('M j, Y g:i:sa T') : '—' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #6b7280;">Completed</td>
+                                    <td style="padding: 10px 16px; font-size: 14px; color: #111827;">
+                                        {{ syncRun.completedAt ? syncRun.completedAt|date('M j, Y g:i:sa T') : '—' }}
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {# Error message for failures #}
+                            {% if syncRun.status == 'failed' and syncRun.errorMessage %}
+                                <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
+                                    <p style="margin: 0 0 4px 0; color: #991b1b; font-size: 13px; font-weight: 600;">Error Message</p>
+                                    <p style="margin: 0; color: #b91c1c; font-size: 14px; line-height: 1.5; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;">
+                                        {{ syncRun.errorMessage }}
+                                    </p>
+                                </div>
+                            {% endif %}
+
+                            {# CTA Button #}
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px auto;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #4f46e5;">
+                                        <a href="{{ url('app_history_show', {id: syncRun.id}) }}"
+                                           target="_blank"
+                                           style="display: inline-block; padding: 14px 32px; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px;">
+                                            View Sync Run Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+
+                            <p style="margin: 0; color: #9ca3af; font-size: 13px; line-height: 1.5;">
+                                You received this email because of your notification preferences.
+                                <a href="{{ url('app_notification_preferences') }}" target="_blank" style="color: #4f46e5; text-decoration: underline;">Manage preferences</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                    {# Footer #}
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 24px 40px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center; line-height: 1.5;">
+                                This is an automated message from Contacts Sync. Please do not reply to this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

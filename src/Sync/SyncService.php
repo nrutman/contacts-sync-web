@@ -12,8 +12,10 @@ use App\Entity\Organization;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
+use App\Event\SyncCompletedEvent;
 use App\Repository\InMemoryContactRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class SyncService
 {
@@ -22,6 +24,7 @@ class SyncService
         private readonly PlanningCenterClientFactory $planningCenterClientFactory,
         private readonly InMemoryContactRepository $inMemoryContactRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -50,59 +53,90 @@ class SyncService
 
             // Build clients from organization credentials
             $googleClient = $this->initializeGoogleClient($organization);
-            $planningCenterClient = $this->planningCenterClientFactory->create($organization);
+            $planningCenterClient = $this->planningCenterClientFactory->create(
+                $organization,
+            );
 
             // Check if token was refreshed and persist if so
             $this->persistTokenIfRefreshed($organization, $googleClient);
 
             // Fetch source contacts from Planning Center
-            $log .= $this->logLine('Fetching source contacts from Planning Center...');
+            $log .= $this->logLine(
+                'Fetching source contacts from Planning Center...',
+            );
             $sourceContacts = $planningCenterClient->getContacts($listName);
-            $log .= $this->logLine(sprintf('  Found %d source contacts', count($sourceContacts)));
+            $log .= $this->logLine(
+                sprintf('  Found %d source contacts', count($sourceContacts)),
+            );
 
             // Merge with in-memory contacts
             $inMemoryContacts = $this->getInMemoryContactDtos($syncList);
-            $mergedSourceContacts = $this->mergeLists($sourceContacts, $inMemoryContacts);
+            $mergedSourceContacts = $this->mergeLists(
+                $sourceContacts,
+                $inMemoryContacts,
+            );
 
             if (count($inMemoryContacts) > 0) {
-                $log .= $this->logLine(sprintf('  Merged %d in-memory contacts (total: %d)', count($inMemoryContacts), count($mergedSourceContacts)));
+                $log .= $this->logLine(
+                    sprintf(
+                        '  Merged %d in-memory contacts (total: %d)',
+                        count($inMemoryContacts),
+                        count($mergedSourceContacts),
+                    ),
+                );
             }
 
             // Fetch destination contacts from Google
-            $log .= $this->logLine('Fetching destination contacts from Google...');
+            $log .= $this->logLine(
+                'Fetching destination contacts from Google...',
+            );
             $destContacts = $googleClient->getContacts($listName);
-            $log .= $this->logLine(sprintf('  Found %d destination contacts', count($destContacts)));
+            $log .= $this->logLine(
+                sprintf(
+                    '  Found %d destination contacts',
+                    count($destContacts),
+                ),
+            );
 
             // Compute diff
-            $diff = new ContactListAnalyzer($mergedSourceContacts, $destContacts);
+            $diff = new ContactListAnalyzer(
+                $mergedSourceContacts,
+                $destContacts,
+            );
             $contactsToAdd = $diff->getContactsToAdd();
             $contactsToRemove = $diff->getContactsToRemove();
 
-            $log .= $this->logLine(sprintf(
-                'Diff: %d to add, %d to remove',
-                count($contactsToAdd),
-                count($contactsToRemove),
-            ));
+            $log .= $this->logLine(
+                sprintf(
+                    'Diff: %d to add, %d to remove',
+                    count($contactsToAdd),
+                    count($contactsToRemove),
+                ),
+            );
 
             // Apply changes unless dry run
             if (!$dryRun) {
                 foreach ($contactsToRemove as $removeIndex => $contact) {
-                    $log .= $this->logLine(sprintf(
-                        'Removing %s (%d/%d)',
-                        $contact->email,
-                        $removeIndex + 1,
-                        count($contactsToRemove),
-                    ));
+                    $log .= $this->logLine(
+                        sprintf(
+                            'Removing %s (%d/%d)',
+                            $contact->email,
+                            $removeIndex + 1,
+                            count($contactsToRemove),
+                        ),
+                    );
                     $googleClient->removeContact($listName, $contact);
                 }
 
                 foreach ($contactsToAdd as $addIndex => $contact) {
-                    $log .= $this->logLine(sprintf(
-                        'Adding %s (%d/%d)',
-                        $contact->email,
-                        $addIndex + 1,
-                        count($contactsToAdd),
-                    ));
+                    $log .= $this->logLine(
+                        sprintf(
+                            'Adding %s (%d/%d)',
+                            $contact->email,
+                            $addIndex + 1,
+                            count($contactsToAdd),
+                        ),
+                    );
                     $googleClient->addContact($listName, $contact);
                 }
             } else {
@@ -128,6 +162,8 @@ class SyncService
             $syncRun->setCompletedAt(new \DateTimeImmutable());
             $this->entityManager->flush();
 
+            $this->eventDispatcher->dispatch(new SyncCompletedEvent($syncRun));
+
             return $result;
         } catch (\Throwable $e) {
             $log .= $this->logLine(sprintf('ERROR: %s', $e->getMessage()));
@@ -148,6 +184,8 @@ class SyncService
             $syncRun->setCompletedAt(new \DateTimeImmutable());
             $this->entityManager->flush();
 
+            $this->eventDispatcher->dispatch(new SyncCompletedEvent($syncRun));
+
             return $result;
         }
     }
@@ -157,8 +195,9 @@ class SyncService
      *
      * @throws InvalidGoogleTokenException
      */
-    private function initializeGoogleClient(Organization $organization): GoogleClient
-    {
+    private function initializeGoogleClient(
+        Organization $organization,
+    ): GoogleClient {
         $googleClient = $this->googleClientFactory->create($organization);
         $googleClient->initialize();
 
@@ -168,8 +207,10 @@ class SyncService
     /**
      * If the Google OAuth token was refreshed during initialization, persist the updated token.
      */
-    private function persistTokenIfRefreshed(Organization $organization, GoogleClient $googleClient): void
-    {
+    private function persistTokenIfRefreshed(
+        Organization $organization,
+        GoogleClient $googleClient,
+    ): void {
         $currentToken = $googleClient->getTokenData();
 
         if ($currentToken === null) {

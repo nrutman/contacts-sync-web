@@ -84,6 +84,22 @@
                         </td>
                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                             <div class="flex items-center justify-end gap-x-3">
+                                <form action="{{ path('app_sync_list_run', { id: list.id }) }}" method="post" class="inline"
+                                      data-controller="sync-button">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('sync-list-' ~ list.id) }}">
+                                    <button type="submit"
+                                            data-sync-button-target="button"
+                                            data-action="click->sync-button#submit"
+                                            class="relative text-indigo-600 hover:text-indigo-900" title="Sync Now">
+                                        <svg data-sync-button-target="label" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                                        </svg>
+                                        <svg data-sync-button-target="spinner" class="hidden h-4 w-4 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                    </button>
+                                </form>
                                 <a href="{{ path('app_sync_list_history', { id: list.id }) }}" class="text-gray-600 hover:text-gray-900" title="History">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />

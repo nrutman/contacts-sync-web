@@ -13,11 +13,13 @@ use App\Entity\Organization;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
+use App\Event\SyncCompletedEvent;
 use App\Repository\InMemoryContactRepository;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class SyncServiceTest extends MockeryTestCase
 {
@@ -35,6 +37,9 @@ class SyncServiceTest extends MockeryTestCase
 
     /** @var EntityManagerInterface|m\LegacyMockInterface|m\MockInterface */
     private $entityManager;
+
+    /** @var EventDispatcherInterface|m\LegacyMockInterface|m\MockInterface */
+    private $eventDispatcher;
 
     /** @var GoogleClient|m\LegacyMockInterface|m\MockInterface */
     private $googleClient;
@@ -56,6 +61,7 @@ class SyncServiceTest extends MockeryTestCase
             InMemoryContactRepository::class,
         );
         $this->entityManager = m::mock(EntityManagerInterface::class);
+        $this->eventDispatcher = m::mock(EventDispatcherInterface::class);
         $this->googleClient = m::mock(GoogleClient::class);
         $this->planningCenterClient = m::mock(PlanningCenterClient::class);
 
@@ -76,6 +82,7 @@ class SyncServiceTest extends MockeryTestCase
             $this->planningCenterClientFactory,
             $this->inMemoryContactRepository,
             $this->entityManager,
+            $this->eventDispatcher,
         );
     }
 
@@ -234,6 +241,11 @@ class SyncServiceTest extends MockeryTestCase
 
         $this->entityManager->shouldReceive('flush')->atLeast()->once();
 
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
+
         $this->googleClientFactory
             ->shouldReceive('create')
             ->with($this->organization)
@@ -289,6 +301,11 @@ class SyncServiceTest extends MockeryTestCase
 
         $this->entityManager->shouldReceive('flush')->atLeast()->once();
 
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
+
         $this->googleClientFactory
             ->shouldReceive('create')
             ->with($this->organization)
@@ -315,6 +332,11 @@ class SyncServiceTest extends MockeryTestCase
             ->with(m::type(SyncRun::class));
 
         $this->entityManager->shouldReceive('flush')->atLeast()->once();
+
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
 
         $this->googleClientFactory
             ->shouldReceive('create')
@@ -362,6 +384,11 @@ class SyncServiceTest extends MockeryTestCase
 
         // Expect flush at least 3 times: once for SyncRun persist, once for token update, once for results
         $this->entityManager->shouldReceive('flush')->atLeast()->times(3);
+
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
 
         $this->googleClientFactory
             ->shouldReceive('create')
@@ -420,6 +447,11 @@ class SyncServiceTest extends MockeryTestCase
 
         // Expect flush exactly twice: once for SyncRun persist, once for results
         $this->entityManager->shouldReceive('flush')->twice();
+
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
 
         $this->googleClientFactory
             ->shouldReceive('create')
@@ -529,6 +561,11 @@ class SyncServiceTest extends MockeryTestCase
             ->with(m::type(SyncRun::class));
 
         $this->entityManager->shouldReceive('flush')->atLeast()->once();
+
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
 
         $this->googleClientFactory
             ->shouldReceive('create')
