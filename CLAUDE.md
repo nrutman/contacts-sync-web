@@ -12,7 +12,7 @@ Read these READMEs to understand the codebase before making changes:
 - [src/Command/README.md](src/Command/README.md) — CLI commands (sync, setup, user management, config migration, key rotation)
 - [src/Contact/README.md](src/Contact/README.md) — diff algorithm
 - [src/Security/README.md](src/Security/README.md) — encryption, key rotation, user verification, invitation flow
-- [src/Entity/README.md](src/Entity/README.md) — entity relationship diagram (Mermaid ERD)
+- [src/Entity/README.md](src/Entity/README.md) — entity relationship diagram (Mermaid ERD) and entity descriptions
 - [src/Sync/README.md](src/Sync/README.md) — sync service orchestration and result DTO
 
 ## Commands
@@ -62,7 +62,7 @@ If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-
 - PHP 8.5 with Symfony 7.2. Use constructor promotion and PHP 8+ features (attributes, named arguments, readonly properties, etc.) where appropriate.
 - PSR-4 autoloading: `App\` → `src/`, `App\Tests\` → `tests/`.
 - Symfony autowiring and autoconfigure are enabled. New services placed in `src/` are registered automatically — no manual service definitions needed unless non-standard wiring is required.
-- Doctrine ORM entities live in `src/Entity/` and are excluded from the service container. Repositories in `src/Repository/` are auto-registered. When adding, removing, or changing entity fields or relationships, update the Mermaid ERD in [src/Entity/README.md](src/Entity/README.md) to match.
+- Doctrine ORM entities live in `src/Entity/` and are excluded from the service container. Repositories in `src/Repository/` are auto-registered. When adding, removing, or changing entities, update both the Mermaid ERD and the entity descriptions in [src/Entity/README.md](src/Entity/README.md) to match.
 - Sensitive data (API keys, OAuth tokens) is stored encrypted in PostgreSQL via `#[Encrypted]` attribute + `EncryptedFieldListener`. The encryption key is in `APP_ENCRYPTION_KEY` env var — never commit it.
 - API credentials, sync lists, and in-memory contacts are stored in the database via `Organization` entities. The legacy `parameters.yml` file has been removed; use `app:migrate-config <file>` to import old config.
 - Sync and refresh operations from the web UI are dispatched via Symfony Messenger (async transport). The worker (`messenger:consume async scheduler_sync`) must be running to process them.
