@@ -13,6 +13,7 @@ use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
+use Symfony\Component\Yaml\Yaml;
 
 class MigrateConfigToDbCommandTest extends MockeryTestCase
 {
@@ -30,6 +31,9 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
     /** @var EntityRepository|m\MockInterface */
     private $orgRepository;
 
+    private string $tempDir;
+    private string $configFilePath;
+
     private array $googleConfiguration;
     private array $lists;
     private array $inMemoryContacts;
@@ -44,6 +48,9 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
             ->shouldReceive('getRepository')
             ->with(Organization::class)
             ->andReturn($this->orgRepository);
+
+        $this->tempDir = sys_get_temp_dir().'/migrate_config_test_'.uniqid();
+        mkdir($this->tempDir);
 
         $this->googleConfiguration = [
             'installed' => [
@@ -72,6 +79,22 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
                 'list' => 'church@example.org',
             ],
         ];
+
+        $this->configFilePath = $this->tempDir.'/parameters.yml';
+        $this->writeConfigFile();
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        if (file_exists($this->configFilePath)) {
+            unlink($this->configFilePath);
+        }
+
+        if (is_dir($this->tempDir)) {
+            rmdir($this->tempDir);
+        }
     }
 
     public function testFreshMigrationCreatesAllEntities(): void
@@ -250,6 +273,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
                 'list' => 'church@example.org',
             ],
         ];
+        $this->writeConfigFile();
 
         $this->orgRepository
             ->shouldReceive('findOneBy')
@@ -290,6 +314,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
                 'list' => 'nonexistent@example.org',
             ],
         ];
+        $this->writeConfigFile();
 
         $this->orgRepository
             ->shouldReceive('findOneBy')
@@ -350,6 +375,52 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
         self::assertStringContainsString('Database error', $tester->getDisplay());
     }
 
+    public function testMissingConfigFileReturnsFail(): void
+    {
+        $command = new MigrateConfigToDbCommand(
+            $this->entityManager,
+            $this->fileProvider,
+            '/tmp/test-var',
+        );
+
+        $tester = new CommandTester($command);
+        $tester->execute(['config-file' => '/nonexistent/path/parameters.yml'], ['interactive' => false]);
+
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('not found', $tester->getDisplay());
+    }
+
+    public function testPlaceholderValuesReturnsFail(): void
+    {
+        $placeholderConfig = [
+            'parameters' => [
+                'planning_center.app.id' => '{{PlanningCenter Application ID}}',
+                'planning_center.app.secret' => '{{PlanningCenter Secret}}',
+                'google.authentication' => [],
+                'google.domain' => '{{G Suite Domain}}',
+                'lists' => ['list1'],
+                'contacts' => [],
+            ],
+        ];
+
+        $placeholderPath = $this->tempDir.'/placeholder.yml';
+        file_put_contents($placeholderPath, Yaml::dump($placeholderConfig, 4));
+
+        $command = new MigrateConfigToDbCommand(
+            $this->entityManager,
+            $this->fileProvider,
+            '/tmp/test-var',
+        );
+
+        $tester = new CommandTester($command);
+        $tester->execute(['config-file' => $placeholderPath], ['interactive' => false]);
+
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('placeholder', $tester->getDisplay());
+
+        unlink($placeholderPath);
+    }
+
     /**
      * @param InMemoryContact[] $contacts
      */
@@ -364,17 +435,27 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
         return null;
     }
 
+    private function writeConfigFile(): void
+    {
+        $config = [
+            'parameters' => [
+                'planning_center.app.id' => self::PLANNING_CENTER_APP_ID,
+                'planning_center.app.secret' => self::PLANNING_CENTER_APP_SECRET,
+                'google.authentication' => $this->googleConfiguration,
+                'google.domain' => self::GOOGLE_DOMAIN,
+                'lists' => $this->lists,
+                'contacts' => $this->inMemoryContacts,
+            ],
+        ];
+
+        file_put_contents($this->configFilePath, Yaml::dump($config, 4));
+    }
+
     private function executeCommand(bool $interactive = false, array $inputs = []): CommandTester
     {
         $command = new MigrateConfigToDbCommand(
             $this->entityManager,
             $this->fileProvider,
-            self::PLANNING_CENTER_APP_ID,
-            self::PLANNING_CENTER_APP_SECRET,
-            $this->googleConfiguration,
-            self::GOOGLE_DOMAIN,
-            $this->lists,
-            $this->inMemoryContacts,
             '/tmp/test-var',
         );
 
@@ -384,7 +465,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
             $tester->setInputs($inputs);
         }
 
-        $tester->execute([], ['interactive' => $interactive]);
+        $tester->execute(['config-file' => $this->configFilePath], ['interactive' => $interactive]);
 
         return $tester;
     }

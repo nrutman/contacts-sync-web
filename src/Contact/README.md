@@ -36,8 +36,3 @@ graph LR
     Destination --> Result
 ```
 
-## InMemoryContactManager
-
-Provides manually-configured contacts defined in `config/parameters.yml` under the `contacts` key. These are merged with Planning Center contacts before the diff is computed, allowing external members to be included in Google Groups even if they aren't in Planning Center.
-
-List names are normalized to lowercase during construction, so lookups are case-insensitive. A single contact can belong to multiple lists by providing an array for the `list` value. See the [configuration reference](../../README.md#in-memory-contacts) for the YAML format.

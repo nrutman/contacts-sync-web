@@ -19,42 +19,23 @@ composer install
 
 ## ⚙️ Configuration
 
-Included in the `config` folder is a `parameters.yml.dist` file. Complete the following steps:
-1. Copy this file and rename it `parameters.yml`.
-2. Fill in all of the tokens with configuration for Planning Center and Google.
-3. Make sure the `lists` parameter is completed with the lists to sync from Planning Center into Google Workspace.
-4. Run `bin/console sync:configure` to get a Google Workspace token.
+All configuration (API credentials, sync lists, in-memory contacts) is managed through the web UI Settings page after running the setup wizard.
 
-### Configuration Reference
+1. Run `bin/console app:setup` to configure the database, encryption key, and create the first admin user.
+2. Log in to the web interface and navigate to **Settings** to configure Planning Center and Google credentials.
+3. Create sync lists and in-memory contacts through the web UI.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `planning_center.app.id` | string | Planning Center API application ID |
-| `planning_center.app.secret` | string | Planning Center API application secret |
-| `google.authentication` | object | Google OAuth client configuration (client ID, secret, project ID, URIs) |
-| `google.domain` | string | The Google Workspace domain (e.g. `example.com`) |
-| `lists` | string[] | List names to sync — each name must match both a Planning Center list and a Google Group email |
-| `contacts` | object | In-memory contacts to include in sync (see below) |
+If you are migrating from the legacy CLI version, pass `--legacy-config` to the setup wizard to import your old `parameters.yml`:
 
-### In-Memory Contacts
-
-The `contacts` parameter in `parameters.yml` allows you to manually add contacts that will be included in the sync even if they are not in Planning Center. This is useful for adding external members to distribution groups.
-
-Each contact requires an `email` and a `list` (the destination Google Group). A contact can belong to multiple lists by providing an array:
-
-```yaml
-contacts:
-    John Doe:
-        email: john@external.com
-        list: group@example.com
-    Jane Doe:
-        email: jane@external.com
-        list:
-            - group1@example.com
-            - group2@example.com
+```bash
+bin/console app:setup --legacy-config config/parameters.yml
 ```
 
-In-memory contacts are merged with Planning Center contacts before the diff is computed. If the same email exists in both sources, it is included only once.
+Or run the migration command directly:
+
+```bash
+bin/console app:migrate-config config/parameters.yml
+```
 
 ## 🚀 Usage
 
@@ -132,9 +113,11 @@ php bin/console tailwind:build --minify
 php bin/console doctrine:migrations:migrate --no-interaction
 
 # 6. Run the interactive setup wizard (first deploy only)
-#    This configures the database, encryption key, mailer, imports
-#    config from parameters.yml, and creates the first admin user.
+#    This configures the database, encryption key, mailer, and creates
+#    the first admin user. Use --legacy-config to import a parameters.yml.
 php bin/console app:setup
+#    Or, to import legacy CLI config:
+#    php bin/console app:setup --legacy-config config/parameters.yml
 
 # 7. Configure MAILER_DSN for outbound email delivery
 #    Example: MAILER_DSN=smtp://user:pass@smtp.example.com:587
@@ -202,7 +185,7 @@ php bin/console app:rotate-encryption-keys --force
 | `The Google Client cannot authenticate with your account` | Run `bin/console sync:configure` to set up or refresh your Google token. |
 | `The required Google token was not found` | The token file (`var/google-token.json`) is missing or invalid. Delete it and re-run `sync:configure`. |
 | Google token keeps expiring | Ensure `setAccessType('offline')` is configured (default). Re-run `sync:configure --force` to get a new refresh token. |
-| `The list 'X' could not be found` | The list name in `parameters.yml` does not match any Planning Center list. Verify the exact name in Planning Center. |
+| `The list 'X' could not be found` | The list name does not match any Planning Center list. Verify the exact name in Planning Center. |
 | `Unknown list specified: X` | The list name passed to `planning-center:refresh` is not in the configured `lists` parameter. Use `all` or a valid list name. |
 
 ## 📖 Technical Documentation

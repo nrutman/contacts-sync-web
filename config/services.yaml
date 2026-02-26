@@ -1,8 +1,5 @@
 # This file is the entry point to configure your own services.
 # Files in the packages/ subdirectory configure your dependencies.
-imports:
-    - { resource: "parameters.yml" }
-
 parameters:
     kernel.var_dir: "%kernel.project_dir%/var"
 
@@ -14,12 +11,6 @@ services:
         bind:
             $encryptionKey: "%env(APP_ENCRYPTION_KEY)%"
             $previousEncryptionKeys: "%env(default::APP_PREVIOUS_ENCRYPTION_KEYS)%"
-            $googleConfiguration: "%google.authentication%"
-            $googleDomain: "%google.domain%"
-            $inMemoryContacts: "%contacts%"
-            $lists: "%lists%"
-            $planningCenterAppId: "%planning_center.app.id%"
-            $planningCenterAppSecret: "%planning_center.app.secret%"
             $varPath: "%kernel.var_dir%"
 
     # makes classes in src/ available to be used as services
@@ -27,3 +18,13 @@ services:
     App\:
         resource: "../src/*"
         exclude: "../src/{DependencyInjection,Entity,Migrations,Tests,Kernel.php}"
+
+    # These classes accept credentials via constructor but are only created
+    # through their respective factories — exclude them from autowiring.
+    App\Client\PlanningCenter\PlanningCenterClient:
+        autowire: false
+        autoconfigure: false
+
+    App\Client\Google\GoogleClient:
+        autowire: false
+        autoconfigure: false

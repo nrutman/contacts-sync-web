@@ -2,20 +2,17 @@
 
 namespace App\Command;
 
-use App\Entity\InMemoryContact;
-use App\Entity\Organization;
-use App\Entity\SyncList;
 use App\Entity\User;
-use App\File\FileProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Yaml\Yaml;
 
 #[AsCommand(
     name: 'app:setup',
@@ -32,25 +29,25 @@ class SetupCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
-        private readonly FileProvider $fileProvider,
         private readonly string $varPath,
-        private readonly string $planningCenterAppId,
-        private readonly string $planningCenterAppSecret,
-        private readonly array $googleConfiguration,
-        private readonly string $googleDomain,
-        private readonly array $lists,
-        private readonly array $inMemoryContacts,
     ) {
         parent::__construct();
     }
 
     protected function configure(): void
     {
-        $this->setHelp(
-            'Interactive wizard that configures the database, encryption, email, '.
-                'imports existing configuration, and creates the first admin user. '.
-                'Safe to run multiple times — existing values are preserved by default.',
-        );
+        $this
+            ->setHelp(
+                'Interactive wizard that configures the database, encryption, email, '.
+                    'imports existing configuration, and creates the first admin user. '.
+                    'Safe to run multiple times — existing values are preserved by default.',
+            )
+            ->addOption(
+                'legacy-config',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Path to the legacy parameters.yml file to import',
+            );
     }
 
     protected function execute(
@@ -82,7 +79,7 @@ class SetupCommand extends Command
         }
 
         // Step 5: Import existing configuration
-        $this->stepImportConfiguration($input);
+        $this->stepImportConfiguration($input, $output);
 
         // Step 6: Create admin user
         $this->stepCreateAdminUser($input);
@@ -364,13 +361,15 @@ class SetupCommand extends Command
         return true;
     }
 
-    private function stepImportConfiguration(InputInterface $input): void
+    private function stepImportConfiguration(InputInterface $input, OutputInterface $output): void
     {
         $this->io->section('Step 5/6: Import Configuration');
 
-        if (!$this->hasExistingConfig()) {
+        $legacyConfigPath = $input->getOption('legacy-config');
+
+        if ($legacyConfigPath === null) {
             $this->io->text(
-                ' No existing configuration detected — skipping import.',
+                ' No --legacy-config option provided — skipping import.',
             );
             $this->io->text(
                 ' You can configure your organization via the Settings page after logging in.',
@@ -379,39 +378,20 @@ class SetupCommand extends Command
             return;
         }
 
-        $existingOrg = $this->entityManager
-            ->getRepository(Organization::class)
-            ->findOneBy([]);
-
-        if ($existingOrg !== null) {
-            if (!$input->isInteractive()) {
-                $this->io->text(
-                    ' Organization already exists — skipping import in non-interactive mode.',
-                );
-
-                return;
-            }
-
-            $overwrite = $this->io->confirm(
-                'An organization already exists in the database. Overwrite it with data from parameters.yml?',
-                false,
+        if (!$this->hasExistingConfig($legacyConfigPath)) {
+            $this->io->warning(
+                'The legacy config file does not exist or contains only placeholder values — skipping import.',
+            );
+            $this->io->text(
+                ' You can configure your organization via the Settings page after logging in.',
             );
 
-            if (!$overwrite) {
-                $this->io->text(
-                    ' Keeping existing organization — skipping import.',
-                );
-
-                return;
-            }
-
-            $this->entityManager->remove($existingOrg);
-            $this->entityManager->flush();
+            return;
         }
 
         if ($input->isInteractive()) {
             $import = $this->io->confirm(
-                'Found existing configuration in parameters.yml. Import it into the database?',
+                'Found existing configuration in the legacy config file. Import it into the database?',
                 true,
             );
 
@@ -422,28 +402,34 @@ class SetupCommand extends Command
             }
         }
 
-        $this->entityManager->beginTransaction();
-
         try {
-            $organization = $this->createOrganizationFromConfig();
-            $syncListMap = $this->createSyncListsFromConfig($organization);
-            $contactCounts = $this->createInMemoryContactsFromConfig(
-                $organization,
-                $syncListMap,
-            );
+            $migrateCommand = $this->getApplication()?->find('app:migrate-config');
 
-            $this->entityManager->flush();
-            $this->entityManager->commit();
+            if ($migrateCommand === null) {
+                $this->io->warning(
+                    'Could not find app:migrate-config command. Please run it manually.',
+                );
 
-            $this->io->text(
-                sprintf(
-                    ' Imported: 1 organization, %d lists, %d contacts... <info>✓</info>',
-                    count($syncListMap),
-                    $contactCounts['contacts'],
-                ),
-            );
+                return;
+            }
+
+            $migrateInput = new ArrayInput([
+                'config-file' => $legacyConfigPath,
+            ]);
+            $migrateInput->setInteractive($input->isInteractive());
+
+            $returnCode = $migrateCommand->run($migrateInput, $output);
+
+            if ($returnCode !== Command::SUCCESS) {
+                $this->io->warning(
+                    'Configuration import failed. You can retry later using: bin/console app:migrate-config <path-to-parameters.yml>',
+                );
+
+                return;
+            }
+
+            $this->io->text(' Configuration imported... <info>✓</info>');
         } catch (\Throwable $e) {
-            $this->entityManager->rollback();
             $this->io->warning(
                 'Configuration import failed: '.$e->getMessage(),
             );
@@ -577,127 +563,39 @@ class SetupCommand extends Command
         ]);
     }
 
-    private function hasExistingConfig(): bool
+    private function hasExistingConfig(string $filePath): bool
     {
-        // Check if any meaningful config values exist (not placeholders)
-        if (
-            $this->planningCenterAppId === ''
-            || $this->planningCenterAppId === 'REPLACE_ME'
-        ) {
+        if (!file_exists($filePath)) {
             return false;
         }
 
-        if (
-            $this->googleDomain === ''
-            || $this->googleDomain === 'REPLACE_ME'
-        ) {
+        try {
+            $parsed = Yaml::parseFile($filePath);
+        } catch (\Throwable) {
             return false;
         }
 
-        if ($this->lists === []) {
+        $params = $parsed['parameters'] ?? [];
+
+        $appId = $params['planning_center.app.id'] ?? '';
+
+        if ($appId === '' || str_starts_with($appId, '{{')) {
+            return false;
+        }
+
+        $domain = $params['google.domain'] ?? '';
+
+        if ($domain === '' || str_starts_with($domain, '{{')) {
+            return false;
+        }
+
+        $lists = $params['lists'] ?? [];
+
+        if ($lists === []) {
             return false;
         }
 
         return true;
-    }
-
-    private function createOrganizationFromConfig(): Organization
-    {
-        $organization = new Organization();
-        $organization->setName($this->googleDomain);
-        $organization->setPlanningCenterAppId($this->planningCenterAppId);
-        $organization->setPlanningCenterAppSecret(
-            $this->planningCenterAppSecret,
-        );
-        $organization->setGoogleOAuthCredentials(
-            json_encode($this->googleConfiguration, JSON_THROW_ON_ERROR),
-        );
-        $organization->setGoogleDomain($this->googleDomain);
-
-        $googleToken = $this->loadGoogleToken();
-        $organization->setGoogleToken($googleToken);
-
-        $this->entityManager->persist($organization);
-
-        return $organization;
-    }
-
-    private function loadGoogleToken(): ?string
-    {
-        $tokenPath = $this->varPath.'/google-token.json';
-
-        try {
-            $contents = $this->fileProvider->getContents($tokenPath);
-            $this->io->text(' Found Google token at '.$tokenPath);
-
-            return $contents;
-        } catch (FileNotFoundException) {
-            $this->io->text(' No Google token found — skipping token import.');
-
-            return null;
-        }
-    }
-
-    /**
-     * @return array<string, SyncList>
-     */
-    private function createSyncListsFromConfig(
-        Organization $organization,
-    ): array {
-        $map = [];
-
-        foreach ($this->lists as $listName) {
-            $syncList = new SyncList();
-            $syncList->setOrganization($organization);
-            $syncList->setName($listName);
-            $syncList->setIsEnabled(true);
-
-            $this->entityManager->persist($syncList);
-            $map[strtolower($listName)] = $syncList;
-        }
-
-        return $map;
-    }
-
-    /**
-     * @param array<string, SyncList> $syncListMap
-     *
-     * @return array{contacts: int, associations: int}
-     */
-    private function createInMemoryContactsFromConfig(
-        Organization $organization,
-        array $syncListMap,
-    ): array {
-        $contactCount = 0;
-        $associationCount = 0;
-
-        foreach ($this->inMemoryContacts as $name => $config) {
-            $contact = new InMemoryContact();
-            $contact->setOrganization($organization);
-            $contact->setName((string) $name);
-            $contact->setEmail($config['email']);
-
-            $contactLists = is_array($config['list'])
-                ? $config['list']
-                : [$config['list']];
-
-            foreach ($contactLists as $listName) {
-                $key = strtolower($listName);
-
-                if (isset($syncListMap[$key])) {
-                    $contact->addSyncList($syncListMap[$key]);
-                    ++$associationCount;
-                }
-            }
-
-            $this->entityManager->persist($contact);
-            ++$contactCount;
-        }
-
-        return [
-            'contacts' => $contactCount,
-            'associations' => $associationCount,
-        ];
     }
 
     private function writeEnvLocal(string $path, array $newValues): void

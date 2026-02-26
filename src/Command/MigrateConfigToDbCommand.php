@@ -9,10 +9,12 @@ use App\File\FileProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
+use Symfony\Component\Yaml\Yaml;
 
 #[AsCommand(
     name: 'app:migrate-config',
@@ -23,21 +25,44 @@ class MigrateConfigToDbCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly FileProvider $fileProvider,
-        private readonly string $planningCenterAppId,
-        private readonly string $planningCenterAppSecret,
-        private readonly array $googleConfiguration,
-        private readonly string $googleDomain,
-        private readonly array $lists,
-        private readonly array $inMemoryContacts,
         private readonly string $varPath,
     ) {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addArgument('config-file', InputArgument::REQUIRED, 'Path to the legacy parameters.yml file');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $io->title('Migrate Configuration to Database');
+
+        $configFile = $input->getArgument('config-file');
+
+        if (!file_exists($configFile)) {
+            $io->error(sprintf('Configuration file not found: %s', $configFile));
+
+            return Command::FAILURE;
+        }
+
+        $parsed = Yaml::parseFile($configFile);
+        $params = $parsed['parameters'] ?? [];
+
+        $planningCenterAppId = $params['planning_center.app.id'] ?? '';
+        $planningCenterAppSecret = $params['planning_center.app.secret'] ?? '';
+        $googleConfiguration = $params['google.authentication'] ?? [];
+        $googleDomain = $params['google.domain'] ?? '';
+        $lists = $params['lists'] ?? [];
+        $inMemoryContacts = $params['contacts'] ?? [];
+
+        if ($this->hasPlaceholderValues($planningCenterAppId, $googleDomain, $lists)) {
+            $io->error('The configuration file contains placeholder values. Please fill in real values before migrating.');
+
+            return Command::FAILURE;
+        }
 
         $existingOrg = $this->entityManager->getRepository(Organization::class)->findOneBy([]);
 
@@ -65,9 +90,15 @@ class MigrateConfigToDbCommand extends Command
         $this->entityManager->beginTransaction();
 
         try {
-            $organization = $this->createOrganization($io);
-            $syncListMap = $this->createSyncLists($organization);
-            $contactCount = $this->createInMemoryContacts($organization, $syncListMap);
+            $organization = $this->createOrganization(
+                $io,
+                $planningCenterAppId,
+                $planningCenterAppSecret,
+                $googleConfiguration,
+                $googleDomain,
+            );
+            $syncListMap = $this->createSyncLists($organization, $lists);
+            $contactCount = $this->createInMemoryContacts($organization, $syncListMap, $inMemoryContacts);
 
             $this->entityManager->flush();
             $this->entityManager->commit();
@@ -87,11 +118,28 @@ class MigrateConfigToDbCommand extends Command
         ]);
 
         $io->note(
-            'You can delete config/parameters.yml and var/google-token.json after verifying the migration, '
+            'You can delete the legacy parameters.yml and var/google-token.json after verifying the migration, '
             .'but keep backups until the web UI is confirmed working.',
         );
 
         return Command::SUCCESS;
+    }
+
+    private function hasPlaceholderValues(string $planningCenterAppId, string $googleDomain, array $lists): bool
+    {
+        if ($planningCenterAppId === '' || str_starts_with($planningCenterAppId, '{{')) {
+            return true;
+        }
+
+        if ($googleDomain === '' || str_starts_with($googleDomain, '{{')) {
+            return true;
+        }
+
+        if ($lists === []) {
+            return true;
+        }
+
+        return false;
     }
 
     private function removeExistingData(Organization $organization): void
@@ -100,14 +148,19 @@ class MigrateConfigToDbCommand extends Command
         $this->entityManager->flush();
     }
 
-    private function createOrganization(SymfonyStyle $io): Organization
-    {
+    private function createOrganization(
+        SymfonyStyle $io,
+        string $planningCenterAppId,
+        string $planningCenterAppSecret,
+        array $googleConfiguration,
+        string $googleDomain,
+    ): Organization {
         $organization = new Organization();
-        $organization->setName($this->googleDomain);
-        $organization->setPlanningCenterAppId($this->planningCenterAppId);
-        $organization->setPlanningCenterAppSecret($this->planningCenterAppSecret);
-        $organization->setGoogleOAuthCredentials(json_encode($this->googleConfiguration, JSON_THROW_ON_ERROR));
-        $organization->setGoogleDomain($this->googleDomain);
+        $organization->setName($googleDomain);
+        $organization->setPlanningCenterAppId($planningCenterAppId);
+        $organization->setPlanningCenterAppSecret($planningCenterAppSecret);
+        $organization->setGoogleOAuthCredentials(json_encode($googleConfiguration, JSON_THROW_ON_ERROR));
+        $organization->setGoogleDomain($googleDomain);
 
         $googleToken = $this->loadGoogleToken($io);
         $organization->setGoogleToken($googleToken);
@@ -136,11 +189,11 @@ class MigrateConfigToDbCommand extends Command
     /**
      * @return array<string, SyncList> Map of list name → SyncList entity
      */
-    private function createSyncLists(Organization $organization): array
+    private function createSyncLists(Organization $organization, array $lists): array
     {
         $map = [];
 
-        foreach ($this->lists as $listName) {
+        foreach ($lists as $listName) {
             $syncList = new SyncList();
             $syncList->setOrganization($organization);
             $syncList->setName($listName);
@@ -159,12 +212,12 @@ class MigrateConfigToDbCommand extends Command
      *
      * @return array{contacts: int, associations: int}
      */
-    private function createInMemoryContacts(Organization $organization, array $syncListMap): array
+    private function createInMemoryContacts(Organization $organization, array $syncListMap, array $inMemoryContacts): array
     {
         $contactCount = 0;
         $associationCount = 0;
 
-        foreach ($this->inMemoryContacts as $name => $config) {
+        foreach ($inMemoryContacts as $name => $config) {
             $contact = new InMemoryContact();
             $contact->setOrganization($organization);
             $contact->setName((string) $name);

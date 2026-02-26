@@ -2,10 +2,10 @@
 
 namespace App\Tests\Command;
 
+use App\Command\MigrateConfigToDbCommand;
 use App\Command\SetupCommand;
 use App\Entity\Organization;
 use App\Entity\User;
-use App\File\FileProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
@@ -14,22 +14,22 @@ use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Yaml\Yaml;
 
 class SetupCommandTest extends MockeryTestCase
 {
     private EntityManagerInterface|m\MockInterface $entityManager;
     private UserPasswordHasherInterface|m\MockInterface $passwordHasher;
-    private FileProvider|m\MockInterface $fileProvider;
     private EntityRepository|m\MockInterface $userRepository;
     private EntityRepository|m\MockInterface $organizationRepository;
     private string $tempDir;
     private string $varPath;
+    private string $configDir;
 
     protected function setUp(): void
     {
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->passwordHasher = m::mock(UserPasswordHasherInterface::class);
-        $this->fileProvider = m::mock(FileProvider::class);
         $this->userRepository = m::mock(EntityRepository::class);
         $this->organizationRepository = m::mock(EntityRepository::class);
 
@@ -37,6 +37,8 @@ class SetupCommandTest extends MockeryTestCase
         mkdir($this->tempDir);
         $this->varPath = $this->tempDir.'/var';
         mkdir($this->varPath);
+        $this->configDir = $this->tempDir.'/config';
+        mkdir($this->configDir);
 
         $this->entityManager
             ->shouldReceive('getRepository')
@@ -62,6 +64,16 @@ class SetupCommandTest extends MockeryTestCase
             unlink($envLocalPath);
         }
 
+        $configFile = $this->configDir.'/parameters.yml';
+
+        if (file_exists($configFile)) {
+            unlink($configFile);
+        }
+
+        if (is_dir($this->configDir)) {
+            rmdir($this->configDir);
+        }
+
         if (is_dir($this->varPath)) {
             rmdir($this->varPath);
         }
@@ -71,79 +83,92 @@ class SetupCommandTest extends MockeryTestCase
         }
     }
 
+    public function testHasExistingConfigReturnsFalseWhenFileDoesNotExist(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
+        $result = $reflection->invoke($command, '/nonexistent/path.yml');
+
+        self::assertFalse($result);
+    }
+
     public function testHasExistingConfigReturnsFalseWhenPlaceholders(): void
     {
-        // When config has placeholder values, step 5 should auto-skip
-        $command = $this->createSetupCommand(
-            planningCenterAppId: 'REPLACE_ME',
-            googleDomain: 'REPLACE_ME',
-            lists: [],
+        $configPath = $this->writeConfigFile(
+            planningCenterAppId: '{{PlanningCenter Application ID}}',
+            googleDomain: '{{G Suite Domain}}',
+            lists: ['list1'],
         );
 
-        $tester = $this->createCommandTester($command);
+        $command = $this->createSetupCommand();
 
-        // We only need step 5 output — but the command will fail at step 1 (DB connection).
-        // Use non-interactive mode so it fails fast on DB.
-        // Instead, let's test the method indirectly by checking step 5 output.
-        // We need to use reflection to test hasExistingConfig directly.
         $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
-        $result = $reflection->invoke($command);
+        $result = $reflection->invoke($command, $configPath);
 
         self::assertFalse($result);
     }
 
     public function testHasExistingConfigReturnsTrueWhenRealValues(): void
     {
-        $command = $this->createSetupCommand(
+        $configPath = $this->writeConfigFile(
             planningCenterAppId: 'real-app-id',
             googleDomain: 'example.com',
             lists: ['list1@example.com'],
         );
 
+        $command = $this->createSetupCommand();
+
         $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
-        $result = $reflection->invoke($command);
+        $result = $reflection->invoke($command, $configPath);
 
         self::assertTrue($result);
     }
 
     public function testHasExistingConfigReturnsFalseWhenEmptyAppId(): void
     {
-        $command = $this->createSetupCommand(
+        $configPath = $this->writeConfigFile(
             planningCenterAppId: '',
             googleDomain: 'example.com',
             lists: ['list1@example.com'],
         );
 
+        $command = $this->createSetupCommand();
+
         $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
-        $result = $reflection->invoke($command);
+        $result = $reflection->invoke($command, $configPath);
 
         self::assertFalse($result);
     }
 
     public function testHasExistingConfigReturnsFalseWhenEmptyDomain(): void
     {
-        $command = $this->createSetupCommand(
+        $configPath = $this->writeConfigFile(
             planningCenterAppId: 'real-app-id',
             googleDomain: '',
             lists: ['list1@example.com'],
         );
 
+        $command = $this->createSetupCommand();
+
         $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
-        $result = $reflection->invoke($command);
+        $result = $reflection->invoke($command, $configPath);
 
         self::assertFalse($result);
     }
 
     public function testHasExistingConfigReturnsFalseWhenNoLists(): void
     {
-        $command = $this->createSetupCommand(
+        $configPath = $this->writeConfigFile(
             planningCenterAppId: 'real-app-id',
             googleDomain: 'example.com',
             lists: [],
         );
 
+        $command = $this->createSetupCommand();
+
         $reflection = new \ReflectionMethod($command, 'hasExistingConfig');
-        $result = $reflection->invoke($command);
+        $result = $reflection->invoke($command, $configPath);
 
         self::assertFalse($result);
     }
@@ -374,13 +399,9 @@ class SetupCommandTest extends MockeryTestCase
         $this->entityManager->shouldNotHaveReceived('persist');
     }
 
-    public function testStepImportConfigurationSkipsWhenNoExistingConfig(): void
+    public function testStepImportConfigurationSkipsWhenNoLegacyConfigOption(): void
     {
-        $command = $this->createSetupCommand(
-            planningCenterAppId: 'REPLACE_ME',
-            googleDomain: 'REPLACE_ME',
-            lists: [],
-        );
+        $command = $this->createSetupCommand();
 
         $reflection = new \ReflectionMethod(
             $command,
@@ -392,32 +413,25 @@ class SetupCommandTest extends MockeryTestCase
             \Symfony\Component\Console\Input\InputInterface::class,
         );
         $input->shouldReceive('isInteractive')->andReturn(false);
+        $input->shouldReceive('getOption')->with('legacy-config')->andReturn(null);
 
-        $reflection->invoke($command, $input);
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+
+        $reflection->invoke($command, $input, $output);
 
         // No persist/flush should be called — import is skipped
         $this->entityManager->shouldNotHaveReceived('persist');
     }
 
-    public function testStepImportConfigurationSkipsInNonInteractiveWhenOrgExists(): void
+    public function testStepImportConfigurationSkipsWhenConfigHasPlaceholders(): void
     {
-        $existingOrg = new Organization();
-        $existingOrg->setName('Existing Org');
-        $existingOrg->setPlanningCenterAppId('id');
-        $existingOrg->setPlanningCenterAppSecret('secret');
-        $existingOrg->setGoogleOAuthCredentials('{}');
-        $existingOrg->setGoogleDomain('example.com');
-
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($existingOrg);
-
-        $command = $this->createSetupCommand(
-            planningCenterAppId: 'real-app-id',
-            googleDomain: 'example.com',
-            lists: ['list1@example.com'],
+        $configPath = $this->writeConfigFile(
+            planningCenterAppId: '{{PlanningCenter Application ID}}',
+            googleDomain: '{{G Suite Domain}}',
+            lists: ['list1'],
         );
+
+        $command = $this->createSetupCommand();
 
         $reflection = new \ReflectionMethod(
             $command,
@@ -429,12 +443,50 @@ class SetupCommandTest extends MockeryTestCase
             \Symfony\Component\Console\Input\InputInterface::class,
         );
         $input->shouldReceive('isInteractive')->andReturn(false);
+        $input->shouldReceive('getOption')->with('legacy-config')->andReturn($configPath);
 
-        $reflection->invoke($command, $input);
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
 
-        // Should not have removed the existing org or persisted a new one
-        $this->entityManager->shouldNotHaveReceived('remove');
-        $this->entityManager->shouldNotHaveReceived('beginTransaction');
+        $reflection->invoke($command, $input, $output);
+
+        // No persist/flush should be called — import is skipped due to placeholders
+        $this->entityManager->shouldNotHaveReceived('persist');
+    }
+
+    public function testStepImportConfigurationDelegatesToMigrateCommand(): void
+    {
+        $configPath = $this->writeConfigFile(
+            planningCenterAppId: 'real-app-id',
+            googleDomain: 'example.com',
+            lists: ['list1@example.com'],
+        );
+
+        $command = $this->createSetupCommand();
+
+        $migrateCommand = m::mock(MigrateConfigToDbCommand::class);
+        $migrateCommand->shouldReceive('run')->once()->andReturn(Command::SUCCESS);
+
+        $stubCommand = $this->createMigrateConfigStub($migrateCommand);
+
+        $application = new Application();
+        $application->add($command);
+        $application->add($stubCommand);
+
+        $reflection = new \ReflectionMethod(
+            $command,
+            'stepImportConfiguration',
+        );
+        $this->initializeIo($command);
+
+        $input = m::mock(
+            \Symfony\Component\Console\Input\InputInterface::class,
+        );
+        $input->shouldReceive('isInteractive')->andReturn(false);
+        $input->shouldReceive('getOption')->with('legacy-config')->andReturn($configPath);
+
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+
+        $reflection->invoke($command, $input, $output);
     }
 
     public function testStepEncryptionKeyGeneratesNewKeyWhenNoExisting(): void
@@ -530,26 +582,65 @@ class SetupCommandTest extends MockeryTestCase
         );
     }
 
-    private function createSetupCommand(
+    private function createSetupCommand(): SetupCommand
+    {
+        return new SetupCommand(
+            $this->entityManager,
+            $this->passwordHasher,
+            $this->varPath,
+        );
+    }
+
+    private function writeConfigFile(
         string $planningCenterAppId = 'REPLACE_ME',
         string $planningCenterAppSecret = 'REPLACE_ME',
         array $googleConfiguration = [],
         string $googleDomain = 'REPLACE_ME',
         array $lists = [],
         array $inMemoryContacts = [],
-    ): SetupCommand {
-        return new SetupCommand(
-            $this->entityManager,
-            $this->passwordHasher,
-            $this->fileProvider,
-            $this->varPath,
-            $planningCenterAppId,
-            $planningCenterAppSecret,
-            $googleConfiguration,
-            $googleDomain,
-            $lists,
-            $inMemoryContacts,
-        );
+    ): string {
+        $config = [
+            'parameters' => [
+                'planning_center.app.id' => $planningCenterAppId,
+                'planning_center.app.secret' => $planningCenterAppSecret,
+                'google.authentication' => $googleConfiguration,
+                'google.domain' => $googleDomain,
+                'lists' => $lists,
+                'contacts' => $inMemoryContacts,
+            ],
+        ];
+
+        $path = $this->configDir.'/parameters.yml';
+        file_put_contents($path, Yaml::dump($config, 4));
+
+        return $path;
+    }
+
+    private function createMigrateConfigStub(m\MockInterface $mock): Command
+    {
+        $stub = new class ($mock) extends Command {
+            private m\MockInterface $mock;
+
+            public function __construct(m\MockInterface $mock)
+            {
+                $this->mock = $mock;
+                parent::__construct('app:migrate-config');
+            }
+
+            protected function configure(): void
+            {
+                $this->addArgument('config-file', \Symfony\Component\Console\Input\InputArgument::REQUIRED);
+            }
+
+            protected function execute(
+                \Symfony\Component\Console\Input\InputInterface $input,
+                \Symfony\Component\Console\Output\OutputInterface $output,
+            ): int {
+                return $this->mock->run($input, $output);
+            }
+        };
+
+        return $stub;
     }
 
     private function createCommandTester(SetupCommand $command): CommandTester

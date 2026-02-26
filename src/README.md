@@ -117,15 +117,9 @@ The Symfony service container uses autowiring. Key bindings in `config/services.
 |-----------------------|--------|
 | `$encryptionKey` | `%env(APP_ENCRYPTION_KEY)%` |
 | `$previousEncryptionKeys` | `%env(default::APP_PREVIOUS_ENCRYPTION_KEYS)%` |
-| `$googleConfiguration` | `%google.authentication%` (from `parameters.yml`) |
-| `$googleDomain` | `%google.domain%` |
-| `$inMemoryContacts` | `%contacts%` |
-| `$lists` | `%lists%` |
-| `$planningCenterAppId` | `%planning_center.app.id%` |
-| `$planningCenterAppSecret` | `%planning_center.app.secret%` |
 | `$varPath` | `%kernel.var_dir%` |
 
-The `parameters.yml` bindings are only needed for the legacy CLI commands and the `app:migrate-config` migration tool. Once migrated, the web application reads all configuration from the database via `Organization` entities.
+API credentials and sync configuration are stored in the database and accessed through `Organization` entities. The `PlanningCenterClient` and `GoogleClient` classes are excluded from autowiring and created through their respective factories.
 
 ## ⚡ Async Processing
 
@@ -144,7 +138,7 @@ src/
 ├── Attribute/           # #[Encrypted] marker attribute
 ├── Client/              # API clients (Google, Planning Center)
 ├── Command/             # CLI commands
-├── Contact/             # Contact DTO, diff algorithm, in-memory manager
+├── Contact/             # Contact DTO and diff algorithm
 ├── Controller/          # Web controllers
 ├── Entity/              # Doctrine entities
 ├── Event/               # Domain events
