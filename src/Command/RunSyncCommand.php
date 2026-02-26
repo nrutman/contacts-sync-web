@@ -3,7 +3,9 @@
 namespace App\Command;
 
 use App\Entity\SyncList;
+use App\Repository\SyncRunRepository;
 use App\Sync\SyncService;
+use Cron\CronExpression;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,6 +23,7 @@ class RunSyncCommand extends Command
     public function __construct(
         private readonly SyncService $syncService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly SyncRunRepository $syncRunRepository,
     ) {
         parent::__construct();
     }
@@ -44,6 +47,13 @@ class RunSyncCommand extends Command
             InputOption::VALUE_REQUIRED,
             'The name of a specific list to sync. If omitted, all enabled lists are synced.',
         );
+
+        $this->addOption(
+            'scheduled',
+            's',
+            InputOption::VALUE_NONE,
+            'Only sync lists that are due according to their cron expression. Use this with system-level cron.',
+        );
     }
 
     protected function execute(
@@ -53,6 +63,7 @@ class RunSyncCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $dryRun = (bool) $input->getOption('dry-run');
         $listFilter = $input->getOption('list');
+        $scheduled = (bool) $input->getOption('scheduled');
 
         if ($dryRun) {
             $io->success(
@@ -69,6 +80,17 @@ class RunSyncCommand extends Command
             return Command::FAILURE;
         }
 
+        if ($scheduled) {
+            $syncLists = $this->filterDueLists($syncLists, $io);
+
+            if (count($syncLists) === 0) {
+                $io->info('No sync lists are due. Nothing to do.');
+
+                return Command::SUCCESS;
+            }
+        }
+
+        $trigger = $scheduled ? 'schedule' : 'cli';
         $hasFailure = false;
 
         foreach ($syncLists as $listIndex => $syncList) {
@@ -88,7 +110,7 @@ class RunSyncCommand extends Command
             $result = $this->syncService->executeSync(
                 syncList: $syncList,
                 dryRun: $dryRun,
-                trigger: 'cli',
+                trigger: $trigger,
             );
 
             // Display the sync result summary
@@ -130,5 +152,63 @@ class RunSyncCommand extends Command
         }
 
         return $repository->findBy(['isEnabled' => true]);
+    }
+
+    /**
+     * Filters sync lists to only those that are due according to their cron expression.
+     *
+     * @param SyncList[] $syncLists
+     *
+     * @return SyncList[]
+     */
+    private function filterDueLists(array $syncLists, SymfonyStyle $io): array
+    {
+        $now = new \DateTimeImmutable();
+        $dueLists = [];
+
+        foreach ($syncLists as $syncList) {
+            $cronExpr = $syncList->getCronExpression();
+
+            if ($cronExpr === null) {
+                $io->writeln(sprintf(
+                    '<comment>Skipping %s — no cron expression configured.</comment>',
+                    $syncList->getName(),
+                ));
+
+                continue;
+            }
+
+            $lastRun = $this->syncRunRepository->findLastBySyncList($syncList);
+
+            if ($lastRun === null) {
+                $io->writeln(sprintf(
+                    '<info>%s — never synced, due now.</info>',
+                    $syncList->getName(),
+                ));
+                $dueLists[] = $syncList;
+
+                continue;
+            }
+
+            $cron = new CronExpression($cronExpr);
+            $nextDue = $cron->getNextRunDate($lastRun->getCreatedAt());
+
+            if ($nextDue <= $now) {
+                $io->writeln(sprintf(
+                    '<info>%s — due (next run was %s).</info>',
+                    $syncList->getName(),
+                    $nextDue->format('Y-m-d H:i:s'),
+                ));
+                $dueLists[] = $syncList;
+            } else {
+                $io->writeln(sprintf(
+                    '<comment>Skipping %s — not due until %s.</comment>',
+                    $syncList->getName(),
+                    $nextDue->format('Y-m-d H:i:s'),
+                ));
+            }
+        }
+
+        return $dueLists;
     }
 }

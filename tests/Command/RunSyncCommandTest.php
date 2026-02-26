@@ -5,6 +5,8 @@ namespace App\Tests\Command;
 use App\Command\RunSyncCommand;
 use App\Entity\Organization;
 use App\Entity\SyncList;
+use App\Entity\SyncRun;
+use App\Repository\SyncRunRepository;
 use App\Sync\SyncResult;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,11 +29,15 @@ class RunSyncCommandTest extends MockeryTestCase
     /** @var EntityRepository|m\LegacyMockInterface|m\MockInterface */
     private $syncListRepository;
 
+    /** @var SyncRunRepository|m\LegacyMockInterface|m\MockInterface */
+    private $syncRunRepository;
+
     public function setUp(): void
     {
         $this->syncService = m::mock(SyncService::class);
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->syncListRepository = m::mock(EntityRepository::class);
+        $this->syncRunRepository = m::mock(SyncRunRepository::class);
 
         $this->entityManager
             ->shouldReceive('getRepository')
@@ -330,7 +336,11 @@ class RunSyncCommandTest extends MockeryTestCase
 
     private function executeCommand(array $options = []): CommandTester
     {
-        $command = new RunSyncCommand($this->syncService, $this->entityManager);
+        $command = new RunSyncCommand(
+            $this->syncService,
+            $this->entityManager,
+            $this->syncRunRepository,
+        );
 
         $tester = new CommandTester($command);
         $tester->execute($options);
@@ -338,8 +348,10 @@ class RunSyncCommandTest extends MockeryTestCase
         return $tester;
     }
 
-    private function makeSyncList(string $name): SyncList
-    {
+    private function makeSyncList(
+        string $name,
+        ?string $cronExpression = null,
+    ): SyncList {
         $organization = new Organization();
         $organization->setName('Test Org');
 
@@ -347,6 +359,270 @@ class RunSyncCommandTest extends MockeryTestCase
         $syncList->setName($name);
         $syncList->setOrganization($organization);
 
+        if ($cronExpression !== null) {
+            $syncList->setCronExpression($cronExpression);
+        }
+
         return $syncList;
+    }
+
+    private function makeSyncRun(
+        SyncList $syncList,
+        \DateTimeImmutable $createdAt,
+    ): SyncRun {
+        $syncRun = new SyncRun();
+        $syncRun->setSyncList($syncList);
+        $syncRun->setTriggeredBy('cli');
+
+        $reflection = new \ReflectionProperty(SyncRun::class, 'createdAt');
+        $reflection->setValue($syncRun, $createdAt);
+
+        return $syncRun;
+    }
+
+    private function makeSuccessResult(): SyncResult
+    {
+        return new SyncResult(
+            sourceCount: 3,
+            destinationCount: 3,
+            addedCount: 0,
+            removedCount: 0,
+            log: '',
+            success: true,
+        );
+    }
+
+    public function testScheduledSkipsListsWithoutCronExpression(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE);
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $tester = $this->executeCommand(['--scheduled' => true]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+        self::assertStringContainsString('no cron expression', $tester->getDisplay());
+        self::assertStringContainsString('Nothing to do', $tester->getDisplay());
+    }
+
+    public function testScheduledRunsListsWithNoPriorRuns(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE, '*/5 * * * *');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList)
+            ->andReturnNull();
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
+                ),
+                false,
+                null,
+                'schedule',
+            )
+            ->andReturn($this->makeSuccessResult());
+
+        $tester = $this->executeCommand(['--scheduled' => true]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+        self::assertStringContainsString('never synced', $tester->getDisplay());
+    }
+
+    public function testScheduledSkipsListsNotYetDue(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE, '*/5 * * * *');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        // Last run was just now — next run is 5 minutes from now, so not due
+        $lastRun = $this->makeSyncRun($syncList, new \DateTimeImmutable());
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList)
+            ->andReturn($lastRun);
+
+        $tester = $this->executeCommand(['--scheduled' => true]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+        self::assertStringContainsString('not due until', $tester->getDisplay());
+        self::assertStringContainsString('Nothing to do', $tester->getDisplay());
+    }
+
+    public function testScheduledRunsListsThatAreDue(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE, '*/5 * * * *');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        // Last run was 10 minutes ago — next run was 5 minutes ago, so due
+        $lastRun = $this->makeSyncRun(
+            $syncList,
+            new \DateTimeImmutable('-10 minutes'),
+        );
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList)
+            ->andReturn($lastRun);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
+                ),
+                false,
+                null,
+                'schedule',
+            )
+            ->andReturn($this->makeSuccessResult());
+
+        $tester = $this->executeCommand(['--scheduled' => true]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+        self::assertStringContainsString('due', $tester->getDisplay());
+    }
+
+    public function testScheduledCombinesWithListFilter(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE, '*/5 * * * *');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['name' => self::LIST_ONE])
+            ->andReturn([$syncList]);
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList)
+            ->andReturnNull();
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
+                ),
+                false,
+                null,
+                'schedule',
+            )
+            ->andReturn($this->makeSuccessResult());
+
+        $tester = $this->executeCommand([
+            '--scheduled' => true,
+            '--list' => self::LIST_ONE,
+        ]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+    }
+
+    public function testScheduledCombinesWithDryRun(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE, '*/5 * * * *');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList)
+            ->andReturnNull();
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
+                ),
+                true,
+                null,
+                'schedule',
+            )
+            ->andReturn($this->makeSuccessResult());
+
+        $tester = $this->executeCommand([
+            '--scheduled' => true,
+            '--dry-run' => true,
+        ]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+        self::assertStringContainsString('dry run', $tester->getDisplay());
+    }
+
+    public function testScheduledWithMixedDueAndNotDueLists(): void
+    {
+        $syncList1 = $this->makeSyncList(self::LIST_ONE, '*/5 * * * *');
+        $syncList2 = $this->makeSyncList(self::LIST_TWO, '*/5 * * * *');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList1, $syncList2]);
+
+        // List 1: last run was 10 minutes ago — due
+        $lastRun1 = $this->makeSyncRun(
+            $syncList1,
+            new \DateTimeImmutable('-10 minutes'),
+        );
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList1)
+            ->andReturn($lastRun1);
+
+        // List 2: last run was just now — not due
+        $lastRun2 = $this->makeSyncRun($syncList2, new \DateTimeImmutable());
+
+        $this->syncRunRepository
+            ->shouldReceive('findLastBySyncList')
+            ->with($syncList2)
+            ->andReturn($lastRun2);
+
+        // Only list 1 should be synced
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->with(
+                m::on(
+                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
+                ),
+                false,
+                null,
+                'schedule',
+            )
+            ->andReturn($this->makeSuccessResult());
+
+        $tester = $this->executeCommand(['--scheduled' => true]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('1/1', $display);
+        self::assertStringContainsString('not due until', $display);
     }
 }

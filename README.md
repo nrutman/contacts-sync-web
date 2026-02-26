@@ -55,10 +55,11 @@ bin/console sync:run
 ```
 This will fetch the lists, run a diff, and display information for changes it is making to the destination.
 
-| Parameter | Description |
-| --------- | ----------- |
-| --dry-run | Computes the diff and outputs data without actually updating the destination. |
-| --list    | Only sync a specific list (by name). |
+| Parameter   | Description |
+| ----------- | ----------- |
+| --dry-run   | Computes the diff and outputs data without actually updating the destination. |
+| --list      | Only sync a specific list (by name). |
+| --scheduled | Only sync lists that are due according to their cron expression. See [System Cron](#system-cron-alternative). |
 
 ### `source:refresh`
 
@@ -151,6 +152,24 @@ sudo systemctl start contacts-sync-worker
 ```
 
 The `--time-limit=3600` flag restarts the worker every hour to prevent memory leaks. systemd's `Restart=always` brings it back up immediately. The worker processes both manually triggered syncs and scheduled syncs defined via cron expressions on sync lists.
+
+### System Cron Alternative
+
+If your server cannot run a long-lived Messenger worker (e.g. shared hosting), you can use a system-level cron job with the `--scheduled` flag instead. This evaluates each sync list's cron expression against its last run time and only syncs lists that are due:
+
+```bash
+# Run every minute — the command itself determines which lists are due
+* * * * * cd /path/to/contacts-sync && php bin/console sync:run --scheduled --env=prod >> var/log/cron.log 2>&1
+```
+
+The `--scheduled` flag:
+- Skips lists without a cron expression configured
+- Runs lists that have never been synced
+- Compares each list's cron expression against the last sync run time to determine if a sync is due
+- Returns success when no lists are due (normal for cron)
+- Combines with `--dry-run` and `--list` for testing
+
+Note: when using system cron, you still need a Messenger worker (`messenger:consume async`) to process web-triggered syncs. If you only use CLI syncs, the worker is not required.
 
 ### Encryption Key Management
 

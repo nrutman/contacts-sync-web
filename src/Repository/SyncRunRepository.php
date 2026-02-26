@@ -105,6 +105,20 @@ class SyncRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns the most recent sync run for the given list, regardless of status.
+     */
+    public function findLastBySyncList(SyncList $syncList): ?SyncRun
+    {
+        return $this->createQueryBuilder('sr')
+            ->where('sr.syncList = :syncList')
+            ->setParameter('syncList', $syncList)
+            ->orderBy('sr.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Returns the total count of sync runs for the given organization with optional filters.
      */
     public function countByOrganization(
