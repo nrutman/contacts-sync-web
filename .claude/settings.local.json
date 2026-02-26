@@ -3,7 +3,9 @@
     "allow": [
       "Bash(composer run-script:*)",
       "Bash(wc:*)",
-      "Bash(composer show:*)"
+      "Bash(composer show:*)",
+      "Bash(php:*)",
+      "Bash(find:*)"
     ]
   }
 }

@@ -90,36 +90,30 @@ bin/console source:refresh all
 ### Deployment Checklist
 
 ```bash
-# 1. Set environment to production
+# 1. Install dependencies without dev packages
+composer install --no-dev --optimize-autoloader
+
+# 2. Run the interactive setup wizard (first deploy only)
+#    Configures the database, encryption key, mailer, creates the schema,
+#    and creates the first admin user. Safe to re-run — existing values
+#    are preserved by default.
+php bin/console app:setup
+#    To import legacy CLI config:
+#    php bin/console app:setup --legacy-config config/parameters.yml
+
+# 3. Set environment to production
 #    In .env.local or your hosting environment:
 #    APP_ENV=prod
 #    APP_DEBUG=0
 
-# 2. Install dependencies without dev packages
-composer install --no-dev --optimize-autoloader
-
-# 3. Clear and warm the production cache
+# 4. Clear and warm the production cache
 php bin/console cache:clear --env=prod
 
-# 4. Compile frontend assets
-php bin/console asset-map:compile
+# 5. Compile frontend assets
 php bin/console tailwind:build --minify
+php bin/console asset-map:compile
 
-# 5. Run database migrations
-php bin/console doctrine:migrations:migrate --no-interaction
-
-# 6. Run the interactive setup wizard (first deploy only)
-#    This configures the database, encryption key, mailer, and creates
-#    the first admin user. Use --legacy-config to import a parameters.yml.
-php bin/console app:setup
-#    Or, to import legacy CLI config:
-#    php bin/console app:setup --legacy-config config/parameters.yml
-
-# 7. Configure MAILER_DSN for outbound email delivery
-#    Example: MAILER_DSN=smtp://user:pass@smtp.example.com:587
-#    Set MAILER_FROM to the sender address (e.g. noreply@your-domain.com)
-
-# 8. Start the Messenger worker (see systemd unit below)
+# 6. Start the Messenger worker (see systemd unit below)
 php bin/console messenger:consume async scheduler_sync --time-limit=3600
 ```
 

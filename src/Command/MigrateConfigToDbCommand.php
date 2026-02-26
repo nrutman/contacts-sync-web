@@ -109,6 +109,11 @@ class MigrateConfigToDbCommand extends Command
             $syncListMap = $this->createSyncLists($organization, $lists, $pcCredential, $googleCredential);
             $contactCount = $this->createManualContacts($organization, $syncListMap, $manualContacts);
 
+            // Capture token status before flush — the EncryptedFieldListener
+            // encrypts the credentials field during prePersist, making it
+            // unreadable via getCredentialsArray() afterward.
+            $hasGoogleToken = isset($googleCredential->getCredentialsArray()['token']);
+
             $this->entityManager->flush();
             $this->entityManager->commit();
         } catch (\Throwable $e) {
@@ -122,7 +127,7 @@ class MigrateConfigToDbCommand extends Command
         $io->listing([
             'Organization: '.$organization->getName(),
             'Planning Center credential: created',
-            'Google Groups credential: created'.($googleCredential->getCredentialsArray()['token'] ?? false ? ' (with token)' : ' (no token — run OAuth setup)'),
+            'Google Groups credential: created'.($hasGoogleToken ? ' (with token)' : ' (no token — run OAuth setup)'),
             'Sync lists: '.count($syncListMap).' created',
             'Manual contacts: '.$contactCount['contacts'].' created (across '.$contactCount['associations'].' list associations)',
         ]);

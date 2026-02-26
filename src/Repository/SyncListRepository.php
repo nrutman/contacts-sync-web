@@ -6,6 +6,7 @@ use App\Entity\Organization;
 use App\Entity\SyncList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 
 /**
  * @extends ServiceEntityRepository<SyncList>
@@ -26,7 +27,7 @@ class SyncListRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization)
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
             ->orderBy('sl.name', 'ASC')
             ->getQuery()
             ->getResult();
@@ -42,7 +43,7 @@ class SyncListRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('sl')
             ->where('sl.organization = :org')
             ->andWhere('sl.isEnabled = :enabled')
-            ->setParameter('org', $organization)
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
             ->setParameter('enabled', true)
             ->orderBy('sl.name', 'ASC')
             ->getQuery()
@@ -57,7 +58,7 @@ class SyncListRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('sl')
             ->select('COUNT(sl.id)')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization)
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -71,7 +72,7 @@ class SyncListRepository extends ServiceEntityRepository
             ->select('COUNT(sl.id)')
             ->where('sl.organization = :org')
             ->andWhere('sl.isEnabled = :enabled')
-            ->setParameter('org', $organization)
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
             ->setParameter('enabled', true)
             ->getQuery()
             ->getSingleScalarResult();

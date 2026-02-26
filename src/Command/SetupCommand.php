@@ -24,6 +24,7 @@ class SetupCommand extends Command
     private const DRIVER_MYSQL = 'MySQL';
 
     private SymfonyStyle $io;
+    private string $projectDir;
     private string $driver = self::DRIVER_POSTGRESQL;
     private string $databaseUrl = '';
     private string $encryptionKey = '';
@@ -61,7 +62,7 @@ class SetupCommand extends Command
         $this->io = new SymfonyStyle($input, $output);
         $this->io->title('Contacts Sync — Setup Wizard');
 
-        $projectDir = $this->getProjectDir();
+        $this->projectDir = $this->getProjectDir();
 
         // Step 1: Database connection
         if ($this->stepDatabaseConnection($input) === false) {
@@ -69,14 +70,14 @@ class SetupCommand extends Command
         }
 
         // Step 2: Encryption key
-        $this->stepEncryptionKey($projectDir);
+        $this->stepEncryptionKey();
 
         // Step 3: Email configuration
         $this->stepEmailConfiguration($input);
 
         // Step 4: Write .env.local and create schema
         if (
-            $this->stepWriteEnvAndMigrate($input, $output, $projectDir) ===
+            $this->stepWriteEnvAndMigrate($input, $output) ===
             false
         ) {
             return Command::FAILURE;
@@ -97,6 +98,32 @@ class SetupCommand extends Command
     private function stepDatabaseConnection(InputInterface $input): bool
     {
         $this->io->section('Step 1/6: Database Connection');
+
+        $existingUrl = $this->readEnvLocalValue('DATABASE_URL');
+
+        if ($existingUrl !== null && $existingUrl !== '') {
+            // Skip the placeholder value from .env
+            $isPlaceholder = str_contains($existingUrl, ':password@');
+
+            if (!$isPlaceholder) {
+                $displayUrl = $this->maskCredentials($existingUrl);
+
+                $keepExisting = $this->io->confirm(
+                    sprintf('Existing database connection found (%s). Keep it?', $displayUrl),
+                    true,
+                );
+
+                if ($keepExisting) {
+                    $this->driver = str_starts_with($existingUrl, 'mysql://')
+                        ? self::DRIVER_MYSQL
+                        : self::DRIVER_POSTGRESQL;
+                    $this->databaseUrl = $existingUrl;
+                    $this->io->text(' Keeping existing database connection... <info>✓</info>');
+
+                    return true;
+                }
+            }
+        }
 
         $this->driver = $this->io->choice(
             'Database engine',
@@ -290,14 +317,11 @@ class SetupCommand extends Command
         return '"'.str_replace('"', '""', $identifier).'"';
     }
 
-    private function stepEncryptionKey(string $projectDir): void
+    private function stepEncryptionKey(): void
     {
         $this->io->section('Step 2/6: Encryption Key');
 
-        $existingKey = $this->readEnvLocalValue(
-            $projectDir,
-            'APP_ENCRYPTION_KEY',
-        );
+        $existingKey = $this->readEnvLocalValue('APP_ENCRYPTION_KEY');
 
         if (
             $existingKey !== null
@@ -334,6 +358,24 @@ class SetupCommand extends Command
     {
         $this->io->section('Step 3/6: Email Configuration');
 
+        $existingDsn = $this->readEnvLocalValue('MAILER_DSN');
+
+        if ($existingDsn !== null && $existingDsn !== '' && $existingDsn !== 'null://null') {
+            $displayDsn = $this->maskCredentials($existingDsn);
+
+            $keepExisting = $this->io->confirm(
+                sprintf('Existing mailer DSN found (%s). Keep it?', $displayDsn),
+                true,
+            );
+
+            if ($keepExisting) {
+                $this->mailerDsn = $existingDsn;
+                $this->io->text(' Keeping existing email configuration... <info>✓</info>');
+
+                return;
+            }
+        }
+
         $this->io->text([
             'The application sends email notifications after sync runs.',
             'Enter a mailer DSN, or press Enter to skip for now.',
@@ -354,12 +396,11 @@ class SetupCommand extends Command
     private function stepWriteEnvAndMigrate(
         InputInterface $input,
         OutputInterface $output,
-        string $projectDir,
     ): bool {
         $this->io->section('Step 4/6: Database Setup');
 
         // Write .env.local
-        $envLocalPath = $projectDir.'/.env.local';
+        $envLocalPath = $this->projectDir.'/.env.local';
         $newValues = [
             'DATABASE_URL' => $this->databaseUrl,
             'APP_ENCRYPTION_KEY' => $this->encryptionKey,
@@ -369,41 +410,51 @@ class SetupCommand extends Command
         $this->writeEnvLocal($envLocalPath, $newValues);
         $this->io->text(' Writing .env.local... <info>✓</info>');
 
-        // Run migrations
+        // Override env vars in the current process so subsequent steps use the
+        // newly configured values instead of whatever was loaded at boot.
+        // DATABASE_URL needs %% escaping because Doctrine's config uses the
+        // resolve processor, which interprets %param% patterns.
+        $escapedUrl = str_replace('%', '%%', $this->databaseUrl);
+        $_SERVER['DATABASE_URL'] = $escapedUrl;
+        $_ENV['DATABASE_URL'] = $escapedUrl;
+        $_SERVER['APP_ENCRYPTION_KEY'] = $this->encryptionKey;
+        $_ENV['APP_ENCRYPTION_KEY'] = $this->encryptionKey;
+
+        // Create / update schema
         try {
-            $migrateCommand = $this->getApplication()?->find(
-                'doctrine:migrations:migrate',
+            $schemaCommand = $this->getApplication()?->find(
+                'doctrine:schema:update',
             );
 
-            if ($migrateCommand === null) {
+            if ($schemaCommand === null) {
                 $this->io->warning(
-                    'Could not find doctrine:migrations:migrate command. Please run it manually.',
+                    'Could not find doctrine:schema:update command. Please run it manually.',
                 );
 
                 return true;
             }
 
-            $migrateInput = new ArrayInput([
+            $schemaInput = new ArrayInput([
+                '--force' => true,
                 '--no-interaction' => true,
-                '--allow-no-migration' => true,
             ]);
-            $migrateInput->setInteractive(false);
+            $schemaInput->setInteractive(false);
 
-            $returnCode = $migrateCommand->run($migrateInput, $output);
+            $returnCode = $schemaCommand->run($schemaInput, $output);
 
             if ($returnCode !== Command::SUCCESS) {
                 $this->io->error(
-                    'Migration failed. Please check the output above and run "bin/console doctrine:migrations:migrate" manually.',
+                    'Schema update failed. Please check the output above and run "bin/console doctrine:schema:update --force" manually.',
                 );
 
                 return false;
             }
 
-            $this->io->text(' Running migrations... <info>✓</info>');
+            $this->io->text(' Updating database schema... <info>✓</info>');
         } catch (\Throwable $e) {
-            $this->io->error('Migration failed: '.$e->getMessage());
+            $this->io->error('Schema update failed: '.$e->getMessage());
             $this->io->text(
-                'You may need to run "bin/console doctrine:migrations:migrate" manually after fixing the issue.',
+                'You may need to run "bin/console doctrine:schema:update --force" manually after fixing the issue.',
             );
 
             return false;
@@ -586,8 +637,7 @@ class SetupCommand extends Command
     {
         $this->io->section('Setup Complete');
 
-        // Mask the password in the DATABASE_URL for display
-        $displayUrl = preg_replace('/:([^@]+)@/', ':****@', $this->databaseUrl);
+        $displayUrl = $this->maskCredentials($this->databaseUrl);
 
         $summary = [
             sprintf('Database: %s', $displayUrl),
@@ -606,8 +656,8 @@ class SetupCommand extends Command
 
         $this->io->text([
             '<info>Next steps:</info>',
-            '  1. Start the web server:  <comment>symfony server:start</comment>',
-            '  2. Visit:                 <comment>https://127.0.0.1:8000</comment>',
+            '  1. Start the web server:  <comment>composer serve</comment>',
+            '  2. Visit:                 <comment>http://127.0.0.1:8000</comment>',
             '  3. Log in with the admin account created above.',
             '  4. (Optional) Connect Google: visit Settings → Google Connection',
             '  5. (Optional) Start the worker: <comment>bin/console messenger:consume async scheduler_sync</comment>',
@@ -704,6 +754,10 @@ class SetupCommand extends Command
 
     private function formatEnvLine(string $key, string $value): string
     {
+        // Escape literal % as %% so Symfony's resolve processor doesn't
+        // interpret URL-encoded sequences (e.g. %24) as parameter references.
+        $value = str_replace('%', '%%', $value);
+
         // Quote values that contain special characters
         if (
             preg_match('/[#\s"\'\\\\]/', $value)
@@ -715,9 +769,9 @@ class SetupCommand extends Command
         return sprintf('%s=%s', $key, $value);
     }
 
-    private function readEnvLocalValue(string $projectDir, string $key): ?string
+    private function readEnvLocalValue(string $key): ?string
     {
-        $path = $projectDir.'/.env.local';
+        $path = $this->projectDir.'/.env.local';
 
         if (!file_exists($path)) {
             return null;
@@ -742,11 +796,17 @@ class SetupCommand extends Command
                     $value = stripcslashes(substr($value, 1, -1));
                 }
 
-                return $value;
+                // Un-escape %% → % (inverse of formatEnvLine's % → %% escaping)
+                return str_replace('%%', '%', $value);
             }
         }
 
         return null;
+    }
+
+    private function maskCredentials(string $url): string
+    {
+        return preg_replace('/:([^@]+)@/', ':****@', $url);
     }
 
     private function getProjectDir(): string

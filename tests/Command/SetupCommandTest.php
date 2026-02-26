@@ -259,6 +259,7 @@ class SetupCommandTest extends MockeryTestCase
     public function testReadEnvLocalValueReturnsValueForExistingKey(): void
     {
         $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
         $envLocalPath = $this->tempDir.'/.env.local';
 
         file_put_contents(
@@ -268,17 +269,14 @@ class SetupCommandTest extends MockeryTestCase
 
         $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
 
-        $result = $reflection->invoke(
-            $command,
-            $this->tempDir,
-            'APP_ENCRYPTION_KEY',
-        );
+        $result = $reflection->invoke($command, 'APP_ENCRYPTION_KEY');
         self::assertSame('abc123', $result);
     }
 
     public function testReadEnvLocalValueReturnsQuotedValue(): void
     {
         $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
         $envLocalPath = $this->tempDir.'/.env.local';
 
         file_put_contents(
@@ -288,30 +286,49 @@ class SetupCommandTest extends MockeryTestCase
 
         $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
 
-        $result = $reflection->invoke($command, $this->tempDir, 'DATABASE_URL');
+        $result = $reflection->invoke($command, 'DATABASE_URL');
         self::assertSame('postgresql://user:pass@localhost:5432/db', $result);
+    }
+
+    public function testReadEnvLocalValueUnescapesDoublePercent(): void
+    {
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        file_put_contents(
+            $envLocalPath,
+            "DATABASE_URL=\"mysql://user:7%%24%%21K@localhost:3306/db\"\n",
+        );
+
+        $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
+
+        $result = $reflection->invoke($command, 'DATABASE_URL');
+        self::assertSame('mysql://user:7%24%21K@localhost:3306/db', $result);
     }
 
     public function testReadEnvLocalValueReturnsNullForMissingKey(): void
     {
         $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
         $envLocalPath = $this->tempDir.'/.env.local';
 
         file_put_contents($envLocalPath, "SOME_KEY=value\n");
 
         $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
 
-        $result = $reflection->invoke($command, $this->tempDir, 'MISSING_KEY');
+        $result = $reflection->invoke($command, 'MISSING_KEY');
         self::assertNull($result);
     }
 
     public function testReadEnvLocalValueReturnsNullWhenFileDoesNotExist(): void
     {
         $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
 
         $reflection = new \ReflectionMethod($command, 'readEnvLocalValue');
 
-        $result = $reflection->invoke($command, $this->tempDir, 'ANY_KEY');
+        $result = $reflection->invoke($command, 'ANY_KEY');
         self::assertNull($result);
     }
 
@@ -344,6 +361,27 @@ class SetupCommandTest extends MockeryTestCase
             'abc123def456',
         );
         self::assertSame('APP_ENCRYPTION_KEY=abc123def456', $result);
+    }
+
+    public function testFormatEnvLineEscapesPercentSigns(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'formatEnvLine');
+
+        // URL-encoded password: 7$!K(Wy&g5x → 7%24%21K%284Wy%26g5x
+        $result = $reflection->invoke(
+            $command,
+            'DATABASE_URL',
+            'mysql://user:7%24%21K%284Wy%26g5x@127.0.0.1:3306/db?serverVersion=8.0&charset=utf8mb4',
+        );
+
+        // % must be doubled so Symfony's resolve processor doesn't
+        // interpret %24% as a parameter reference
+        self::assertSame(
+            'DATABASE_URL="mysql://user:7%%24%%21K%%284Wy%%26g5x@127.0.0.1:3306/db?serverVersion=8.0&charset=utf8mb4"',
+            $result,
+        );
     }
 
     public function testFormatEnvLineQuotesValuesWithSpaces(): void
@@ -492,10 +530,11 @@ class SetupCommandTest extends MockeryTestCase
     public function testStepEncryptionKeyGeneratesNewKeyWhenNoExisting(): void
     {
         $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
         $this->initializeIo($command);
 
         $reflection = new \ReflectionMethod($command, 'stepEncryptionKey');
-        $reflection->invoke($command, $this->tempDir);
+        $reflection->invoke($command);
 
         // Read back the encryptionKey property
         $keyProperty = new \ReflectionProperty($command, 'encryptionKey');
@@ -516,6 +555,7 @@ class SetupCommandTest extends MockeryTestCase
         );
 
         $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
 
         // Build a SymfonyStyle with a stream that answers "yes" to the confirm prompt
         $stream = fopen('php://memory', 'r+');
@@ -536,13 +576,135 @@ class SetupCommandTest extends MockeryTestCase
         $ioProperty->setValue($command, $io);
 
         $reflection = new \ReflectionMethod($command, 'stepEncryptionKey');
-        $reflection->invoke($command, $this->tempDir);
+        $reflection->invoke($command);
 
         // Read back the encryptionKey property — it should be the existing key
         $keyProperty = new \ReflectionProperty($command, 'encryptionKey');
         $key = $keyProperty->getValue($command);
 
         self::assertSame($existingKey, $key);
+    }
+
+    public function testStepDatabaseConnectionKeepsExistingUrl(): void
+    {
+        $existingUrl = 'mysql://myuser:p%40ss@127.0.0.1:3306/mydb?serverVersion=8.0&charset=utf8mb4';
+        $envLocalPath = $this->tempDir.'/.env.local';
+        // Write with %% escaping, matching what formatEnvLine produces
+        file_put_contents(
+            $envLocalPath,
+            sprintf("DATABASE_URL=\"%s\"\n", str_replace('%', '%%', $existingUrl)),
+        );
+
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, "yes\n");
+        rewind($stream);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(true);
+        $input->setStream($stream);
+
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $io = new \Symfony\Component\Console\Style\SymfonyStyle($input, $output);
+
+        $ioProperty = new \ReflectionProperty($command, 'io');
+        $ioProperty->setValue($command, $io);
+
+        $reflection = new \ReflectionMethod($command, 'stepDatabaseConnection');
+        $result = $reflection->invoke($command, $input);
+
+        self::assertTrue($result);
+
+        $urlProperty = new \ReflectionProperty($command, 'databaseUrl');
+        self::assertSame($existingUrl, $urlProperty->getValue($command));
+
+        $driverProperty = new \ReflectionProperty($command, 'driver');
+        self::assertSame('MySQL', $driverProperty->getValue($command));
+    }
+
+    public function testStepDatabaseConnectionSkipsPlaceholderUrl(): void
+    {
+        $envLocalPath = $this->tempDir.'/.env.local';
+        file_put_contents(
+            $envLocalPath,
+            "DATABASE_URL=\"postgresql://contacts_sync:password@127.0.0.1:5432/contacts_sync?serverVersion=16&charset=utf8\"\n",
+        );
+
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+
+        // The prompt will fall through to the normal flow which calls io->choice().
+        // In non-interactive mode this returns the default (PostgreSQL).
+        // Then io->ask() returns defaults and askHidden() returns null.
+        // testDatabaseConnection will fail (no DB), so it returns false.
+        $this->initializeIo($command);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(false);
+
+        $reflection = new \ReflectionMethod($command, 'stepDatabaseConnection');
+        $result = $reflection->invoke($command, $input);
+
+        // Connection fails with defaults — the point is it didn't keep the placeholder
+        self::assertFalse($result);
+
+        $urlProperty = new \ReflectionProperty($command, 'databaseUrl');
+        self::assertStringStartsWith('postgresql://', $urlProperty->getValue($command));
+    }
+
+    public function testStepEmailConfigurationKeepsExistingDsn(): void
+    {
+        $existingDsn = 'smtp://user:pass@smtp.example.com:587';
+        $envLocalPath = $this->tempDir.'/.env.local';
+        file_put_contents(
+            $envLocalPath,
+            sprintf("MAILER_DSN=\"%s\"\n", $existingDsn),
+        );
+
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, "yes\n");
+        rewind($stream);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(true);
+        $input->setStream($stream);
+
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $io = new \Symfony\Component\Console\Style\SymfonyStyle($input, $output);
+
+        $ioProperty = new \ReflectionProperty($command, 'io');
+        $ioProperty->setValue($command, $io);
+
+        $reflection = new \ReflectionMethod($command, 'stepEmailConfiguration');
+        $reflection->invoke($command, $input);
+
+        $dsnProperty = new \ReflectionProperty($command, 'mailerDsn');
+        self::assertSame($existingDsn, $dsnProperty->getValue($command));
+    }
+
+    public function testStepEmailConfigurationPromptsWhenNullDsn(): void
+    {
+        $envLocalPath = $this->tempDir.'/.env.local';
+        file_put_contents($envLocalPath, "MAILER_DSN=\"null://null\"\n");
+
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+        $this->initializeIo($command);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(false);
+
+        $reflection = new \ReflectionMethod($command, 'stepEmailConfiguration');
+        $reflection->invoke($command, $input);
+
+        // In non-interactive mode, ask() returns the default 'null://null'
+        $dsnProperty = new \ReflectionProperty($command, 'mailerDsn');
+        self::assertSame('null://null', $dsnProperty->getValue($command));
     }
 
     public function testDatabaseConnectionTestWithInvalidHost(): void
@@ -728,6 +890,12 @@ class SetupCommandTest extends MockeryTestCase
         $application->add($command);
 
         return new CommandTester($application->find('app:setup'));
+    }
+
+    private function setProjectDir(SetupCommand $command): void
+    {
+        $property = new \ReflectionProperty($command, 'projectDir');
+        $property->setValue($command, $this->tempDir);
     }
 
     private function setDriver(SetupCommand $command, string $driver): void

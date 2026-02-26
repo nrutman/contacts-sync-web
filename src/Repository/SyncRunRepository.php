@@ -7,6 +7,7 @@ use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 
 /**
  * @extends ServiceEntityRepository<SyncRun>
@@ -28,7 +29,7 @@ class SyncRunRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('sr')
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization)
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
             ->orderBy('sr.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -44,7 +45,7 @@ class SyncRunRepository extends ServiceEntityRepository
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
             ->andWhere('sr.status IN (:statuses)')
-            ->setParameter('org', $organization)
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
             ->setParameter('statuses', ['success', 'failed'])
             ->orderBy('sr.completedAt', 'DESC')
             ->setMaxResults(1)
@@ -61,7 +62,7 @@ class SyncRunRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('sr')
             ->where('sr.syncList = :syncList')
-            ->setParameter('syncList', $syncList)
+            ->setParameter('syncList', $syncList->getId(), UuidType::NAME)
             ->orderBy('sr.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->setFirstResult($offset)
@@ -85,11 +86,11 @@ class SyncRunRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('sr')
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization);
+            ->setParameter('org', $organization->getId(), UuidType::NAME);
 
         if ($syncList !== null) {
             $qb->andWhere('sr.syncList = :syncList')
-                ->setParameter('syncList', $syncList);
+                ->setParameter('syncList', $syncList->getId(), UuidType::NAME);
         }
 
         if ($status !== null) {
@@ -111,7 +112,7 @@ class SyncRunRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('sr')
             ->where('sr.syncList = :syncList')
-            ->setParameter('syncList', $syncList)
+            ->setParameter('syncList', $syncList->getId(), UuidType::NAME)
             ->orderBy('sr.createdAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
@@ -130,11 +131,11 @@ class SyncRunRepository extends ServiceEntityRepository
             ->select('COUNT(sr.id)')
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization);
+            ->setParameter('org', $organization->getId(), UuidType::NAME);
 
         if ($syncList !== null) {
             $qb->andWhere('sr.syncList = :syncList')
-                ->setParameter('syncList', $syncList);
+                ->setParameter('syncList', $syncList->getId(), UuidType::NAME);
         }
 
         if ($status !== null) {

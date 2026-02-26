@@ -23,10 +23,10 @@ class EncryptionService
      */
     public function __construct(
         #[\SensitiveParameter] string $encryptionKey,
-        #[\SensitiveParameter] string $previousEncryptionKeys = '',
+        #[\SensitiveParameter] ?string $previousEncryptionKeys = null,
     ) {
         // Parse previous keys first so current key version can be determined
-        $this->parsePreviousKeys($previousEncryptionKeys);
+        $this->parsePreviousKeys($previousEncryptionKeys ?? '');
 
         $this->currentKey = $this->parseHexKey($encryptionKey);
 
