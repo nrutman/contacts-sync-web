@@ -7,6 +7,7 @@ use App\Entity\SyncList;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -60,13 +61,8 @@ class SyncListType extends AbstractType
                 'required' => false,
                 'help' => 'When disabled, this list will not be included in scheduled syncs.',
             ])
-            ->add('cronExpression', TextType::class, [
-                'label' => 'Schedule (Cron Expression)',
+            ->add('cronExpression', HiddenType::class, [
                 'required' => false,
-                'attr' => [
-                    'placeholder' => 'e.g. 0 2 * * * (daily at 2 AM)',
-                ],
-                'help' => 'Optional. Use standard cron syntax: minute hour day month weekday. Leave blank for manual-only sync.',
             ]);
     }
 
