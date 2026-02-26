@@ -13,7 +13,7 @@ flowchart LR
     SyncService --> Registry[ProviderRegistry]
     Registry --> Source[Source Provider API]
     Registry --> Dest[Destination Provider API]
-    SyncService --> DB[(PostgreSQL)]
+    SyncService --> DB[(Database)]
     Scheduler[Symfony Scheduler] -->|dispatch| Messenger
 ```
 
@@ -177,9 +177,9 @@ assets/                  # Stimulus controllers and JS entry point
 
 ### Prerequisites
 
-- PHP 8.5+ with `sodium`, `pdo_pgsql`, and `intl` extensions
+- PHP 8.5+ with `sodium`, `intl`, and either `pdo_pgsql` or `pdo_mysql` extension
 - [Composer](https://getcomposer.org/)
-- PostgreSQL 16+
+- PostgreSQL 16+ or MySQL 8.0+
 
 ### Running Tests
 

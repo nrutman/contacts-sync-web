@@ -566,7 +566,7 @@ class SetupCommandTest extends MockeryTestCase
         self::assertNotSame(true, $result);
     }
 
-    public function testQuoteIdentifier(): void
+    public function testQuoteIdentifierPostgresql(): void
     {
         $command = $this->createSetupCommand();
 
@@ -580,6 +580,85 @@ class SetupCommandTest extends MockeryTestCase
             '"my""database"',
             $reflection->invoke($command, 'my"database'),
         );
+    }
+
+    public function testQuoteIdentifierMysql(): void
+    {
+        $command = $this->createSetupCommand();
+        $this->setDriver($command, 'MySQL');
+
+        $reflection = new \ReflectionMethod($command, 'quoteIdentifier');
+
+        self::assertSame(
+            '`contacts_sync`',
+            $reflection->invoke($command, 'contacts_sync'),
+        );
+        self::assertSame(
+            '`my``database`',
+            $reflection->invoke($command, 'my`database'),
+        );
+    }
+
+    public function testBuildDatabaseUrlPostgresql(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'buildDatabaseUrl');
+
+        $url = $reflection->invoke(
+            $command,
+            '127.0.0.1',
+            '5432',
+            'contacts_sync',
+            'user',
+            'pass',
+        );
+
+        self::assertStringStartsWith('postgresql://', $url);
+        self::assertStringContainsString('serverVersion=16', $url);
+        self::assertStringContainsString('charset=utf8', $url);
+        self::assertStringContainsString('user:pass@127.0.0.1:5432/contacts_sync', $url);
+    }
+
+    public function testBuildDatabaseUrlMysql(): void
+    {
+        $command = $this->createSetupCommand();
+        $this->setDriver($command, 'MySQL');
+
+        $reflection = new \ReflectionMethod($command, 'buildDatabaseUrl');
+
+        $url = $reflection->invoke(
+            $command,
+            '127.0.0.1',
+            '3306',
+            'contacts_sync',
+            'user',
+            'pass',
+        );
+
+        self::assertStringStartsWith('mysql://', $url);
+        self::assertStringContainsString('serverVersion=8.0', $url);
+        self::assertStringContainsString('charset=utf8mb4', $url);
+        self::assertStringContainsString('user:pass@127.0.0.1:3306/contacts_sync', $url);
+    }
+
+    public function testBuildDatabaseUrlEncodesSpecialCharacters(): void
+    {
+        $command = $this->createSetupCommand();
+
+        $reflection = new \ReflectionMethod($command, 'buildDatabaseUrl');
+
+        $url = $reflection->invoke(
+            $command,
+            '127.0.0.1',
+            '5432',
+            'mydb',
+            'user@name',
+            'p@ss:word',
+        );
+
+        self::assertStringContainsString('user%40name', $url);
+        self::assertStringContainsString('p%40ss%3Aword', $url);
     }
 
     private function createSetupCommand(): SetupCommand
@@ -649,6 +728,12 @@ class SetupCommandTest extends MockeryTestCase
         $application->add($command);
 
         return new CommandTester($application->find('app:setup'));
+    }
+
+    private function setDriver(SetupCommand $command, string $driver): void
+    {
+        $property = new \ReflectionProperty($command, 'driver');
+        $property->setValue($command, $driver);
     }
 
     /**

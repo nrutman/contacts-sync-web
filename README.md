@@ -81,8 +81,8 @@ bin/console source:refresh all
 
 ### Prerequisites
 
-- PHP 8.5+ with `sodium`, `pdo_pgsql`, and `intl` extensions
-- PostgreSQL 16+
+- PHP 8.5+ with `sodium`, `intl`, and either `pdo_pgsql` or `pdo_mysql` extension
+- PostgreSQL 16+ or MySQL 8.0+
 - A web server (nginx + php-fpm, Caddy, or Apache)
 - SSL/TLS certificate (required for secure cookies and OAuth callbacks)
 - SMTP server or transactional email service for outbound email

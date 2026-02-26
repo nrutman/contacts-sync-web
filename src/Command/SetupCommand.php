@@ -20,7 +20,11 @@ use Symfony\Component\Yaml\Yaml;
 ),]
 class SetupCommand extends Command
 {
+    private const DRIVER_POSTGRESQL = 'PostgreSQL';
+    private const DRIVER_MYSQL = 'MySQL';
+
     private SymfonyStyle $io;
+    private string $driver = self::DRIVER_POSTGRESQL;
     private string $databaseUrl = '';
     private string $encryptionKey = '';
     private string $mailerDsn = '';
@@ -94,22 +98,28 @@ class SetupCommand extends Command
     {
         $this->io->section('Step 1/6: Database Connection');
 
+        $this->driver = $this->io->choice(
+            'Database engine',
+            [self::DRIVER_POSTGRESQL, self::DRIVER_MYSQL],
+            self::DRIVER_POSTGRESQL,
+        );
+
+        $defaultPort = $this->driver === self::DRIVER_MYSQL ? '3306' : '5432';
         $maxAttempts = $input->isInteractive() ? 3 : 1;
 
         for ($attempt = 0; $attempt < $maxAttempts; ++$attempt) {
             $host = $this->io->ask('Database host', '127.0.0.1');
-            $port = $this->io->ask('Database port', '5432');
+            $port = $this->io->ask('Database port', $defaultPort);
             $dbName = $this->io->ask('Database name', 'contacts_sync');
             $dbUser = $this->io->ask('Database user', 'contacts_sync');
             $dbPassword = $this->io->askHidden('Database password') ?? '';
 
-            $this->databaseUrl = sprintf(
-                'postgresql://%s:%s@%s:%s/%s?serverVersion=16&charset=utf8',
-                urlencode($dbUser),
-                urlencode($dbPassword),
+            $this->databaseUrl = $this->buildDatabaseUrl(
                 $host,
                 $port,
                 $dbName,
+                $dbUser,
+                $dbPassword,
             );
 
             $connectionResult = $this->testDatabaseConnection(
@@ -177,6 +187,34 @@ class SetupCommand extends Command
         return false;
     }
 
+    private function buildDatabaseUrl(
+        string $host,
+        string $port,
+        string $dbName,
+        string $user,
+        string $password,
+    ): string {
+        if ($this->driver === self::DRIVER_MYSQL) {
+            return sprintf(
+                'mysql://%s:%s@%s:%s/%s?serverVersion=8.0&charset=utf8mb4',
+                urlencode($user),
+                urlencode($password),
+                $host,
+                $port,
+                $dbName,
+            );
+        }
+
+        return sprintf(
+            'postgresql://%s:%s@%s:%s/%s?serverVersion=16&charset=utf8',
+            urlencode($user),
+            urlencode($password),
+            $host,
+            $port,
+            $dbName,
+        );
+    }
+
     /**
      * @return true|string returns true on success, 'db_missing' if the database doesn't exist, or an error message
      */
@@ -187,12 +225,18 @@ class SetupCommand extends Command
         string $user,
         string $password,
     ): true|string {
+        $pdoDriver = $this->driver === self::DRIVER_MYSQL ? 'mysql' : 'pgsql';
         $dsn = sprintf(
-            'pgsql:host=%s;port=%s;dbname=%s;connect_timeout=3',
+            '%s:host=%s;port=%s;dbname=%s',
+            $pdoDriver,
             $host,
             $port,
             $dbName,
         );
+
+        if ($pdoDriver === 'pgsql') {
+            $dsn .= ';connect_timeout=3';
+        }
 
         try {
             $pdo = new \PDO($dsn, $user, $password, [
@@ -203,12 +247,14 @@ class SetupCommand extends Command
 
             return true;
         } catch (\PDOException $e) {
-            // PostgreSQL error code 08006 = connection failure, but also check for "does not exist"
-            if (str_contains($e->getMessage(), 'does not exist')) {
+            $message = $e->getMessage();
+
+            // PostgreSQL: "does not exist"; MySQL: "Unknown database" (SQLSTATE 42000, error 1049)
+            if (str_contains($message, 'does not exist') || str_contains($message, 'Unknown database')) {
                 return 'db_missing';
             }
 
-            return $e->getMessage();
+            return $message;
         }
     }
 
@@ -220,7 +266,8 @@ class SetupCommand extends Command
         string $password,
     ): bool {
         try {
-            $dsn = sprintf('pgsql:host=%s;port=%s', $host, $port);
+            $pdoDriver = $this->driver === self::DRIVER_MYSQL ? 'mysql' : 'pgsql';
+            $dsn = sprintf('%s:host=%s;port=%s', $pdoDriver, $host, $port);
             $pdo = new \PDO($dsn, $user, $password, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             ]);
@@ -236,6 +283,10 @@ class SetupCommand extends Command
 
     private function quoteIdentifier(string $identifier): string
     {
+        if ($this->driver === self::DRIVER_MYSQL) {
+            return '`'.str_replace('`', '``', $identifier).'`';
+        }
+
         return '"'.str_replace('"', '""', $identifier).'"';
     }
 
