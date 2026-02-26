@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Attribute\Encrypted;
 use App\Repository\OrganizationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -24,31 +23,6 @@ class Organization
     #[Assert\Length(max: 255)]
     private string $name;
 
-    #[Encrypted]
-    #[ORM\Column(type: 'text')]
-    #[Assert\NotBlank(message: 'Planning Center App ID is required.')]
-    private string $planningCenterAppId;
-
-    #[Encrypted]
-    #[ORM\Column(type: 'text')]
-    #[Assert\NotBlank(message: 'Planning Center App Secret is required.')]
-    private string $planningCenterAppSecret;
-
-    #[Encrypted]
-    #[ORM\Column(type: 'text')]
-    #[Assert\NotBlank(message: 'Google OAuth credentials are required.')]
-    #[Assert\Json(message: 'Google OAuth credentials must be valid JSON.')]
-    private string $googleOAuthCredentials;
-
-    #[ORM\Column(length: 255)]
-    #[Assert\NotBlank(message: 'Google domain must not be blank.')]
-    #[Assert\Length(max: 255)]
-    private string $googleDomain;
-
-    #[Encrypted]
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $googleToken = null;
-
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -67,6 +41,17 @@ class Organization
     private Collection $syncLists;
 
     /**
+     * @var Collection<int, ProviderCredential>
+     */
+    #[ORM\OneToMany(
+        targetEntity: ProviderCredential::class,
+        mappedBy: 'organization',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true,
+    ),]
+    private Collection $providerCredentials;
+
+    /**
      * @var Collection<int, InMemoryContact>
      */
     #[ORM\OneToMany(
@@ -83,6 +68,7 @@ class Organization
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
         $this->syncLists = new ArrayCollection();
+        $this->providerCredentials = new ArrayCollection();
         $this->inMemoryContacts = new ArrayCollection();
     }
 
@@ -99,68 +85,6 @@ class Organization
     public function setName(string $name): static
     {
         $this->name = $name;
-
-        return $this;
-    }
-
-    public function getPlanningCenterAppId(): string
-    {
-        return $this->planningCenterAppId;
-    }
-
-    public function setPlanningCenterAppId(string $planningCenterAppId): static
-    {
-        $this->planningCenterAppId = $planningCenterAppId;
-
-        return $this;
-    }
-
-    public function getPlanningCenterAppSecret(): string
-    {
-        return $this->planningCenterAppSecret;
-    }
-
-    public function setPlanningCenterAppSecret(
-        string $planningCenterAppSecret,
-    ): static {
-        $this->planningCenterAppSecret = $planningCenterAppSecret;
-
-        return $this;
-    }
-
-    public function getGoogleOAuthCredentials(): string
-    {
-        return $this->googleOAuthCredentials;
-    }
-
-    public function setGoogleOAuthCredentials(
-        string $googleOAuthCredentials,
-    ): static {
-        $this->googleOAuthCredentials = $googleOAuthCredentials;
-
-        return $this;
-    }
-
-    public function getGoogleDomain(): string
-    {
-        return $this->googleDomain;
-    }
-
-    public function setGoogleDomain(string $googleDomain): static
-    {
-        $this->googleDomain = $googleDomain;
-
-        return $this;
-    }
-
-    public function getGoogleToken(): ?string
-    {
-        return $this->googleToken;
-    }
-
-    public function setGoogleToken(?string $googleToken): static
-    {
-        $this->googleToken = $googleToken;
 
         return $this;
     }
@@ -202,6 +126,31 @@ class Organization
     public function removeSyncList(SyncList $syncList): static
     {
         $this->syncLists->removeElement($syncList);
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProviderCredential>
+     */
+    public function getProviderCredentials(): Collection
+    {
+        return $this->providerCredentials;
+    }
+
+    public function addProviderCredential(ProviderCredential $credential): static
+    {
+        if (!$this->providerCredentials->contains($credential)) {
+            $this->providerCredentials->add($credential);
+            $credential->setOrganization($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProviderCredential(ProviderCredential $credential): static
+    {
+        $this->providerCredentials->removeElement($credential);
 
         return $this;
     }

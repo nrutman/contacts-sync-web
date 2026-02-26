@@ -54,7 +54,7 @@ class PlanningCenterController extends AbstractController
         $this->addFlash(
             'info',
             sprintf(
-                'Refresh has been queued for Planning Center list "%s". It will begin processing shortly.',
+                'Refresh has been queued for source list "%s". It will begin processing shortly.',
                 $syncList->getName(),
             ),
         );

@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\InMemoryContact;
 use App\Entity\Organization;
+use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
 use App\File\FileProvider;
 use Doctrine\ORM\EntityManagerInterface;
@@ -90,14 +91,22 @@ class MigrateConfigToDbCommand extends Command
         $this->entityManager->beginTransaction();
 
         try {
-            $organization = $this->createOrganization(
-                $io,
+            $organization = $this->createOrganization($googleDomain);
+
+            $pcCredential = $this->createPlanningCenterCredential(
+                $organization,
                 $planningCenterAppId,
                 $planningCenterAppSecret,
+            );
+
+            $googleCredential = $this->createGoogleCredential(
+                $io,
+                $organization,
                 $googleConfiguration,
                 $googleDomain,
             );
-            $syncListMap = $this->createSyncLists($organization, $lists);
+
+            $syncListMap = $this->createSyncLists($organization, $lists, $pcCredential, $googleCredential);
             $contactCount = $this->createInMemoryContacts($organization, $syncListMap, $inMemoryContacts);
 
             $this->entityManager->flush();
@@ -112,7 +121,8 @@ class MigrateConfigToDbCommand extends Command
         $io->success('Migrated configuration to database:');
         $io->listing([
             'Organization: '.$organization->getName(),
-            'Google token: '.($organization->getGoogleToken() !== null ? '✓ imported' : '✗ not found — run Google OAuth setup'),
+            'Planning Center credential: created',
+            'Google Groups credential: created'.($googleCredential->getCredentialsArray()['token'] ?? false ? ' (with token)' : ' (no token — run OAuth setup)'),
             'Sync lists: '.count($syncListMap).' created',
             'In-memory contacts: '.$contactCount['contacts'].' created (across '.$contactCount['associations'].' list associations)',
         ]);
@@ -148,26 +158,61 @@ class MigrateConfigToDbCommand extends Command
         $this->entityManager->flush();
     }
 
-    private function createOrganization(
-        SymfonyStyle $io,
-        string $planningCenterAppId,
-        string $planningCenterAppSecret,
-        array $googleConfiguration,
-        string $googleDomain,
-    ): Organization {
+    private function createOrganization(string $name): Organization
+    {
         $organization = new Organization();
-        $organization->setName($googleDomain);
-        $organization->setPlanningCenterAppId($planningCenterAppId);
-        $organization->setPlanningCenterAppSecret($planningCenterAppSecret);
-        $organization->setGoogleOAuthCredentials(json_encode($googleConfiguration, JSON_THROW_ON_ERROR));
-        $organization->setGoogleDomain($googleDomain);
-
-        $googleToken = $this->loadGoogleToken($io);
-        $organization->setGoogleToken($googleToken);
+        $organization->setName($name);
 
         $this->entityManager->persist($organization);
 
         return $organization;
+    }
+
+    private function createPlanningCenterCredential(
+        Organization $organization,
+        string $appId,
+        string $appSecret,
+    ): ProviderCredential {
+        $credential = new ProviderCredential();
+        $credential->setOrganization($organization);
+        $credential->setProviderName('planning_center');
+        $credential->setLabel('Planning Center');
+        $credential->setCredentialsArray([
+            'app_id' => $appId,
+            'app_secret' => $appSecret,
+        ]);
+
+        $this->entityManager->persist($credential);
+
+        return $credential;
+    }
+
+    private function createGoogleCredential(
+        SymfonyStyle $io,
+        Organization $organization,
+        array $googleConfiguration,
+        string $googleDomain,
+    ): ProviderCredential {
+        $credentialsData = [
+            'oauth_credentials' => json_encode($googleConfiguration, JSON_THROW_ON_ERROR),
+            'domain' => $googleDomain,
+        ];
+
+        $googleToken = $this->loadGoogleToken($io);
+
+        if ($googleToken !== null) {
+            $credentialsData['token'] = $googleToken;
+        }
+
+        $credential = new ProviderCredential();
+        $credential->setOrganization($organization);
+        $credential->setProviderName('google_groups');
+        $credential->setLabel('Google Groups');
+        $credential->setCredentialsArray($credentialsData);
+
+        $this->entityManager->persist($credential);
+
+        return $credential;
     }
 
     private function loadGoogleToken(SymfonyStyle $io): ?string
@@ -189,8 +234,12 @@ class MigrateConfigToDbCommand extends Command
     /**
      * @return array<string, SyncList> Map of list name → SyncList entity
      */
-    private function createSyncLists(Organization $organization, array $lists): array
-    {
+    private function createSyncLists(
+        Organization $organization,
+        array $lists,
+        ProviderCredential $sourceCredential,
+        ProviderCredential $destinationCredential,
+    ): array {
         $map = [];
 
         foreach ($lists as $listName) {
@@ -198,6 +247,10 @@ class MigrateConfigToDbCommand extends Command
             $syncList->setOrganization($organization);
             $syncList->setName($listName);
             $syncList->setIsEnabled(true);
+            $syncList->setSourceCredential($sourceCredential);
+            $syncList->setSourceListIdentifier($listName);
+            $syncList->setDestinationCredential($destinationCredential);
+            $syncList->setDestinationListIdentifier($listName);
 
             $this->entityManager->persist($syncList);
 

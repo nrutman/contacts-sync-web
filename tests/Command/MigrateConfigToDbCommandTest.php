@@ -5,6 +5,7 @@ namespace App\Tests\Command;
 use App\Command\MigrateConfigToDbCommand;
 use App\Entity\InMemoryContact;
 use App\Entity\Organization;
+use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
 use App\File\FileProvider;
 use Doctrine\ORM\EntityManagerInterface;
@@ -125,21 +126,31 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
         self::assertSame(0, $tester->getStatusCode());
 
-        // 1 Organization + 3 SyncLists + 2 InMemoryContacts = 6 entities
-        self::assertCount(6, $persistedEntities);
+        // 1 Organization + 2 ProviderCredentials + 3 SyncLists + 2 InMemoryContacts = 8 entities
+        self::assertCount(8, $persistedEntities);
 
         /** @var Organization $org */
         $org = $persistedEntities[0];
         self::assertInstanceOf(Organization::class, $org);
         self::assertSame(self::GOOGLE_DOMAIN, $org->getName());
-        self::assertSame(self::PLANNING_CENTER_APP_ID, $org->getPlanningCenterAppId());
-        self::assertSame(self::PLANNING_CENTER_APP_SECRET, $org->getPlanningCenterAppSecret());
-        self::assertSame(json_encode($this->googleConfiguration, JSON_THROW_ON_ERROR), $org->getGoogleOAuthCredentials());
-        self::assertSame(self::GOOGLE_DOMAIN, $org->getGoogleDomain());
-        self::assertSame(self::GOOGLE_TOKEN_CONTENTS, $org->getGoogleToken());
+
+        // Verify provider credentials
+        $credentials = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof ProviderCredential));
+        self::assertCount(2, $credentials);
+
+        $pcCredential = $this->findCredentialByProvider($credentials, 'planning_center');
+        self::assertNotNull($pcCredential);
+        self::assertSame(self::PLANNING_CENTER_APP_ID, $pcCredential->getCredentialsArray()['app_id']);
+        self::assertSame(self::PLANNING_CENTER_APP_SECRET, $pcCredential->getCredentialsArray()['app_secret']);
+
+        $googleCredential = $this->findCredentialByProvider($credentials, 'google_groups');
+        self::assertNotNull($googleCredential);
+        self::assertSame(self::GOOGLE_DOMAIN, $googleCredential->getCredentialsArray()['domain']);
+        self::assertSame(json_encode($this->googleConfiguration, JSON_THROW_ON_ERROR), $googleCredential->getCredentialsArray()['oauth_credentials']);
+        self::assertSame(self::GOOGLE_TOKEN_CONTENTS, $googleCredential->getCredentialsArray()['token']);
 
         // Verify sync lists
-        $syncLists = array_filter($persistedEntities, fn ($e) => $e instanceof SyncList);
+        $syncLists = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof SyncList));
         self::assertCount(3, $syncLists);
 
         $listNames = array_map(fn (SyncList $l) => $l->getName(), $syncLists);
@@ -150,6 +161,8 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
         foreach ($syncLists as $syncList) {
             self::assertTrue($syncList->isEnabled());
             self::assertNull($syncList->getCronExpression());
+            self::assertSame($pcCredential, $syncList->getSourceCredential());
+            self::assertSame($googleCredential, $syncList->getDestinationCredential());
         }
 
         // Verify in-memory contacts
@@ -172,7 +185,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
         self::assertStringContainsString('3 created', $display);
         self::assertStringContainsString('2 created', $display);
         self::assertStringContainsString('3 list associations', $display);
-        self::assertStringContainsString('imported', $display);
+        self::assertStringContainsString('with token', $display);
     }
 
     public function testMigrationWithoutGoogleToken(): void
@@ -197,7 +210,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
         self::assertSame(0, $tester->getStatusCode());
 
         $display = $tester->getDisplay();
-        self::assertStringContainsString('not found', $display);
+        self::assertStringContainsString('no token', $display);
     }
 
     public function testAbortWhenOrganizationExistsAndUserDeclines(): void
@@ -419,6 +432,20 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
         self::assertStringContainsString('placeholder', $tester->getDisplay());
 
         unlink($placeholderPath);
+    }
+
+    /**
+     * @param ProviderCredential[] $credentials
+     */
+    private function findCredentialByProvider(array $credentials, string $providerName): ?ProviderCredential
+    {
+        foreach ($credentials as $credential) {
+            if ($credential->getProviderName() === $providerName) {
+                return $credential;
+            }
+        }
+
+        return null;
     }
 
     /**

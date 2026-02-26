@@ -82,10 +82,6 @@ class ScheduleCacheInvalidatorTest extends MockeryTestCase
     {
         $organization = new Organization();
         $organization->setName('Test Org');
-        $organization->setPlanningCenterAppId('pc-id');
-        $organization->setPlanningCenterAppSecret('pc-secret');
-        $organization->setGoogleOAuthCredentials('{}');
-        $organization->setGoogleDomain('example.com');
 
         $args = new PostUpdateEventArgs($organization, $this->entityManager);
 

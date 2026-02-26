@@ -14,7 +14,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'sync:run',
-    description: 'Syncs contacts from PlanningCenter to Google Groups',
+    description: 'Syncs contacts from source to destination for configured sync lists',
 ),]
 class RunSyncCommand extends Command
 {
@@ -28,7 +28,7 @@ class RunSyncCommand extends Command
     protected function configure(): void
     {
         $this->setHelp(
-            'Fetches contacts from a PlanningCenter list and syncs its members to a Google Group of the same name.',
+            'Fetches contacts from the configured source provider and syncs them to the configured destination.',
         );
 
         $this->addOption(

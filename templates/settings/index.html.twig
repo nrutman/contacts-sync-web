@@ -5,16 +5,8 @@
 {% block body %}
 <div class="mb-8">
     <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
-    <p class="mt-1 text-sm text-gray-500">Manage your organization's API credentials and integrations.</p>
+    <p class="mt-1 text-sm text-gray-500">Manage your organization name and provider credentials.</p>
 </div>
-
-{# Google Connection Status #}
-{% if organization %}
-    <div class="mb-8">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Google Workspace Connection</h2>
-        {% include 'settings/_google_status.html.twig' %}
-    </div>
-{% endif %}
 
 {# Organization Settings Form #}
 <div class="max-w-3xl">
@@ -29,9 +21,9 @@
             </h2>
             <p class="text-sm text-gray-500 mb-6">
                 {% if is_edit %}
-                    Update your organization's API credentials and configuration. Sensitive fields are encrypted at rest.
+                    Update your organization name.
                 {% else %}
-                    Configure your organization to get started. You'll need your Planning Center and Google API credentials.
+                    Set your organization name to get started.
                 {% endif %}
             </p>
 
@@ -44,82 +36,6 @@
                         {{ form_widget(form.name, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
                     </div>
                     {{ form_errors(form.name, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-                </div>
-
-                {# Planning Center Section #}
-                <fieldset class="border-t border-gray-200 pt-6">
-                    <legend class="text-base font-semibold text-gray-900">Planning Center</legend>
-                    <p class="mt-1 text-sm text-gray-500">API credentials from your Planning Center developer application.</p>
-
-                    <div class="mt-4 space-y-4">
-                        <div>
-                            {{ form_label(form.planningCenterAppId, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-                            <div class="mt-1">
-                                {{ form_widget(form.planningCenterAppId, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
-                            </div>
-                            {{ form_errors(form.planningCenterAppId, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-                        </div>
-
-                        <div>
-                            {{ form_label(form.planningCenterAppSecret, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-                            <div class="mt-1">
-                                {{ form_widget(form.planningCenterAppSecret, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
-                            </div>
-                            {{ form_errors(form.planningCenterAppSecret, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-                            {% if is_edit %}
-                                <p class="mt-1 text-xs text-gray-400">Leave blank to keep the current secret.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </fieldset>
-
-                {# Google Section #}
-                <fieldset class="border-t border-gray-200 pt-6">
-                    <legend class="text-base font-semibold text-gray-900">Google Workspace</legend>
-                    <p class="mt-1 text-sm text-gray-500">Google API configuration for syncing contacts to Google Groups.</p>
-
-                    <div class="mt-4 space-y-4">
-                        <div>
-                            {{ form_label(form.googleDomain, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-                            <div class="mt-1">
-                                {{ form_widget(form.googleDomain, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
-                            </div>
-                            {{ form_errors(form.googleDomain, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-                            {% if form.googleDomain.vars.help %}
-                                <p class="mt-1 text-sm text-gray-500">{{ form.googleDomain.vars.help }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div>
-                            {{ form_label(form.googleOAuthCredentials, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-                            <div class="mt-1">
-                                {{ form_widget(form.googleOAuthCredentials, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm font-mono text-xs' } }) }}
-                            </div>
-                            {{ form_errors(form.googleOAuthCredentials, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-                            {% if form.googleOAuthCredentials.vars.help %}
-                                <p class="mt-1 text-sm text-gray-500">{{ form.googleOAuthCredentials.vars.help }}</p>
-                            {% endif %}
-                            {% if is_edit %}
-                                <p class="mt-1 text-xs text-gray-400">Leave blank to keep the current credentials.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </fieldset>
-
-                {# Encryption Notice #}
-                <div class="rounded-md bg-blue-50 border border-blue-200 p-4">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm text-blue-700">
-                                API credentials and secrets are encrypted at rest using authenticated encryption (XSalsa20-Poly1305).
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="flex items-center justify-end gap-x-4 border-t border-gray-200 pt-6">
@@ -141,24 +57,55 @@
     </div>
 </div>
 
-{# Help Section #}
+{# Provider Credentials Section #}
+{% if is_edit %}
 <div class="max-w-3xl mt-8">
     <div class="bg-white shadow sm:rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-base font-semibold text-gray-900">Need help?</h3>
-            <div class="mt-2 text-sm text-gray-500 space-y-3">
+            <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h4 class="font-medium text-gray-700">Planning Center API Credentials</h4>
-                    <p>Create a Personal Access Token at <a href="https://api.planningcenteronline.com/oauth/applications" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-500 underline">api.planningcenteronline.com</a>. You need the Application ID and Secret.</p>
+                    <h2 class="text-lg font-semibold text-gray-900">Provider Credentials</h2>
+                    <p class="mt-1 text-sm text-gray-500">Manage API credentials for sync sources and destinations.</p>
                 </div>
-                <div>
-                    <h4 class="font-medium text-gray-700">Google OAuth Credentials</h4>
-                    <p>Create OAuth 2.0 credentials in the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-500 underline">Google Cloud Console</a>. Choose "Web application" type and add <code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">{{ url('app_settings_google_callback') }}</code> as an authorized redirect URI.</p>
+                <a href="{{ path('app_credentials_index') }}"
+                   class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                    Manage Credentials
+                </a>
+            </div>
+
+            {% if credentials|length > 0 %}
+                <div class="divide-y divide-gray-200">
+                    {% for credential in credentials %}
+                        <div class="py-3 flex items-center justify-between">
+                            <div>
+                                <span class="text-sm font-medium text-gray-900">{{ credential.displayLabel }}</span>
+                                <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ credential.providerName }}</span>
+                            </div>
+                            <span class="text-xs text-gray-400">Added {{ credential.createdAt|date('M j, Y') }}</span>
+                        </div>
+                    {% endfor %}
                 </div>
-                <div>
-                    <h4 class="font-medium text-gray-700">Google Workspace Domain</h4>
-                    <p>This is the domain of your Google Workspace account (e.g. <code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">example.com</code>). It restricts which Google accounts can authenticate during the OAuth flow.</p>
-                </div>
+            {% else %}
+                <p class="text-sm text-gray-500">No credentials configured yet. <a href="{{ path('app_credentials_index') }}" class="text-indigo-600 hover:text-indigo-500">Add one</a> to get started.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# Encryption Notice #}
+<div class="max-w-3xl mt-8">
+    <div class="rounded-md bg-blue-50 border border-blue-200 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                    API credentials and secrets are encrypted at rest using authenticated encryption (XSalsa20-Poly1305).
+                </p>
             </div>
         </div>
     </div>

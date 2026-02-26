@@ -2,7 +2,8 @@
 
 namespace App\MessageHandler;
 
-use App\Client\PlanningCenter\PlanningCenterClientFactory;
+use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\ProviderRegistry;
 use App\Entity\SyncList;
 use App\Message\RefreshListMessage;
 use Doctrine\ORM\EntityManagerInterface;
@@ -13,7 +14,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 class RefreshListMessageHandler
 {
     public function __construct(
-        private readonly PlanningCenterClientFactory $planningCenterClientFactory,
+        private readonly ProviderRegistry $providerRegistry,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
     ) {
@@ -29,19 +30,31 @@ class RefreshListMessageHandler
             return; // List was deleted between dispatch and processing
         }
 
-        $organization = $syncList->getOrganization();
+        $sourceCredential = $syncList->getSourceCredential();
+
+        if ($sourceCredential === null) {
+            $this->logger->warning('Sync list "{name}" has no source credential configured.', [
+                'name' => $syncList->getName(),
+                'sync_list_id' => $message->syncListId,
+            ]);
+
+            return;
+        }
 
         try {
-            $planningCenterClient = $this->planningCenterClientFactory->create($organization);
-            $planningCenterClient->refreshList($syncList->getName());
+            $provider = $this->providerRegistry->get($sourceCredential->getProviderName());
 
-            $this->logger->info('Planning Center list "{name}" refreshed successfully.', [
+            if ($provider instanceof PlanningCenterProvider) {
+                $provider->refreshList($sourceCredential, $syncList->getSourceListIdentifier() ?? $syncList->getName());
+            }
+
+            $this->logger->info('Source list "{name}" refreshed successfully.', [
                 'name' => $syncList->getName(),
                 'sync_list_id' => $message->syncListId,
                 'triggered_by_user_id' => $message->triggeredByUserId,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->error('Failed to refresh Planning Center list "{name}": {error}', [
+            $this->logger->error('Failed to refresh source list "{name}": {error}', [
                 'name' => $syncList->getName(),
                 'sync_list_id' => $message->syncListId,
                 'error' => $e->getMessage(),

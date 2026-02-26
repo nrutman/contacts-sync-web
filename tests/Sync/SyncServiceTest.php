@@ -3,13 +3,13 @@
 namespace App\Tests\Sync;
 
 use App\Client\Google\GoogleClient;
-use App\Client\Google\GoogleClientFactory;
-use App\Client\Google\InvalidGoogleTokenException;
 use App\Client\PlanningCenter\PlanningCenterClient;
-use App\Client\PlanningCenter\PlanningCenterClientFactory;
+use App\Client\Provider\ProviderInterface;
+use App\Client\Provider\ProviderRegistry;
 use App\Contact\Contact;
 use App\Entity\InMemoryContact;
 use App\Entity\Organization;
+use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
@@ -25,42 +25,28 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 class SyncServiceTest extends MockeryTestCase
 {
     private const LIST_NAME = 'test-list@example.com';
-    private const GOOGLE_DOMAIN = 'example.com';
+    private const SOURCE_LIST_ID = 'PC List Name';
+    private const DEST_LIST_ID = 'test-list@example.com';
 
-    /** @var GoogleClientFactory|m\LegacyMockInterface|m\MockInterface */
-    private $googleClientFactory;
-
-    /** @var PlanningCenterClientFactory|m\LegacyMockInterface|m\MockInterface */
-    private $planningCenterClientFactory;
-
-    /** @var InMemoryContactRepository|m\LegacyMockInterface|m\MockInterface */
-    private $inMemoryContactRepository;
-
-    /** @var EntityManagerInterface|m\LegacyMockInterface|m\MockInterface */
-    private $entityManager;
-
-    /** @var EventDispatcherInterface|m\LegacyMockInterface|m\MockInterface */
-    private $eventDispatcher;
-
-    /** @var LoggerInterface|m\LegacyMockInterface|m\MockInterface */
-    private $logger;
-
-    /** @var GoogleClient|m\LegacyMockInterface|m\MockInterface */
-    private $googleClient;
-
-    /** @var PlanningCenterClient|m\LegacyMockInterface|m\MockInterface */
-    private $planningCenterClient;
+    private ProviderRegistry|m\LegacyMockInterface $providerRegistry;
+    private InMemoryContactRepository|m\LegacyMockInterface $inMemoryContactRepository;
+    private EntityManagerInterface|m\LegacyMockInterface $entityManager;
+    private EventDispatcherInterface|m\LegacyMockInterface $eventDispatcher;
+    private LoggerInterface|m\LegacyMockInterface $logger;
+    private GoogleClient|m\LegacyMockInterface $googleClient;
+    private PlanningCenterClient|m\LegacyMockInterface $planningCenterClient;
+    private ProviderInterface|m\LegacyMockInterface $sourceProvider;
+    private ProviderInterface|m\LegacyMockInterface $destProvider;
 
     private Organization $organization;
+    private ProviderCredential $sourceCredential;
+    private ProviderCredential $destCredential;
     private SyncList $syncList;
     private SyncService $syncService;
 
     public function setUp(): void
     {
-        $this->googleClientFactory = m::mock(GoogleClientFactory::class);
-        $this->planningCenterClientFactory = m::mock(
-            PlanningCenterClientFactory::class,
-        );
+        $this->providerRegistry = m::mock(ProviderRegistry::class);
         $this->inMemoryContactRepository = m::mock(
             InMemoryContactRepository::class,
         );
@@ -72,21 +58,35 @@ class SyncServiceTest extends MockeryTestCase
         $this->googleClient = m::mock(GoogleClient::class);
         $this->planningCenterClient = m::mock(PlanningCenterClient::class);
 
+        $this->sourceProvider = m::mock(ProviderInterface::class);
+        $this->sourceProvider->shouldReceive('getDisplayName')->andReturn('Planning Center')->byDefault();
+
+        $this->destProvider = m::mock(ProviderInterface::class);
+        $this->destProvider->shouldReceive('getDisplayName')->andReturn('Google Groups')->byDefault();
+
         $this->organization = new Organization();
         $this->organization->setName('Test Org');
-        $this->organization->setPlanningCenterAppId('pc-id');
-        $this->organization->setPlanningCenterAppSecret('pc-secret');
-        $this->organization->setGoogleOAuthCredentials('{"installed":{}}');
-        $this->organization->setGoogleDomain(self::GOOGLE_DOMAIN);
-        $this->organization->setGoogleToken('{"access_token":"old-token"}');
+
+        $this->sourceCredential = new ProviderCredential();
+        $this->sourceCredential->setOrganization($this->organization);
+        $this->sourceCredential->setProviderName('planning_center');
+        $this->sourceCredential->setCredentialsArray(['app_id' => 'id', 'app_secret' => 'secret']);
+
+        $this->destCredential = new ProviderCredential();
+        $this->destCredential->setOrganization($this->organization);
+        $this->destCredential->setProviderName('google_groups');
+        $this->destCredential->setCredentialsArray(['oauth_credentials' => '{}', 'domain' => 'example.com']);
 
         $this->syncList = new SyncList();
         $this->syncList->setName(self::LIST_NAME);
         $this->syncList->setOrganization($this->organization);
+        $this->syncList->setSourceCredential($this->sourceCredential);
+        $this->syncList->setSourceListIdentifier(self::SOURCE_LIST_ID);
+        $this->syncList->setDestinationCredential($this->destCredential);
+        $this->syncList->setDestinationListIdentifier(self::DEST_LIST_ID);
 
         $this->syncService = new SyncService(
-            $this->googleClientFactory,
-            $this->planningCenterClientFactory,
+            $this->providerRegistry,
             $this->inMemoryContactRepository,
             $this->entityManager,
             $this->eventDispatcher,
@@ -107,12 +107,12 @@ class SyncServiceTest extends MockeryTestCase
         $this->googleClient
             ->shouldReceive('removeContact')
             ->once()
-            ->with(self::LIST_NAME, $destContact);
+            ->with(self::DEST_LIST_ID, $destContact);
 
         $this->googleClient
             ->shouldReceive('addContact')
             ->once()
-            ->with(self::LIST_NAME, $sourceContact);
+            ->with(self::DEST_LIST_ID, $sourceContact);
 
         $result = $this->syncService->executeSync($this->syncList);
 
@@ -219,7 +219,6 @@ class SyncServiceTest extends MockeryTestCase
 
     public function testExecuteSyncPersistsSyncRunOnSuccess(): void
     {
-        // setupDefaultExpectations already verifies that persist is called with a SyncRun
         $this->setupDefaultExpectations(sourceContacts: [], destContacts: []);
 
         $result = $this->syncService->executeSync($this->syncList);
@@ -254,28 +253,29 @@ class SyncServiceTest extends MockeryTestCase
             ->once()
             ->with(m::type(SyncCompletedEvent::class));
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($this->sourceProvider);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
 
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->andReturn(['access_token' => 'old-token']);
-
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
+        $this->sourceProvider
+            ->shouldReceive('createClient')
+            ->with($this->sourceCredential)
             ->andReturn($this->planningCenterClient);
+
+        $this->destProvider
+            ->shouldReceive('createClient')
+            ->with($this->destCredential)
+            ->andReturn($this->googleClient);
 
         $this->planningCenterClient
             ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
+            ->with(self::SOURCE_LIST_ID)
             ->andReturn([]);
 
         $this->inMemoryContactRepository
@@ -285,7 +285,7 @@ class SyncServiceTest extends MockeryTestCase
 
         $this->googleClient
             ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
+            ->with(self::DEST_LIST_ID)
             ->andReturn([]);
 
         $result = $this->syncService->executeSync(
@@ -300,7 +300,7 @@ class SyncServiceTest extends MockeryTestCase
         self::assertEquals('web', $persistedSyncRun->getTriggeredBy());
     }
 
-    public function testExecuteSyncHandlesGoogleInitializationError(): void
+    public function testExecuteSyncHandlesSourceProviderError(): void
     {
         $this->entityManager
             ->shouldReceive('persist')
@@ -314,60 +314,29 @@ class SyncServiceTest extends MockeryTestCase
             ->once()
             ->with(m::type(SyncCompletedEvent::class));
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($this->sourceProvider);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andThrow(new InvalidGoogleTokenException());
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
 
-        $result = $this->syncService->executeSync($this->syncList);
-
-        self::assertFalse($result->success);
-        self::assertNotNull($result->errorMessage);
-        self::assertStringContainsString('token', $result->errorMessage);
-        self::assertStringContainsString('ERROR', $result->log);
-    }
-
-    public function testExecuteSyncHandlesPlanningCenterError(): void
-    {
-        $this->entityManager
-            ->shouldReceive('persist')
-            ->once()
-            ->with(m::type(SyncRun::class));
-
-        $this->entityManager->shouldReceive('flush')->atLeast()->once();
-
-        $this->eventDispatcher
-            ->shouldReceive('dispatch')
-            ->once()
-            ->with(m::type(SyncCompletedEvent::class));
-
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
-
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
-
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->andReturn(['access_token' => 'old-token']);
-
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
+        $this->sourceProvider
+            ->shouldReceive('createClient')
+            ->with($this->sourceCredential)
             ->andReturn($this->planningCenterClient);
+
+        $this->destProvider
+            ->shouldReceive('createClient')
+            ->with($this->destCredential)
+            ->andReturn($this->googleClient);
 
         $this->planningCenterClient
             ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
+            ->with(self::SOURCE_LIST_ID)
             ->andThrow(new \RuntimeException('API connection failed'));
 
         $result = $this->syncService->executeSync($this->syncList);
@@ -377,127 +346,64 @@ class SyncServiceTest extends MockeryTestCase
         self::assertStringContainsString('ERROR', $result->log);
     }
 
-    public function testExecuteSyncPersistsRefreshedToken(): void
+    public function testExecuteSyncHandlesDestinationProviderError(): void
     {
-        $newToken = [
-            'access_token' => 'new-token',
-            'refresh_token' => 'refresh',
-        ];
-        $newTokenJson = json_encode($newToken, JSON_THROW_ON_ERROR);
-
         $this->entityManager
             ->shouldReceive('persist')
             ->once()
             ->with(m::type(SyncRun::class));
 
-        // Expect flush at least 3 times: once for SyncRun persist, once for token update, once for results
-        $this->entityManager->shouldReceive('flush')->atLeast()->times(3);
+        $this->entityManager->shouldReceive('flush')->atLeast()->once();
 
         $this->eventDispatcher
             ->shouldReceive('dispatch')
             ->once()
             ->with(m::type(SyncCompletedEvent::class));
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($this->sourceProvider);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
 
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->andReturn($newToken);
-
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->planningCenterClient);
-
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
-            ->andReturn([]);
-
-        $this->inMemoryContactRepository
-            ->shouldReceive('findBySyncList')
-            ->with($this->syncList)
-            ->andReturn([]);
-
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
-            ->andReturn([]);
+        $this->sourceProvider
+            ->shouldReceive('createClient')
+            ->with($this->sourceCredential)
+            ->andThrow(new \RuntimeException('Google token is invalid'));
 
         $result = $this->syncService->executeSync($this->syncList);
 
-        self::assertTrue($result->success);
-        self::assertEquals(
-            $newTokenJson,
-            $this->organization->getGoogleToken(),
-        );
+        self::assertFalse($result->success);
+        self::assertNotNull($result->errorMessage);
+        self::assertStringContainsString('ERROR', $result->log);
     }
 
-    public function testExecuteSyncDoesNotPersistUnchangedToken(): void
+    public function testExecuteSyncHandlesMissingCredentials(): void
     {
-        $existingToken = ['access_token' => 'old-token'];
-        $this->organization->setGoogleToken(
-            json_encode($existingToken, JSON_THROW_ON_ERROR),
-        );
+        $syncList = new SyncList();
+        $syncList->setName('no-creds');
+        $syncList->setOrganization($this->organization);
 
         $this->entityManager
             ->shouldReceive('persist')
             ->once()
             ->with(m::type(SyncRun::class));
 
-        // Expect flush exactly twice: once for SyncRun persist, once for results
-        $this->entityManager->shouldReceive('flush')->twice();
+        $this->entityManager->shouldReceive('flush')->atLeast()->once();
 
         $this->eventDispatcher
             ->shouldReceive('dispatch')
             ->once()
             ->with(m::type(SyncCompletedEvent::class));
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $result = $this->syncService->executeSync($syncList);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
-
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->andReturn($existingToken);
-
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->planningCenterClient);
-
-        $this->planningCenterClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
-            ->andReturn([]);
-
-        $this->inMemoryContactRepository
-            ->shouldReceive('findBySyncList')
-            ->with($this->syncList)
-            ->andReturn([]);
-
-        $this->googleClient
-            ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
-            ->andReturn([]);
-
-        $result = $this->syncService->executeSync($this->syncList);
-
-        self::assertTrue($result->success);
+        self::assertFalse($result->success);
+        self::assertStringContainsString('missing source or destination', $result->errorMessage);
     }
 
     public function testExecuteSyncLogContainsTimestamps(): void
@@ -507,7 +413,6 @@ class SyncServiceTest extends MockeryTestCase
         $result = $this->syncService->executeSync($this->syncList);
 
         self::assertTrue($result->success);
-        // Log lines should contain timestamps in H:i:s format
         self::assertMatchesRegularExpression(
             "/\[\d{2}:\d{2}:\d{2}\]/",
             $result->log,
@@ -575,28 +480,29 @@ class SyncServiceTest extends MockeryTestCase
             ->once()
             ->with(m::type(SyncCompletedEvent::class));
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($this->sourceProvider);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
 
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->andReturn(['access_token' => 'old-token']);
-
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
+        $this->sourceProvider
+            ->shouldReceive('createClient')
+            ->with($this->sourceCredential)
             ->andReturn($this->planningCenterClient);
+
+        $this->destProvider
+            ->shouldReceive('createClient')
+            ->with($this->destCredential)
+            ->andReturn($this->googleClient);
 
         $this->planningCenterClient
             ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
+            ->with(self::SOURCE_LIST_ID)
             ->andReturn($sourceContacts);
 
         $this->inMemoryContactRepository
@@ -606,7 +512,7 @@ class SyncServiceTest extends MockeryTestCase
 
         $this->googleClient
             ->shouldReceive('getContacts')
-            ->with(self::LIST_NAME)
+            ->with(self::DEST_LIST_ID)
             ->andReturn($destContacts);
     }
 

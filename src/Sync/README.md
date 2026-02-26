@@ -1,4 +1,4 @@
-# 🔄 Sync Namespace
+# Sync Namespace
 
 This namespace contains the core sync orchestration logic, extracted from the original `RunSyncCommand` into a reusable service.
 
@@ -17,10 +17,10 @@ The central service that executes the sync pipeline. It is consumed by three ent
 `executeSync()` accepts a `SyncList`, optional flags, and an optional pre-created `SyncRun`. It:
 
 1. Creates or resumes a `SyncRun` entity (status → `running`).
-2. Builds API clients via `GoogleClientFactory` and `PlanningCenterClientFactory` using the `Organization` credentials.
-3. Persists the refreshed Google token back to the `Organization` if it changed.
-4. Fetches source contacts from Planning Center, merges with `InMemoryContact` entities for the list, and deduplicates by email.
-5. Fetches destination contacts from the Google Group.
+2. Looks up the source and destination providers via `ProviderRegistry` using the `SyncList`'s credential references.
+3. Builds API clients by calling `createClient()` on each provider with the appropriate `ProviderCredential`.
+4. Fetches source contacts from the source provider, merges with `InMemoryContact` entities for the list, and deduplicates by email.
+5. Fetches destination contacts from the destination provider.
 6. Computes the diff via `ContactListAnalyzer`.
 7. Applies additions and removals (or skips them in dry-run mode).
 8. Records results to the `SyncRun` and dispatches a `SyncCompletedEvent`.

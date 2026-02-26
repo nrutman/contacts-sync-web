@@ -342,10 +342,6 @@ class RunSyncCommandTest extends MockeryTestCase
     {
         $organization = new Organization();
         $organization->setName('Test Org');
-        $organization->setPlanningCenterAppId('pc-id');
-        $organization->setPlanningCenterAppSecret('pc-secret');
-        $organization->setGoogleOAuthCredentials('{}');
-        $organization->setGoogleDomain('example.com');
 
         $syncList = new SyncList();
         $syncList->setName($name);

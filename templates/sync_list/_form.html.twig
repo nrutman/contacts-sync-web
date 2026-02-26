@@ -10,24 +10,85 @@
         {% endif %}
     </div>
 
-    <div>
-        {{ form_label(form.cronExpression, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-        <div class="mt-1">
-            {{ form_widget(form.cronExpression, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm font-mono' } }) }}
-        </div>
-        {{ form_errors(form.cronExpression, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-        {% if form.cronExpression.vars.help %}
-            <p class="mt-1 text-sm text-gray-500">{{ form.cronExpression.vars.help }}</p>
-        {% endif %}
-    </div>
+    {# Source Configuration #}
+    <fieldset class="border-t border-gray-200 pt-6">
+        <legend class="text-base font-semibold text-gray-900">Source</legend>
+        <p class="mt-1 text-sm text-gray-500">Where contacts are read from.</p>
 
-    <div class="flex items-center gap-x-3">
-        {{ form_widget(form.isEnabled, { attr: { class: 'h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500' } }) }}
-        {{ form_label(form.isEnabled, null, { label_attr: { class: 'text-sm font-medium text-gray-700' } }) }}
-        {% if form.isEnabled.vars.help %}
-            <p class="text-sm text-gray-500">{{ form.isEnabled.vars.help }}</p>
-        {% endif %}
-    </div>
+        <div class="mt-4 space-y-4">
+            <div>
+                {{ form_label(form.sourceCredential, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
+                <div class="mt-1">
+                    {{ form_widget(form.sourceCredential, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
+                </div>
+                {{ form_errors(form.sourceCredential, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
+            </div>
+
+            <div>
+                {{ form_label(form.sourceListIdentifier, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
+                <div class="mt-1">
+                    {{ form_widget(form.sourceListIdentifier, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
+                </div>
+                {{ form_errors(form.sourceListIdentifier, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
+                {% if form.sourceListIdentifier.vars.help %}
+                    <p class="mt-1 text-sm text-gray-500">{{ form.sourceListIdentifier.vars.help }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </fieldset>
+
+    {# Destination Configuration #}
+    <fieldset class="border-t border-gray-200 pt-6">
+        <legend class="text-base font-semibold text-gray-900">Destination</legend>
+        <p class="mt-1 text-sm text-gray-500">Where contacts are synced to.</p>
+
+        <div class="mt-4 space-y-4">
+            <div>
+                {{ form_label(form.destinationCredential, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
+                <div class="mt-1">
+                    {{ form_widget(form.destinationCredential, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
+                </div>
+                {{ form_errors(form.destinationCredential, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
+            </div>
+
+            <div>
+                {{ form_label(form.destinationListIdentifier, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
+                <div class="mt-1">
+                    {{ form_widget(form.destinationListIdentifier, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
+                </div>
+                {{ form_errors(form.destinationListIdentifier, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
+                {% if form.destinationListIdentifier.vars.help %}
+                    <p class="mt-1 text-sm text-gray-500">{{ form.destinationListIdentifier.vars.help }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </fieldset>
+
+    {# Schedule & Status #}
+    <fieldset class="border-t border-gray-200 pt-6">
+        <legend class="text-base font-semibold text-gray-900">Schedule</legend>
+
+        <div class="mt-4 space-y-4">
+            <div>
+                {{ form_label(form.cronExpression, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
+                <div class="mt-1">
+                    {{ form_widget(form.cronExpression, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm font-mono' } }) }}
+                </div>
+                {{ form_errors(form.cronExpression, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
+                {% if form.cronExpression.vars.help %}
+                    <p class="mt-1 text-sm text-gray-500">{{ form.cronExpression.vars.help }}</p>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center gap-x-3">
+                {{ form_widget(form.isEnabled, { attr: { class: 'h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500' } }) }}
+                {{ form_label(form.isEnabled, null, { label_attr: { class: 'text-sm font-medium text-gray-700' } }) }}
+                {% if form.isEnabled.vars.help %}
+                    <p class="text-sm text-gray-500">{{ form.isEnabled.vars.help }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </fieldset>
 
     <div class="flex items-center justify-end gap-x-4 border-t border-gray-200 pt-6">
         <a href="{{ path('app_sync_list_index') }}" class="text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</a>

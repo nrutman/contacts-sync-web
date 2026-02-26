@@ -27,6 +27,20 @@ class SyncList
     #[Assert\Length(max: 255)]
     private string $name;
 
+    #[ORM\ManyToOne(targetEntity: ProviderCredential::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?ProviderCredential $sourceCredential = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $sourceListIdentifier = null;
+
+    #[ORM\ManyToOne(targetEntity: ProviderCredential::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?ProviderCredential $destinationCredential = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $destinationListIdentifier = null;
+
     #[ORM\Column]
     private bool $isEnabled = true;
 
@@ -96,6 +110,54 @@ class SyncList
     public function setName(string $name): static
     {
         $this->name = $name;
+
+        return $this;
+    }
+
+    public function getSourceCredential(): ?ProviderCredential
+    {
+        return $this->sourceCredential;
+    }
+
+    public function setSourceCredential(?ProviderCredential $sourceCredential): static
+    {
+        $this->sourceCredential = $sourceCredential;
+
+        return $this;
+    }
+
+    public function getSourceListIdentifier(): ?string
+    {
+        return $this->sourceListIdentifier;
+    }
+
+    public function setSourceListIdentifier(?string $sourceListIdentifier): static
+    {
+        $this->sourceListIdentifier = $sourceListIdentifier;
+
+        return $this;
+    }
+
+    public function getDestinationCredential(): ?ProviderCredential
+    {
+        return $this->destinationCredential;
+    }
+
+    public function setDestinationCredential(?ProviderCredential $destinationCredential): static
+    {
+        $this->destinationCredential = $destinationCredential;
+
+        return $this;
+    }
+
+    public function getDestinationListIdentifier(): ?string
+    {
+        return $this->destinationListIdentifier;
+    }
+
+    public function setDestinationListIdentifier(?string $destinationListIdentifier): static
+    {
+        $this->destinationListIdentifier = $destinationListIdentifier;
 
         return $this;
     }

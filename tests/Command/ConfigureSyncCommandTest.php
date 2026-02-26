@@ -2,13 +2,14 @@
 
 namespace App\Tests\Command;
 
-use App\Client\Google\GoogleClient;
-use App\Client\Google\GoogleClientFactory;
-use App\Client\Google\InvalidGoogleTokenException;
+use App\Client\Provider\OAuthProviderInterface;
+use App\Client\Provider\ProviderInterface;
+use App\Client\Provider\ProviderRegistry;
 use App\Command\ConfigureSyncCommand;
 use App\Entity\Organization;
+use App\Entity\ProviderCredential;
+use App\Repository\ProviderCredentialRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\EntityRepository;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -17,78 +18,66 @@ class ConfigureSyncCommandTest extends MockeryTestCase
 {
     private const AUTH_URL = 'https://accounts.google.com/auth';
     private const AUTH_CODE = 'test-auth-code';
-    private const DOMAIN = 'example.com';
-    private const TOKEN_DATA = [
-        'access_token' => 'test-token',
-        'refresh_token' => 'test-refresh',
-    ];
+    private const TOKEN_DATA = ['access_token' => 'test-token', 'refresh_token' => 'test-refresh'];
 
-    /** @var GoogleClientFactory|m\LegacyMockInterface|m\MockInterface */
-    private $googleClientFactory;
-
-    /** @var GoogleClient|m\LegacyMockInterface|m\MockInterface */
-    private $googleClient;
-
-    /** @var EntityManagerInterface|m\LegacyMockInterface|m\MockInterface */
-    private $entityManager;
-
-    /** @var EntityRepository|m\LegacyMockInterface|m\MockInterface */
-    private $organizationRepository;
-
+    private ProviderRegistry|m\LegacyMockInterface $providerRegistry;
+    private ProviderCredentialRepository|m\LegacyMockInterface $credentialRepository;
+    private EntityManagerInterface|m\LegacyMockInterface $entityManager;
     private Organization $organization;
+    private ProviderCredential $credential;
 
     public function setUp(): void
     {
-        $this->googleClientFactory = m::mock(GoogleClientFactory::class);
-        $this->googleClient = m::mock(GoogleClient::class);
+        $this->providerRegistry = m::mock(ProviderRegistry::class);
+        $this->credentialRepository = m::mock(ProviderCredentialRepository::class);
         $this->entityManager = m::mock(EntityManagerInterface::class);
-        $this->organizationRepository = m::mock(EntityRepository::class);
 
         $this->organization = new Organization();
         $this->organization->setName('Test Org');
-        $this->organization->setPlanningCenterAppId('pc-id');
-        $this->organization->setPlanningCenterAppSecret('pc-secret');
-        $this->organization->setGoogleOAuthCredentials('{}');
-        $this->organization->setGoogleDomain(self::DOMAIN);
 
-        $this->entityManager
-            ->shouldReceive('getRepository')
-            ->with(Organization::class)
-            ->andReturn($this->organizationRepository);
+        $this->credential = new ProviderCredential();
+        $this->credential->setOrganization($this->organization);
+        $this->credential->setProviderName('google_groups');
+        $this->credential->setLabel('Main Google');
+        $this->credential->setCredentialsArray([
+            'oauth_credentials' => '{"web":{}}',
+            'domain' => 'example.com',
+        ]);
     }
 
-    public function testExecuteNoOrganizationFound(): void
+    public function testExecuteNoCredentialsFound(): void
     {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn(null);
+        $this->credentialRepository
+            ->shouldReceive('findAll')
+            ->andReturn([]);
 
         $tester = $this->executeCommand();
 
         self::assertEquals(1, $tester->getStatusCode());
         self::assertStringContainsString(
-            'No organization found',
+            'No provider credentials found',
             $tester->getDisplay(),
         );
     }
 
     public function testExecuteAlreadyConfigured(): void
     {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($this->organization);
+        $this->credential->setCredentialsArray([
+            'oauth_credentials' => '{"web":{}}',
+            'domain' => 'example.com',
+            'token' => '{"access_token":"test"}',
+        ]);
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $this->credentialRepository
+            ->shouldReceive('findAll')
+            ->andReturn([$this->credential]);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
+        $provider = $this->makeOAuthProvider();
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($provider);
 
         $tester = $this->executeCommand();
 
@@ -99,81 +88,33 @@ class ConfigureSyncCommandTest extends MockeryTestCase
         );
     }
 
-    public function testExecuteAlreadyConfiguredWithForce(): void
+    public function testExecuteConfiguresWithAuthCode(): void
     {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($this->organization);
+        $this->credentialRepository
+            ->shouldReceive('findAll')
+            ->andReturn([$this->credential]);
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $provider = $this->makeOAuthProvider();
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andReturn($this->googleClient);
-
-        $this->googleClient
-            ->shouldReceive('createAuthUrl')
+        $provider
+            ->shouldReceive('getOAuthStartUrl')
             ->once()
             ->andReturn(self::AUTH_URL);
 
-        $this->googleClient
-            ->shouldReceive('setAuthCode')
+        $provider
+            ->shouldReceive('handleOAuthCallback')
             ->once()
-            ->with(self::AUTH_CODE);
+            ->with($this->credential, self::AUTH_CODE, 'urn:ietf:wg:oauth:2.0:oob')
+            ->andReturn([
+                'oauth_credentials' => '{"web":{}}',
+                'domain' => 'example.com',
+                'token' => json_encode(self::TOKEN_DATA),
+            ]);
 
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->once()
-            ->andReturn(self::TOKEN_DATA);
-
-        $this->entityManager->shouldReceive('flush')->once();
-
-        $tester = $this->executeCommand(['--force' => true], [self::AUTH_CODE]);
-
-        self::assertEquals(0, $tester->getStatusCode());
-        self::assertStringContainsString(self::AUTH_URL, $tester->getDisplay());
-        self::assertStringContainsString(
-            'configured successfully',
-            $tester->getDisplay(),
-        );
-    }
-
-    public function testExecuteNotConfiguredProvidesAuthCode(): void
-    {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($this->organization);
-
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
-
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andThrow(new InvalidGoogleTokenException());
-
-        $this->googleClient
-            ->shouldReceive('createAuthUrl')
-            ->once()
-            ->andReturn(self::AUTH_URL);
-
-        $this->googleClient
-            ->shouldReceive('setAuthCode')
-            ->once()
-            ->with(self::AUTH_CODE);
-
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->once()
-            ->andReturn(self::TOKEN_DATA);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($provider);
 
         $this->entityManager->shouldReceive('flush')->once();
 
@@ -181,34 +122,29 @@ class ConfigureSyncCommandTest extends MockeryTestCase
 
         self::assertEquals(0, $tester->getStatusCode());
         self::assertStringContainsString(self::AUTH_URL, $tester->getDisplay());
-        self::assertStringContainsString(self::DOMAIN, $tester->getDisplay());
         self::assertStringContainsString(
             'configured successfully',
             $tester->getDisplay(),
         );
     }
 
-    public function testExecuteNotConfiguredEmptyAuthCode(): void
+    public function testExecuteEmptyAuthCode(): void
     {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($this->organization);
+        $this->credentialRepository
+            ->shouldReceive('findAll')
+            ->andReturn([$this->credential]);
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $provider = $this->makeOAuthProvider();
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andThrow(new InvalidGoogleTokenException());
-
-        $this->googleClient
-            ->shouldReceive('createAuthUrl')
+        $provider
+            ->shouldReceive('getOAuthStartUrl')
             ->once()
             ->andReturn(self::AUTH_URL);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($provider);
 
         $tester = $this->executeCommand([], ['']);
 
@@ -219,85 +155,37 @@ class ConfigureSyncCommandTest extends MockeryTestCase
         );
     }
 
-    public function testExecutePersistsTokenToOrganization(): void
+    public function testExecuteSkipsNonOAuthProviders(): void
     {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($this->organization);
+        $pcCredential = new ProviderCredential();
+        $pcCredential->setOrganization($this->organization);
+        $pcCredential->setProviderName('planning_center');
+        $pcCredential->setCredentialsArray(['app_id' => 'id', 'app_secret' => 'secret']);
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
+        $this->credentialRepository
+            ->shouldReceive('findAll')
+            ->andReturn([$pcCredential]);
 
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andThrow(new InvalidGoogleTokenException());
+        $nonOAuthProvider = m::mock(ProviderInterface::class);
+        $nonOAuthProvider->shouldReceive('getDisplayName')->andReturn('Planning Center');
 
-        $this->googleClient
-            ->shouldReceive('createAuthUrl')
-            ->once()
-            ->andReturn(self::AUTH_URL);
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($nonOAuthProvider);
 
-        $this->googleClient
-            ->shouldReceive('setAuthCode')
-            ->once()
-            ->with(self::AUTH_CODE);
-
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->once()
-            ->andReturn(self::TOKEN_DATA);
-
-        $this->entityManager->shouldReceive('flush')->once();
-
-        $tester = $this->executeCommand([], [self::AUTH_CODE]);
+        $tester = $this->executeCommand();
 
         self::assertEquals(0, $tester->getStatusCode());
-        self::assertEquals(
-            json_encode(self::TOKEN_DATA, JSON_THROW_ON_ERROR),
-            $this->organization->getGoogleToken(),
-        );
+        self::assertStringContainsString('No OAuth-requiring', $tester->getDisplay());
     }
 
-    public function testExecuteHandlesNullTokenData(): void
+    private function makeOAuthProvider(): m\LegacyMockInterface|ProviderInterface|OAuthProviderInterface
     {
-        $this->organizationRepository
-            ->shouldReceive('findOneBy')
-            ->with([])
-            ->andReturn($this->organization);
+        $provider = m::mock(ProviderInterface::class, OAuthProviderInterface::class);
+        $provider->shouldReceive('getDisplayName')->andReturn('Google Groups');
 
-        $this->googleClientFactory
-            ->shouldReceive('create')
-            ->with($this->organization)
-            ->andReturn($this->googleClient);
-
-        $this->googleClient
-            ->shouldReceive('initialize')
-            ->once()
-            ->andThrow(new InvalidGoogleTokenException());
-
-        $this->googleClient
-            ->shouldReceive('createAuthUrl')
-            ->once()
-            ->andReturn(self::AUTH_URL);
-
-        $this->googleClient
-            ->shouldReceive('setAuthCode')
-            ->once()
-            ->with(self::AUTH_CODE);
-
-        $this->googleClient
-            ->shouldReceive('getTokenData')
-            ->once()
-            ->andReturn(null);
-
-        $tester = $this->executeCommand([], [self::AUTH_CODE]);
-
-        self::assertEquals(0, $tester->getStatusCode());
-        self::assertNull($this->organization->getGoogleToken());
+        return $provider;
     }
 
     private function executeCommand(
@@ -305,7 +193,8 @@ class ConfigureSyncCommandTest extends MockeryTestCase
         array $inputs = [],
     ): CommandTester {
         $command = new ConfigureSyncCommand(
-            $this->googleClientFactory,
+            $this->providerRegistry,
+            $this->credentialRepository,
             $this->entityManager,
         );
 

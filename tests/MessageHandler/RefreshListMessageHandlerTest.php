@@ -2,9 +2,10 @@
 
 namespace App\Tests\MessageHandler;
 
-use App\Client\PlanningCenter\PlanningCenterClient;
-use App\Client\PlanningCenter\PlanningCenterClientFactory;
+use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\ProviderRegistry;
 use App\Entity\Organization;
+use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
 use App\Message\RefreshListMessage;
 use App\MessageHandler\RefreshListMessageHandler;
@@ -16,7 +17,7 @@ use Psr\Log\LoggerInterface;
 
 class RefreshListMessageHandlerTest extends MockeryTestCase
 {
-    private PlanningCenterClientFactory|m\LegacyMockInterface $planningCenterClientFactory;
+    private ProviderRegistry|m\LegacyMockInterface $providerRegistry;
     private EntityManagerInterface|m\LegacyMockInterface $entityManager;
     private LoggerInterface|m\LegacyMockInterface $logger;
     private EntityRepository|m\LegacyMockInterface $syncListRepository;
@@ -24,7 +25,7 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
 
     protected function setUp(): void
     {
-        $this->planningCenterClientFactory = m::mock(PlanningCenterClientFactory::class);
+        $this->providerRegistry = m::mock(ProviderRegistry::class);
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->logger = m::mock(LoggerInterface::class);
         $this->syncListRepository = m::mock(EntityRepository::class);
@@ -35,7 +36,7 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
             ->andReturn($this->syncListRepository);
 
         $this->handler = new RefreshListMessageHandler(
-            $this->planningCenterClientFactory,
+            $this->providerRegistry,
             $this->entityManager,
             $this->logger,
         );
@@ -43,16 +44,9 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
 
     public function testInvokeRefreshesListSuccessfully(): void
     {
-        $organization = new Organization();
-        $organization->setName('Test Org');
-        $organization->setPlanningCenterAppId('pc-id');
-        $organization->setPlanningCenterAppSecret('pc-secret');
-        $organization->setGoogleOAuthCredentials('{}');
-        $organization->setGoogleDomain('example.com');
-
-        $syncList = new SyncList();
-        $syncList->setName('My List');
-        $syncList->setOrganization($organization);
+        $organization = $this->makeOrganization();
+        $sourceCredential = $this->makeSourceCredential($organization);
+        $syncList = $this->makeSyncList($organization, $sourceCredential, 'My List');
 
         $this->syncListRepository
             ->shouldReceive('find')
@@ -60,17 +54,17 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
             ->once()
             ->andReturn($syncList);
 
-        $pcClient = m::mock(PlanningCenterClient::class);
-        $pcClient
+        $pcProvider = m::mock(PlanningCenterProvider::class);
+        $pcProvider
             ->shouldReceive('refreshList')
-            ->with('My List')
+            ->with($sourceCredential, 'source-list-id')
             ->once();
 
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($organization)
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
             ->once()
-            ->andReturn($pcClient);
+            ->andReturn($pcProvider);
 
         $this->logger
             ->shouldReceive('info')
@@ -100,7 +94,7 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
             ->once()
             ->andReturnNull();
 
-        $this->planningCenterClientFactory->shouldNotReceive('create');
+        $this->providerRegistry->shouldNotReceive('get');
         $this->logger->shouldNotReceive('info');
         $this->logger->shouldNotReceive('error');
 
@@ -111,16 +105,9 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
 
     public function testInvokeLogsAndRethrowsOnFailure(): void
     {
-        $organization = new Organization();
-        $organization->setName('Test Org');
-        $organization->setPlanningCenterAppId('pc-id');
-        $organization->setPlanningCenterAppSecret('pc-secret');
-        $organization->setGoogleOAuthCredentials('{}');
-        $organization->setGoogleDomain('example.com');
-
-        $syncList = new SyncList();
-        $syncList->setName('Broken List');
-        $syncList->setOrganization($organization);
+        $organization = $this->makeOrganization();
+        $sourceCredential = $this->makeSourceCredential($organization);
+        $syncList = $this->makeSyncList($organization, $sourceCredential, 'Broken List');
 
         $this->syncListRepository
             ->shouldReceive('find')
@@ -130,18 +117,18 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
 
         $exception = new \RuntimeException('API error');
 
-        $pcClient = m::mock(PlanningCenterClient::class);
-        $pcClient
+        $pcProvider = m::mock(PlanningCenterProvider::class);
+        $pcProvider
             ->shouldReceive('refreshList')
-            ->with('Broken List')
+            ->with($sourceCredential, 'source-list-id')
             ->once()
             ->andThrow($exception);
 
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($organization)
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
             ->once()
-            ->andReturn($pcClient);
+            ->andReturn($pcProvider);
 
         $this->logger
             ->shouldReceive('error')
@@ -169,16 +156,9 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
 
     public function testInvokeWithNoTriggeredByUser(): void
     {
-        $organization = new Organization();
-        $organization->setName('Test Org');
-        $organization->setPlanningCenterAppId('pc-id');
-        $organization->setPlanningCenterAppSecret('pc-secret');
-        $organization->setGoogleOAuthCredentials('{}');
-        $organization->setGoogleDomain('example.com');
-
-        $syncList = new SyncList();
-        $syncList->setName('My List');
-        $syncList->setOrganization($organization);
+        $organization = $this->makeOrganization();
+        $sourceCredential = $this->makeSourceCredential($organization);
+        $syncList = $this->makeSyncList($organization, $sourceCredential, 'My List');
 
         $this->syncListRepository
             ->shouldReceive('find')
@@ -186,17 +166,17 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
             ->once()
             ->andReturn($syncList);
 
-        $pcClient = m::mock(PlanningCenterClient::class);
-        $pcClient
+        $pcProvider = m::mock(PlanningCenterProvider::class);
+        $pcProvider
             ->shouldReceive('refreshList')
-            ->with('My List')
+            ->with($sourceCredential, 'source-list-id')
             ->once();
 
-        $this->planningCenterClientFactory
-            ->shouldReceive('create')
-            ->with($organization)
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
             ->once()
-            ->andReturn($pcClient);
+            ->andReturn($pcProvider);
 
         $this->logger
             ->shouldReceive('info')
@@ -211,5 +191,63 @@ class RefreshListMessageHandlerTest extends MockeryTestCase
         $message = new RefreshListMessage(syncListId: 'list-123');
 
         ($this->handler)($message);
+    }
+
+    public function testInvokeWithNoSourceCredentialLogsWarning(): void
+    {
+        $organization = $this->makeOrganization();
+
+        $syncList = new SyncList();
+        $syncList->setName('No Creds');
+        $syncList->setOrganization($organization);
+
+        $this->syncListRepository
+            ->shouldReceive('find')
+            ->with('list-123')
+            ->once()
+            ->andReturn($syncList);
+
+        $this->providerRegistry->shouldNotReceive('get');
+
+        $this->logger
+            ->shouldReceive('warning')
+            ->once()
+            ->with(
+                m::pattern('/no source credential/'),
+                m::type('array'),
+            );
+
+        $message = new RefreshListMessage(syncListId: 'list-123');
+
+        ($this->handler)($message);
+    }
+
+    private function makeOrganization(): Organization
+    {
+        $organization = new Organization();
+        $organization->setName('Test Org');
+
+        return $organization;
+    }
+
+    private function makeSourceCredential(Organization $organization): ProviderCredential
+    {
+        $credential = new ProviderCredential();
+        $credential->setOrganization($organization);
+        $credential->setProviderName('planning_center');
+        $credential->setCredentialsArray(['app_id' => 'id', 'app_secret' => 'secret']);
+
+        return $credential;
+    }
+
+    private function makeSyncList(Organization $organization, ProviderCredential $sourceCredential, string $name): SyncList
+    {
+        $syncList = new SyncList();
+        $syncList->setName($name);
+        $syncList->setOrganization($organization);
+        $syncList->setSourceCredential($sourceCredential);
+        $syncList->setSourceListIdentifier('source-list-id');
+
+        return $syncList;
     }
 }

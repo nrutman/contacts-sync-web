@@ -1,28 +1,28 @@
-# 📇 Contacts Sync
+# Contacts Sync
 
-A Symfony console application to sync contacts from Planning Center to Google Groups. The application queries both sources for lists named after distribution groups. It then diffs the contacts and makes sure the Google group mirrors the contacts found in Planning Center.
+A Symfony web application that syncs contacts between configurable source and destination providers. Out of the box, it supports Planning Center as a source and Google Groups as a destination, but the provider architecture is extensible to support additional integrations.
 
 ```mermaid
 flowchart LR
-    PC[Planning Center API] --> Merge[Merge & Deduplicate]
+    Source[Source Provider] --> Merge[Merge & Deduplicate]
     Mem[In-Memory Contacts] --> Merge
     Merge --> Diff[Compute Diff]
-    Diff --> Google[Google Groups API]
+    Diff --> Dest[Destination Provider]
 ```
 
-## 📦 Installation
+## Installation
 
 All dependencies can be installed using the [Composer PHP dependency manager](https://getcomposer.org/). Once Composer is installed, [download this repository](https://github.com/nrutman/contacts-sync/releases) and run the following command:
 ```bash
 composer install
 ```
 
-## ⚙️ Configuration
+## Configuration
 
-All configuration (API credentials, sync lists, in-memory contacts) is managed through the web UI Settings page after running the setup wizard.
+All configuration (provider credentials, sync lists, in-memory contacts) is managed through the web UI after running the setup wizard.
 
 1. Run `bin/console app:setup` to configure the database, encryption key, and create the first admin user.
-2. Log in to the web interface and navigate to **Settings** to configure Planning Center and Google credentials.
+2. Log in to the web interface and navigate to **Credentials** to add provider credentials (e.g. Planning Center API keys, Google Groups OAuth).
 3. Create sync lists and in-memory contacts through the web UI.
 
 If you are migrating from the legacy CLI version, pass `--legacy-config` to the setup wizard to import your old `parameters.yml`:
@@ -37,21 +37,15 @@ Or run the migration command directly:
 bin/console app:migrate-config config/parameters.yml
 ```
 
-## 🚀 Usage
+## Usage
 
 ### `sync:configure`
 
-To configure the command by provisioning a token with your Google Workspace user, run the following command:
+To configure OAuth-based providers (e.g. Google Groups) by provisioning a token, run:
 ```bash
 bin/console sync:configure
 ```
-The command will provide a Google authentication URL which will require you to login with a Google Workspace Groups administrator and paste the provided access token back to the command. If a valid token has already been provided, the command will exit gracefully.
-
-| Parameter | Description |
-| --------- | ----------- |
-| --force   | Forces the command to overwrite an existing Google token. |
-
-> **Note:** the resulting Google token is stored in the `var/google-token.json` file. If at any time you have problems with Google authentication, delete this file and rerun the `sync:configure` command (or use the `--force` parameter).
+The command will find all OAuth-requiring provider credentials and walk you through the authentication flow. If a valid token has already been provisioned, the command will skip that credential.
 
 ### `sync:run`
 
@@ -59,29 +53,30 @@ To sync contacts between lists, simply run the following command:
 ```bash
 bin/console sync:run
 ```
-This will fetch the lists, run a diff, and display information for changes it is making to the groups.
+This will fetch the lists, run a diff, and display information for changes it is making to the destination.
 
 | Parameter | Description |
 | --------- | ----------- |
-| --dry-run | Computes the diff and outputs data without actually updating the groups. |
+| --dry-run | Computes the diff and outputs data without actually updating the destination. |
+| --list    | Only sync a specific list (by name). |
 
-### `planning-center:refresh`
+### `source:refresh`
 
-Refreshes a Planning Center list so it contains the most up-to-date contacts. Planning Center lists are computed on-demand, so running this command before a sync ensures the source data is current.
+Refreshes source provider lists so they contain the most up-to-date contacts. Currently applicable to Planning Center lists, which are computed on-demand.
 
 ```bash
 # Refresh a single list
-bin/console planning-center:refresh list@example.com
+bin/console source:refresh list@example.com
 
-# Refresh all configured lists
-bin/console planning-center:refresh all
+# Refresh all enabled lists
+bin/console source:refresh all
 ```
 
 | Argument   | Description |
 |------------|-------------|
-| list-name  | The name of the list to refresh. Pass `all` to refresh all configured lists. |
+| list-name  | The name of the list to refresh. Pass `all` to refresh all enabled lists. |
 
-## 🚀 Production Deployment
+## Production Deployment
 
 ### Prerequisites
 
@@ -178,16 +173,15 @@ To rotate keys, set the old key as a previous key and generate a new current key
 php bin/console app:rotate-encryption-keys --force
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| `The Google Client cannot authenticate with your account` | Run `bin/console sync:configure` to set up or refresh your Google token. |
-| `The required Google token was not found` | The token file (`var/google-token.json`) is missing or invalid. Delete it and re-run `sync:configure`. |
-| Google token keeps expiring | Ensure `setAccessType('offline')` is configured (default). Re-run `sync:configure --force` to get a new refresh token. |
-| `The list 'X' could not be found` | The list name does not match any Planning Center list. Verify the exact name in Planning Center. |
-| `Unknown list specified: X` | The list name passed to `planning-center:refresh` is not in the configured `lists` parameter. Use `all` or a valid list name. |
+| Google authentication errors | Run `bin/console sync:configure` to set up or refresh your Google OAuth token. |
+| Google token keeps expiring | Re-run `sync:configure` to get a new refresh token with offline access. |
+| `The list 'X' could not be found` | The list name does not match any source provider list. Verify the exact name in the source system. |
+| `Unknown list specified: X` | The list name passed to `source:refresh` is not a configured sync list. Use `all` or a valid list name. |
 
-## 📖 Technical Documentation
+## Technical Documentation
 
 For architecture details, the sync algorithm, and developer guidance, see the [src/README.md](src/README.md). Each namespace within `src/` also contains its own README with implementation-specific documentation.

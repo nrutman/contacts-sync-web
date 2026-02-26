@@ -1,8 +1,8 @@
-# 🧩 Source Code — Technical Overview
+# Source Code — Technical Overview
 
 This document covers the architecture, internal design, and developer workflow for the Contacts Sync application. For installation, configuration, and usage instructions, see the [project README](../README.md).
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -10,38 +10,40 @@ flowchart LR
     Controllers -->|dispatch| Messenger[Symfony Messenger]
     Messenger --> SyncService
     CLI[bin/console] --> SyncService
-    SyncService --> PC[Planning Center API]
-    SyncService --> Google[Google Groups API]
+    SyncService --> Registry[ProviderRegistry]
+    Registry --> Source[Source Provider API]
+    Registry --> Dest[Destination Provider API]
     SyncService --> DB[(PostgreSQL)]
     Scheduler[Symfony Scheduler] -->|dispatch| Messenger
 ```
 
-The application is a Symfony 7.2 web application with a Turbo + Stimulus SPA-like UI. It syncs contacts from Planning Center to Google Groups by following a **source → diff → destination** pipeline:
+The application is a Symfony 7.2 web application with a Turbo + Stimulus SPA-like UI. It syncs contacts from a configurable source provider to a configurable destination provider by following a **source → diff → destination** pipeline:
 
-1. Source contacts are read from Planning Center and merged with in-memory contacts stored in the database.
-2. The merged list is compared against the current members of a Google Group.
-3. The diff is applied to bring the Google Group in sync with the source.
+1. Source contacts are read from the source provider (e.g. Planning Center) and merged with in-memory contacts stored in the database.
+2. The merged list is compared against the current members of the destination (e.g. a Google Group).
+3. The diff is applied to bring the destination in sync with the source.
 
 Syncs can be triggered three ways: manually from the web UI, on a cron schedule via Symfony Scheduler, or from the CLI via `bin/console sync:run`. In all cases, the core logic lives in `SyncService`.
 
-## 📦 Namespaces
+## Namespaces
 
 | Namespace | Description | Details |
 |-----------|-------------|---------|
 | `App\Attribute` | Custom PHP attributes (`#[Encrypted]` marker for Doctrine field encryption) | — |
 | `App\Client` | API client interfaces and implementations for reading/writing contact lists | [Client README](Client/README.md) |
+| `App\Client\Provider` | Provider abstraction layer (registry, interfaces, capability enum) | [Provider README](Client/Provider/README.md) |
 | `App\Client\Google` | Google Workspace Directory API integration (OAuth, token management, group membership) | [Google README](Client/Google/README.md) |
 | `App\Client\PlanningCenter` | Planning Center People API integration (list lookup, pagination, email resolution) | [PlanningCenter README](Client/PlanningCenter/README.md) |
 | `App\Command` | Symfony console commands (sync, setup wizard, user management, config migration, key rotation) | [Command README](Command/README.md) |
 | `App\Contact` | Contact domain model, list diffing, and in-memory contact management | [Contact README](Contact/README.md) |
-| `App\Controller` | Symfony web controllers (dashboard, CRUD, settings, auth, sync triggers) | — |
-| `App\Entity` | Doctrine ORM entities (`User`, `Organization`, `SyncList`, `SyncRun`, `InMemoryContact`) | — |
+| `App\Controller` | Symfony web controllers (dashboard, CRUD, settings, auth, sync triggers, credential management) | — |
+| `App\Entity` | Doctrine ORM entities (`User`, `Organization`, `SyncList`, `SyncRun`, `InMemoryContact`, `ProviderCredential`) | — |
 | `App\Event` | Domain events dispatched during sync execution | — |
 | `App\EventListener` | Doctrine listeners for field encryption and scheduler cache invalidation | — |
 | `App\File` | File I/O abstraction used by the Google client | — |
-| `App\Form` | Symfony form types for all CRUD and settings forms | — |
+| `App\Form` | Symfony form types for all CRUD, settings, and credential forms | — |
 | `App\Message` | Messenger message DTOs (`SyncMessage`, `RefreshListMessage`) | — |
-| `App\MessageHandler` | Async message handlers that invoke `SyncService` and `PlanningCenterClient` | — |
+| `App\MessageHandler` | Async message handlers that invoke `SyncService` and source providers | — |
 | `App\Notification` | Email notifications triggered by sync completion events | — |
 | `App\Repository` | Doctrine repositories with custom query methods | — |
 | `App\Scheduler` | Symfony Scheduler provider that builds a schedule from `SyncList` cron expressions | — |
@@ -49,24 +51,24 @@ Syncs can be triggered three ways: manually from the web UI, on a cron schedule 
 | `App\Sync` | Core sync orchestration (`SyncService`, `SyncResult`) | [Sync README](Sync/README.md) |
 | `App\Validator` | Custom validation constraints (cron expression validation) | — |
 
-## 🔄 Sync Pipeline
+## Sync Pipeline
 
 Whether triggered via web UI, CLI, or scheduler, every sync follows the same path through `SyncService::executeSync()`:
 
 ```mermaid
 flowchart TD
-    A[Create or resume SyncRun] --> B[Build Google & PC clients from Organization credentials]
-    B --> C[Refresh Google token if expired]
-    C --> D[Fetch source contacts from Planning Center]
+    A[Create or resume SyncRun] --> B[Look up source & destination providers via ProviderRegistry]
+    B --> C[Build API clients from ProviderCredential entities]
+    C --> D[Fetch source contacts from source provider]
     D --> E[Merge with in-memory contacts from DB]
     E --> F[Deduplicate by email]
-    F --> G[Fetch destination contacts from Google Group]
+    F --> G[Fetch destination contacts from destination provider]
     G --> H[Compute diff via ContactListAnalyzer]
     H --> I{Dry run?}
     I -->|Yes| J[Log changes only]
     I -->|No| K[Remove extra contacts]
-    K --> L[Add missing contacts]
     J --> M[Record results to SyncRun]
+    K --> L[Add missing contacts]
     L --> M
     M --> N[Dispatch SyncCompletedEvent]
     N --> O[SyncNotificationService sends emails]
@@ -74,22 +76,29 @@ flowchart TD
 
 Key details:
 
-- **Client factories** (`GoogleClientFactory`, `PlanningCenterClientFactory`) build API clients from `Organization` entity credentials. The `#[Encrypted]` fields are transparently decrypted by Doctrine's `EncryptedFieldListener` before the factories read them.
-- **Token refresh** — If the Google OAuth token was refreshed during initialization, the updated token is persisted back to the `Organization` entity.
+- **Provider Registry** (`ProviderRegistry`) discovers all providers tagged with `#[AutoconfigureTag('app.provider')]`. Each `SyncList` references a source and destination `ProviderCredential`, which links to a specific provider and stores the credentials needed to build an API client.
+- **Client creation** — Providers implement `createClient(ProviderCredential)` to build the appropriate API client from the credential's encrypted JSON blob. The `#[Encrypted]` fields are transparently decrypted by Doctrine's `EncryptedFieldListener`.
+- **Token refresh** — OAuth-based providers (like Google Groups) handle token refresh during client creation. If the token is refreshed, the updated credentials are persisted via the entity manager.
 - **SyncRun audit log** — Every execution creates a `SyncRun` record tracking status, counts, timing, log output, and who triggered it.
 - **Event-driven notifications** — `SyncCompletedEvent` is dispatched after every sync (success or failure). `SyncNotificationService` listens and sends emails to users based on their notification preferences.
 
-## 🗄️ Data Model
+## Data Model
 
 ```
 Organization (single-tenant, one row)
-├── planningCenterAppId      [encrypted]
-├── planningCenterAppSecret   [encrypted]
-├── googleOAuthCredentials    [encrypted]
-├── googleToken               [encrypted, nullable]
-├── googleDomain
+├── name
+├── ── ProviderCredential[]
+│      ├── providerName (e.g. "planning_center", "google_groups")
+│      ├── label (display name)
+│      ├── credentials [encrypted JSON blob]
+│      ├── metadata [JSON, nullable]
+│      └── createdAt / updatedAt
 ├── ── SyncList[]
-│      ├── name (e.g. "church@example.com")
+│      ├── name (display label)
+│      ├── sourceCredential → ProviderCredential
+│      ├── sourceListIdentifier (string)
+│      ├── destinationCredential → ProviderCredential
+│      ├── destinationListIdentifier (string)
 │      ├── isEnabled
 │      ├── cronExpression (nullable)
 │      ├── ── SyncRun[]
@@ -107,9 +116,9 @@ User
 ├── notifyOnSuccess / notifyOnFailure / notifyOnNoChanges
 ```
 
-Sensitive fields on `Organization` are marked with `#[Encrypted]` and automatically encrypted/decrypted by `EncryptedFieldListener` using libsodium (XSalsa20-Poly1305). See the [Security README](Security/README.md) for details on encryption and key rotation.
+Sensitive fields on `ProviderCredential` are marked with `#[Encrypted]` and automatically encrypted/decrypted by `EncryptedFieldListener` using libsodium (XSalsa20-Poly1305). See the [Security README](Security/README.md) for details on encryption and key rotation.
 
-## 💉 Dependency Injection
+## Dependency Injection
 
 The Symfony service container uses autowiring. Key bindings in `config/services.yaml`:
 
@@ -119,9 +128,9 @@ The Symfony service container uses autowiring. Key bindings in `config/services.
 | `$previousEncryptionKeys` | `%env(default::APP_PREVIOUS_ENCRYPTION_KEYS)%` |
 | `$varPath` | `%kernel.var_dir%` |
 
-API credentials and sync configuration are stored in the database and accessed through `Organization` entities. The `PlanningCenterClient` and `GoogleClient` classes are excluded from autowiring and created through their respective factories.
+Provider credentials and sync configuration are stored in the database and accessed through `ProviderCredential` and `SyncList` entities. Providers are auto-discovered via the `app.provider` tag. The `PlanningCenterClient` and `GoogleClient` classes are excluded from autowiring and created by their respective providers.
 
-## ⚡ Async Processing
+## Async Processing
 
 Sync and refresh operations dispatched from the web UI go through Symfony Messenger:
 
@@ -131,12 +140,15 @@ Sync and refresh operations dispatched from the web UI go through Symfony Messen
 
 The `ScheduleCacheInvalidator` Doctrine listener clears the scheduler cache whenever a `SyncList` is created, updated, or deleted, so schedule changes take effect without restarting the worker.
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 src/
 ├── Attribute/           # #[Encrypted] marker attribute
-├── Client/              # API clients (Google, Planning Center)
+├── Client/              # API clients and provider framework
+│   ├── Provider/        # Provider abstraction (registry, interfaces)
+│   ├── Google/          # Google Groups provider
+│   └── PlanningCenter/  # Planning Center provider
 ├── Command/             # CLI commands
 ├── Contact/             # Contact DTO and diff algorithm
 ├── Controller/          # Web controllers
@@ -161,7 +173,7 @@ migrations/              # Doctrine migrations
 assets/                  # Stimulus controllers and JS entry point
 ```
 
-## 🛠️ Developer Guide
+## Developer Guide
 
 ### Prerequisites
 

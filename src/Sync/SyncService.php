@@ -2,13 +2,11 @@
 
 namespace App\Sync;
 
-use App\Client\Google\GoogleClient;
-use App\Client\Google\GoogleClientFactory;
-use App\Client\Google\InvalidGoogleTokenException;
-use App\Client\PlanningCenter\PlanningCenterClientFactory;
+use App\Client\Provider\ProviderRegistry;
+use App\Client\ReadableListClientInterface;
+use App\Client\WriteableListClientInterface;
 use App\Contact\Contact;
 use App\Contact\ContactListAnalyzer;
-use App\Entity\Organization;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
@@ -22,8 +20,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 class SyncService
 {
     public function __construct(
-        private readonly GoogleClientFactory $googleClientFactory,
-        private readonly PlanningCenterClientFactory $planningCenterClientFactory,
+        private readonly ProviderRegistry $providerRegistry,
         private readonly InMemoryContactRepository $inMemoryContactRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly EventDispatcherInterface $eventDispatcher,
@@ -39,7 +36,6 @@ class SyncService
         string $trigger = 'manual',
         ?SyncRun $existingSyncRun = null,
     ): SyncResult {
-        $organization = $syncList->getOrganization();
         $listName = $syncList->getName();
         $log = '';
 
@@ -70,20 +66,39 @@ class SyncService
         try {
             $log .= $this->logLine(sprintf('Processing list: %s', $listName));
 
-            // Build clients from organization credentials
-            $googleClient = $this->initializeGoogleClient($organization);
-            $planningCenterClient = $this->planningCenterClientFactory->create(
-                $organization,
-            );
+            // Build source and destination clients from provider credentials
+            $sourceCredential = $syncList->getSourceCredential();
+            $destinationCredential = $syncList->getDestinationCredential();
 
-            // Check if token was refreshed and persist if so
-            $this->persistTokenIfRefreshed($organization, $googleClient);
+            if ($sourceCredential === null || $destinationCredential === null) {
+                throw new \RuntimeException('Sync list is missing source or destination credential configuration.');
+            }
 
-            // Fetch source contacts from Planning Center
+            $sourceProvider = $this->providerRegistry->get($sourceCredential->getProviderName());
+            $destProvider = $this->providerRegistry->get($destinationCredential->getProviderName());
+
+            $sourceClient = $sourceProvider->createClient($sourceCredential);
+            $destClient = $destProvider->createClient($destinationCredential);
+
+            if (!$sourceClient instanceof ReadableListClientInterface) {
+                throw new \RuntimeException(sprintf('Source provider "%s" does not support reading contacts.', $sourceCredential->getProviderName()));
+            }
+
+            if (!$destClient instanceof WriteableListClientInterface) {
+                throw new \RuntimeException(sprintf('Destination provider "%s" does not support writing contacts.', $destinationCredential->getProviderName()));
+            }
+
+            // Persist any token refreshes that happened during client creation
+            $this->entityManager->flush();
+
+            $sourceListId = $syncList->getSourceListIdentifier() ?? $listName;
+            $destListId = $syncList->getDestinationListIdentifier() ?? $listName;
+
+            // Fetch source contacts
             $log .= $this->logLine(
-                'Fetching source contacts from Planning Center...',
+                sprintf('Fetching source contacts from %s...', $sourceProvider->getDisplayName()),
             );
-            $sourceContacts = $planningCenterClient->getContacts($listName);
+            $sourceContacts = $sourceClient->getContacts($sourceListId);
             $log .= $this->logLine(
                 sprintf('  Found %d source contacts', count($sourceContacts)),
             );
@@ -105,11 +120,16 @@ class SyncService
                 );
             }
 
-            // Fetch destination contacts from Google
+            // Fetch destination contacts
             $log .= $this->logLine(
-                'Fetching destination contacts from Google...',
+                sprintf('Fetching destination contacts from %s...', $destProvider->getDisplayName()),
             );
-            $destContacts = $googleClient->getContacts($listName);
+
+            if (!$destClient instanceof ReadableListClientInterface) {
+                throw new \RuntimeException(sprintf('Destination provider "%s" does not support reading contacts.', $destinationCredential->getProviderName()));
+            }
+
+            $destContacts = $destClient->getContacts($destListId);
             $log .= $this->logLine(
                 sprintf(
                     '  Found %d destination contacts',
@@ -144,7 +164,7 @@ class SyncService
                             count($contactsToRemove),
                         ),
                     );
-                    $googleClient->removeContact($listName, $contact);
+                    $destClient->removeContact($destListId, $contact);
                 }
 
                 foreach ($contactsToAdd as $addIndex => $contact) {
@@ -156,7 +176,7 @@ class SyncService
                             count($contactsToAdd),
                         ),
                     );
-                    $googleClient->addContact($listName, $contact);
+                    $destClient->addContact($destListId, $contact);
                 }
             } else {
                 $log .= $this->logLine('Dry run — no changes applied.');
@@ -228,41 +248,6 @@ class SyncService
             $this->eventDispatcher->dispatch(new SyncCompletedEvent($syncRun));
 
             return $result;
-        }
-    }
-
-    /**
-     * Initializes a GoogleClient for the given organization, including token setup.
-     *
-     * @throws InvalidGoogleTokenException
-     */
-    private function initializeGoogleClient(
-        Organization $organization,
-    ): GoogleClient {
-        $googleClient = $this->googleClientFactory->create($organization);
-        $googleClient->initialize();
-
-        return $googleClient;
-    }
-
-    /**
-     * If the Google OAuth token was refreshed during initialization, persist the updated token.
-     */
-    private function persistTokenIfRefreshed(
-        Organization $organization,
-        GoogleClient $googleClient,
-    ): void {
-        $currentToken = $googleClient->getTokenData();
-
-        if ($currentToken === null) {
-            return;
-        }
-
-        $newTokenJson = json_encode($currentToken, JSON_THROW_ON_ERROR);
-
-        if ($newTokenJson !== $organization->getGoogleToken()) {
-            $organization->setGoogleToken($newTokenJson);
-            $this->entityManager->flush();
         }
     }
 
