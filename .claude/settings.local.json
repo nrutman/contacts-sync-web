@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(composer run-script:*)"
+      "Bash(composer run-script:*)",
+      "Bash(wc:*)"
     ]
   }
 }
