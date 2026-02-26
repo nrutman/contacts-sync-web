@@ -7,14 +7,14 @@ use App\Client\PlanningCenter\PlanningCenterClient;
 use App\Client\Provider\ProviderInterface;
 use App\Client\Provider\ProviderRegistry;
 use App\Contact\Contact;
-use App\Entity\InMemoryContact;
+use App\Entity\ManualContact;
 use App\Entity\Organization;
 use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
 use App\Event\SyncCompletedEvent;
-use App\Repository\InMemoryContactRepository;
+use App\Repository\ManualContactRepository;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
@@ -29,7 +29,7 @@ class SyncServiceTest extends MockeryTestCase
     private const DEST_LIST_ID = 'test-list@example.com';
 
     private ProviderRegistry|m\LegacyMockInterface $providerRegistry;
-    private InMemoryContactRepository|m\LegacyMockInterface $inMemoryContactRepository;
+    private ManualContactRepository|m\LegacyMockInterface $manualContactRepository;
     private EntityManagerInterface|m\LegacyMockInterface $entityManager;
     private EventDispatcherInterface|m\LegacyMockInterface $eventDispatcher;
     private LoggerInterface|m\LegacyMockInterface $logger;
@@ -47,8 +47,8 @@ class SyncServiceTest extends MockeryTestCase
     public function setUp(): void
     {
         $this->providerRegistry = m::mock(ProviderRegistry::class);
-        $this->inMemoryContactRepository = m::mock(
-            InMemoryContactRepository::class,
+        $this->manualContactRepository = m::mock(
+            ManualContactRepository::class,
         );
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->eventDispatcher = m::mock(EventDispatcherInterface::class);
@@ -87,7 +87,7 @@ class SyncServiceTest extends MockeryTestCase
 
         $this->syncService = new SyncService(
             $this->providerRegistry,
-            $this->inMemoryContactRepository,
+            $this->manualContactRepository,
             $this->entityManager,
             $this->eventDispatcher,
             $this->logger,
@@ -170,10 +170,10 @@ class SyncServiceTest extends MockeryTestCase
         self::assertStringContainsString('Dry run', $result->log);
     }
 
-    public function testExecuteSyncMergesInMemoryContacts(): void
+    public function testExecuteSyncMergesManualContacts(): void
     {
         $pcContact = $this->makeContact('pc@test.com');
-        $memEntity = new InMemoryContact();
+        $memEntity = new ManualContact();
         $memEntity->setName('Memory User');
         $memEntity->setEmail('mem@test.com');
         $memEntity->setOrganization($this->organization);
@@ -181,7 +181,7 @@ class SyncServiceTest extends MockeryTestCase
         $this->setupDefaultExpectations(
             sourceContacts: [$pcContact],
             destContacts: [],
-            inMemoryEntities: [$memEntity],
+            manualEntities: [$memEntity],
         );
 
         $this->googleClient->shouldReceive('addContact')->twice();
@@ -191,13 +191,13 @@ class SyncServiceTest extends MockeryTestCase
         self::assertTrue($result->success);
         self::assertEquals(2, $result->sourceCount);
         self::assertEquals(2, $result->addedCount);
-        self::assertStringContainsString('in-memory contacts', $result->log);
+        self::assertStringContainsString('manual contacts', $result->log);
     }
 
-    public function testExecuteSyncDeduplicatesInMemoryContacts(): void
+    public function testExecuteSyncDeduplicatesManualContacts(): void
     {
         $pcContact = $this->makeContact('same@test.com');
-        $memEntity = new InMemoryContact();
+        $memEntity = new ManualContact();
         $memEntity->setName('Same User');
         $memEntity->setEmail('same@test.com');
         $memEntity->setOrganization($this->organization);
@@ -205,7 +205,7 @@ class SyncServiceTest extends MockeryTestCase
         $this->setupDefaultExpectations(
             sourceContacts: [$pcContact],
             destContacts: [],
-            inMemoryEntities: [$memEntity],
+            manualEntities: [$memEntity],
         );
 
         $this->googleClient->shouldReceive('addContact')->once();
@@ -278,7 +278,7 @@ class SyncServiceTest extends MockeryTestCase
             ->with(self::SOURCE_LIST_ID)
             ->andReturn([]);
 
-        $this->inMemoryContactRepository
+        $this->manualContactRepository
             ->shouldReceive('findBySyncList')
             ->with($this->syncList)
             ->andReturn([]);
@@ -461,12 +461,12 @@ class SyncServiceTest extends MockeryTestCase
      *
      * @param Contact[] $sourceContacts
      * @param Contact[] $destContacts
-     * @param InMemoryContact[] $inMemoryEntities
+     * @param ManualContact[] $manualEntities
      */
     private function setupDefaultExpectations(
         array $sourceContacts,
         array $destContacts,
-        array $inMemoryEntities = [],
+        array $manualEntities = [],
     ): void {
         $this->entityManager
             ->shouldReceive('persist')
@@ -505,10 +505,10 @@ class SyncServiceTest extends MockeryTestCase
             ->with(self::SOURCE_LIST_ID)
             ->andReturn($sourceContacts);
 
-        $this->inMemoryContactRepository
+        $this->manualContactRepository
             ->shouldReceive('findBySyncList')
             ->with($this->syncList)
-            ->andReturn($inMemoryEntities);
+            ->andReturn($manualEntities);
 
         $this->googleClient
             ->shouldReceive('getContacts')

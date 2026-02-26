@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-use App\Repository\InMemoryContactRepository;
+use App\Repository\ManualContactRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -10,8 +10,8 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
-#[ORM\Entity(repositoryClass: InMemoryContactRepository::class)]
-class InMemoryContact
+#[ORM\Entity(repositoryClass: ManualContactRepository::class)]
+class ManualContact
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -19,7 +19,7 @@ class InMemoryContact
 
     #[ORM\ManyToOne(
         targetEntity: Organization::class,
-        inversedBy: 'inMemoryContacts',
+        inversedBy: 'manualContacts',
     ),]
     #[ORM\JoinColumn(nullable: false)]
     private Organization $organization;
@@ -45,9 +45,9 @@ class InMemoryContact
      */
     #[ORM\ManyToMany(
         targetEntity: SyncList::class,
-        inversedBy: 'inMemoryContacts',
+        inversedBy: 'manualContacts',
     ),]
-    #[ORM\JoinTable(name: 'in_memory_contact_sync_list')]
+    #[ORM\JoinTable(name: 'manual_contact_sync_list')]
     private Collection $syncLists;
 
     public function __construct()

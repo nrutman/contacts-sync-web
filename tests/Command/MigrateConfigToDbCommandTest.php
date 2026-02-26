@@ -3,7 +3,7 @@
 namespace App\Tests\Command;
 
 use App\Command\MigrateConfigToDbCommand;
-use App\Entity\InMemoryContact;
+use App\Entity\ManualContact;
 use App\Entity\Organization;
 use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
@@ -37,7 +37,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
     private array $googleConfiguration;
     private array $lists;
-    private array $inMemoryContacts;
+    private array $manualContacts;
 
     protected function setUp(): void
     {
@@ -70,7 +70,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
             'worship@example.org',
         ];
 
-        $this->inMemoryContacts = [
+        $this->manualContacts = [
             'John Doe' => [
                 'email' => 'john@example.org',
                 'list' => ['techteam@example.org', 'worship@example.org'],
@@ -126,7 +126,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
         self::assertSame(0, $tester->getStatusCode());
 
-        // 1 Organization + 2 ProviderCredentials + 3 SyncLists + 2 InMemoryContacts = 8 entities
+        // 1 Organization + 2 ProviderCredentials + 3 SyncLists + 2 ManualContacts = 8 entities
         self::assertCount(8, $persistedEntities);
 
         /** @var Organization $org */
@@ -165,8 +165,8 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
             self::assertSame($googleCredential, $syncList->getDestinationCredential());
         }
 
-        // Verify in-memory contacts
-        $contacts = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof InMemoryContact));
+        // Verify manual contacts
+        $contacts = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof ManualContact));
         self::assertCount(2, $contacts);
 
         $johnContact = $this->findContactByName($contacts, 'John Doe');
@@ -280,7 +280,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
     public function testSingleStringListValueForContact(): void
     {
-        $this->inMemoryContacts = [
+        $this->manualContacts = [
             'Solo Contact' => [
                 'email' => 'solo@example.org',
                 'list' => 'church@example.org',
@@ -313,7 +313,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
         self::assertSame(0, $tester->getStatusCode());
 
-        $contacts = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof InMemoryContact));
+        $contacts = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof ManualContact));
         self::assertCount(1, $contacts);
         self::assertSame('Solo Contact', $contacts[0]->getName());
         self::assertCount(1, $contacts[0]->getSyncLists());
@@ -321,7 +321,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
     public function testContactWithUnknownListIsSkipped(): void
     {
-        $this->inMemoryContacts = [
+        $this->manualContacts = [
             'Unknown List Person' => [
                 'email' => 'unknown@example.org',
                 'list' => 'nonexistent@example.org',
@@ -354,7 +354,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
 
         self::assertSame(0, $tester->getStatusCode());
 
-        $contacts = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof InMemoryContact));
+        $contacts = array_values(array_filter($persistedEntities, fn ($e) => $e instanceof ManualContact));
         self::assertCount(1, $contacts);
         // Contact is created but has no list associations
         self::assertCount(0, $contacts[0]->getSyncLists());
@@ -449,9 +449,9 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
     }
 
     /**
-     * @param InMemoryContact[] $contacts
+     * @param ManualContact[] $contacts
      */
-    private function findContactByName(array $contacts, string $name): ?InMemoryContact
+    private function findContactByName(array $contacts, string $name): ?ManualContact
     {
         foreach ($contacts as $contact) {
             if ($contact->getName() === $name) {
@@ -471,7 +471,7 @@ class MigrateConfigToDbCommandTest extends MockeryTestCase
                 'google.authentication' => $this->googleConfiguration,
                 'google.domain' => self::GOOGLE_DOMAIN,
                 'lists' => $this->lists,
-                'contacts' => $this->inMemoryContacts,
+                'contacts' => $this->manualContacts,
             ],
         ];
 

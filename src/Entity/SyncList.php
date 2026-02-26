@@ -68,13 +68,13 @@ class SyncList
     private Collection $syncRuns;
 
     /**
-     * @var Collection<int, InMemoryContact>
+     * @var Collection<int, ManualContact>
      */
     #[ORM\ManyToMany(
-        targetEntity: InMemoryContact::class,
+        targetEntity: ManualContact::class,
         mappedBy: 'syncLists',
     ),]
-    private Collection $inMemoryContacts;
+    private Collection $manualContacts;
 
     public function __construct()
     {
@@ -82,7 +82,7 @@ class SyncList
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
         $this->syncRuns = new ArrayCollection();
-        $this->inMemoryContacts = new ArrayCollection();
+        $this->manualContacts = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -228,28 +228,28 @@ class SyncList
     }
 
     /**
-     * @return Collection<int, InMemoryContact>
+     * @return Collection<int, ManualContact>
      */
-    public function getInMemoryContacts(): Collection
+    public function getManualContacts(): Collection
     {
-        return $this->inMemoryContacts;
+        return $this->manualContacts;
     }
 
-    public function addInMemoryContact(InMemoryContact $inMemoryContact): static
+    public function addManualContact(ManualContact $manualContact): static
     {
-        if (!$this->inMemoryContacts->contains($inMemoryContact)) {
-            $this->inMemoryContacts->add($inMemoryContact);
-            $inMemoryContact->addSyncList($this);
+        if (!$this->manualContacts->contains($manualContact)) {
+            $this->manualContacts->add($manualContact);
+            $manualContact->addSyncList($this);
         }
 
         return $this;
     }
 
-    public function removeInMemoryContact(
-        InMemoryContact $inMemoryContact,
+    public function removeManualContact(
+        ManualContact $manualContact,
     ): static {
-        if ($this->inMemoryContacts->removeElement($inMemoryContact)) {
-            $inMemoryContact->removeSyncList($this);
+        if ($this->manualContacts->removeElement($manualContact)) {
+            $manualContact->removeSyncList($this);
         }
 
         return $this;

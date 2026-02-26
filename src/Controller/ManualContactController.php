@@ -2,9 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\InMemoryContact;
-use App\Form\InMemoryContactType;
-use App\Repository\InMemoryContactRepository;
+use App\Entity\ManualContact;
+use App\Form\ManualContactType;
+use App\Repository\ManualContactRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -14,11 +14,11 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/contacts')]
-class InMemoryContactController extends AbstractController
+class ManualContactController extends AbstractController
 {
     public function __construct(
         private readonly OrganizationRepository $organizationRepository,
-        private readonly InMemoryContactRepository $inMemoryContactRepository,
+        private readonly ManualContactRepository $manualContactRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -34,12 +34,12 @@ class InMemoryContactController extends AbstractController
             return $this->redirectToRoute('app_settings');
         }
 
-        $contacts = $this->inMemoryContactRepository->findBy(
+        $contacts = $this->manualContactRepository->findBy(
             ['organization' => $organization],
             ['email' => 'ASC'],
         );
 
-        return $this->render('in_memory_contact/index.html.twig', [
+        return $this->render('manual_contact/index.html.twig', [
             'contacts' => $contacts,
         ]);
     }
@@ -56,8 +56,8 @@ class InMemoryContactController extends AbstractController
             return $this->redirectToRoute('app_settings');
         }
 
-        $contact = new InMemoryContact();
-        $form = $this->createForm(InMemoryContactType::class, $contact);
+        $contact = new ManualContact();
+        $form = $this->createForm(ManualContactType::class, $contact);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -70,16 +70,16 @@ class InMemoryContactController extends AbstractController
             return $this->redirectToRoute('app_contact_index');
         }
 
-        return $this->render('in_memory_contact/new.html.twig', [
+        return $this->render('manual_contact/new.html.twig', [
             'form' => $form,
         ]);
     }
 
     #[Route('/{id}/edit', name: 'app_contact_edit', methods: ['GET', 'POST'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function edit(Request $request, InMemoryContact $contact): Response
+    public function edit(Request $request, ManualContact $contact): Response
     {
-        $form = $this->createForm(InMemoryContactType::class, $contact);
+        $form = $this->createForm(ManualContactType::class, $contact);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -90,7 +90,7 @@ class InMemoryContactController extends AbstractController
             return $this->redirectToRoute('app_contact_index');
         }
 
-        return $this->render('in_memory_contact/edit.html.twig', [
+        return $this->render('manual_contact/edit.html.twig', [
             'contact' => $contact,
             'form' => $form,
         ]);
@@ -98,7 +98,7 @@ class InMemoryContactController extends AbstractController
 
     #[Route('/{id}', name: 'app_contact_delete', methods: ['DELETE'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function delete(Request $request, InMemoryContact $contact): Response
+    public function delete(Request $request, ManualContact $contact): Response
     {
         $token = $request->request->get('_token');
 

@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Entity\InMemoryContact;
+use App\Entity\ManualContact;
 use App\Entity\Organization;
 use App\Entity\ProviderCredential;
 use App\Entity\SyncList;
@@ -57,7 +57,7 @@ class MigrateConfigToDbCommand extends Command
         $googleConfiguration = $params['google.authentication'] ?? [];
         $googleDomain = $params['google.domain'] ?? '';
         $lists = $params['lists'] ?? [];
-        $inMemoryContacts = $params['contacts'] ?? [];
+        $manualContacts = $params['contacts'] ?? [];
 
         if ($this->hasPlaceholderValues($planningCenterAppId, $googleDomain, $lists)) {
             $io->error('The configuration file contains placeholder values. Please fill in real values before migrating.');
@@ -107,7 +107,7 @@ class MigrateConfigToDbCommand extends Command
             );
 
             $syncListMap = $this->createSyncLists($organization, $lists, $pcCredential, $googleCredential);
-            $contactCount = $this->createInMemoryContacts($organization, $syncListMap, $inMemoryContacts);
+            $contactCount = $this->createManualContacts($organization, $syncListMap, $manualContacts);
 
             $this->entityManager->flush();
             $this->entityManager->commit();
@@ -124,7 +124,7 @@ class MigrateConfigToDbCommand extends Command
             'Planning Center credential: created',
             'Google Groups credential: created'.($googleCredential->getCredentialsArray()['token'] ?? false ? ' (with token)' : ' (no token — run OAuth setup)'),
             'Sync lists: '.count($syncListMap).' created',
-            'In-memory contacts: '.$contactCount['contacts'].' created (across '.$contactCount['associations'].' list associations)',
+            'Manual contacts: '.$contactCount['contacts'].' created (across '.$contactCount['associations'].' list associations)',
         ]);
 
         $io->note(
@@ -265,13 +265,13 @@ class MigrateConfigToDbCommand extends Command
      *
      * @return array{contacts: int, associations: int}
      */
-    private function createInMemoryContacts(Organization $organization, array $syncListMap, array $inMemoryContacts): array
+    private function createManualContacts(Organization $organization, array $syncListMap, array $manualContacts): array
     {
         $contactCount = 0;
         $associationCount = 0;
 
-        foreach ($inMemoryContacts as $name => $config) {
-            $contact = new InMemoryContact();
+        foreach ($manualContacts as $name => $config) {
+            $contact = new ManualContact();
             $contact->setOrganization($organization);
             $contact->setName((string) $name);
             $contact->setEmail($config['email']);

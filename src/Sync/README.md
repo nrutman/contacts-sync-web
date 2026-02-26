@@ -19,7 +19,7 @@ The central service that executes the sync pipeline. It is consumed by three ent
 1. Creates or resumes a `SyncRun` entity (status → `running`).
 2. Looks up the source and destination providers via `ProviderRegistry` using the `SyncList`'s credential references.
 3. Builds API clients by calling `createClient()` on each provider with the appropriate `ProviderCredential`.
-4. Fetches source contacts from the source provider, merges with `InMemoryContact` entities for the list, and deduplicates by email.
+4. Fetches source contacts from the source provider, merges with `ManualContact` entities for the list, and deduplicates by email.
 5. Fetches destination contacts from the destination provider.
 6. Computes the diff via `ContactListAnalyzer`.
 7. Applies additions and removals (or skips them in dry-run mode).

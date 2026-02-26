@@ -7,7 +7,7 @@
     <nav class="flex" aria-label="Breadcrumb">
         <ol role="list" class="flex items-center space-x-4">
             <li>
-                <a href="{{ path('app_contact_index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">In-Memory Contacts</a>
+                <a href="{{ path('app_contact_index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">Manual Contacts</a>
             </li>
             <li>
                 <div class="flex items-center">
@@ -19,14 +19,14 @@
             </li>
         </ol>
     </nav>
-    <h1 class="mt-4 text-2xl font-bold text-gray-900">New In-Memory Contact</h1>
+    <h1 class="mt-4 text-2xl font-bold text-gray-900">New Manual Contact</h1>
     <p class="mt-1 text-sm text-gray-500">Add a contact that will be merged into selected sync lists alongside Planning Center contacts.</p>
 </div>
 
 <div class="max-w-2xl">
     <div class="bg-white shadow sm:rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            {% include 'in_memory_contact/_form.html.twig' with { button_label: 'Create Contact' } %}
+            {% include 'manual_contact/_form.html.twig' with { button_label: 'Create Contact' } %}
         </div>
     </div>
 </div>

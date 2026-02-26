@@ -52,15 +52,15 @@ class Organization
     private Collection $providerCredentials;
 
     /**
-     * @var Collection<int, InMemoryContact>
+     * @var Collection<int, ManualContact>
      */
     #[ORM\OneToMany(
-        targetEntity: InMemoryContact::class,
+        targetEntity: ManualContact::class,
         mappedBy: 'organization',
         cascade: ['persist', 'remove'],
         orphanRemoval: true,
     ),]
-    private Collection $inMemoryContacts;
+    private Collection $manualContacts;
 
     public function __construct()
     {
@@ -69,7 +69,7 @@ class Organization
         $this->updatedAt = new \DateTimeImmutable();
         $this->syncLists = new ArrayCollection();
         $this->providerCredentials = new ArrayCollection();
-        $this->inMemoryContacts = new ArrayCollection();
+        $this->manualContacts = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -156,27 +156,27 @@ class Organization
     }
 
     /**
-     * @return Collection<int, InMemoryContact>
+     * @return Collection<int, ManualContact>
      */
-    public function getInMemoryContacts(): Collection
+    public function getManualContacts(): Collection
     {
-        return $this->inMemoryContacts;
+        return $this->manualContacts;
     }
 
-    public function addInMemoryContact(InMemoryContact $inMemoryContact): static
+    public function addManualContact(ManualContact $manualContact): static
     {
-        if (!$this->inMemoryContacts->contains($inMemoryContact)) {
-            $this->inMemoryContacts->add($inMemoryContact);
-            $inMemoryContact->setOrganization($this);
+        if (!$this->manualContacts->contains($manualContact)) {
+            $this->manualContacts->add($manualContact);
+            $manualContact->setOrganization($this);
         }
 
         return $this;
     }
 
-    public function removeInMemoryContact(
-        InMemoryContact $inMemoryContact,
+    public function removeManualContact(
+        ManualContact $manualContact,
     ): static {
-        $this->inMemoryContacts->removeElement($inMemoryContact);
+        $this->manualContacts->removeElement($manualContact);
 
         return $this;
     }

@@ -36,7 +36,7 @@
                                         <ul role="list" class="-mx-2 space-y-1">
                                             {{ _self.nav_item('Dashboard', 'app_dashboard', _self.icon_dashboard()) }}
                                             {{ _self.nav_item('Sync Lists', 'app_sync_list_index', _self.icon_lists()) }}
-                                            {{ _self.nav_item('In-Memory Contacts', 'app_contact_index', _self.icon_contacts()) }}
+                                            {{ _self.nav_item('Manual Contacts', 'app_contact_index', _self.icon_contacts()) }}
                                             {{ _self.nav_item('Sync History', 'app_history_index', _self.icon_history()) }}
                                             {% if is_granted('ROLE_ADMIN') %}
                                                 {{ _self.nav_item('Settings', 'app_settings', _self.icon_settings()) }}
@@ -73,7 +73,7 @@
                                 <ul role="list" class="-mx-2 space-y-1">
                                     {{ _self.nav_item('Dashboard', 'app_dashboard', _self.icon_dashboard()) }}
                                     {{ _self.nav_item('Sync Lists', 'app_sync_list_index', _self.icon_lists()) }}
-                                    {{ _self.nav_item('In-Memory Contacts', 'app_contact_index', _self.icon_contacts()) }}
+                                    {{ _self.nav_item('Manual Contacts', 'app_contact_index', _self.icon_contacts()) }}
                                     {{ _self.nav_item('Sync History', 'app_history_index', _self.icon_history()) }}
                                     {% if is_granted('ROLE_ADMIN') %}
                                         {{ _self.nav_item('Settings', 'app_settings', _self.icon_settings()) }}

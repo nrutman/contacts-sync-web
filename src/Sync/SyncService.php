@@ -11,7 +11,7 @@ use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
 use App\Event\SyncCompletedEvent;
-use App\Repository\InMemoryContactRepository;
+use App\Repository\ManualContactRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -21,7 +21,7 @@ class SyncService
 {
     public function __construct(
         private readonly ProviderRegistry $providerRegistry,
-        private readonly InMemoryContactRepository $inMemoryContactRepository,
+        private readonly ManualContactRepository $manualContactRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly EventDispatcherInterface $eventDispatcher,
         #[Autowire(service: 'monolog.logger.sync'),]
@@ -103,18 +103,18 @@ class SyncService
                 sprintf('  Found %d source contacts', count($sourceContacts)),
             );
 
-            // Merge with in-memory contacts
-            $inMemoryContacts = $this->getInMemoryContactDtos($syncList);
+            // Merge with manual contacts
+            $manualContacts = $this->getManualContactDtos($syncList);
             $mergedSourceContacts = $this->mergeLists(
                 $sourceContacts,
-                $inMemoryContacts,
+                $manualContacts,
             );
 
-            if (count($inMemoryContacts) > 0) {
+            if (count($manualContacts) > 0) {
                 $log .= $this->logLine(
                     sprintf(
-                        '  Merged %d in-memory contacts (total: %d)',
-                        count($inMemoryContacts),
+                        '  Merged %d manual contacts (total: %d)',
+                        count($manualContacts),
                         count($mergedSourceContacts),
                     ),
                 );
@@ -252,13 +252,13 @@ class SyncService
     }
 
     /**
-     * Loads InMemoryContact entities for a SyncList and converts them to Contact DTOs.
+     * Loads ManualContact entities for a SyncList and converts them to Contact DTOs.
      *
      * @return Contact[]
      */
-    private function getInMemoryContactDtos(SyncList $syncList): array
+    private function getManualContactDtos(SyncList $syncList): array
     {
-        $entities = $this->inMemoryContactRepository->findBySyncList($syncList);
+        $entities = $this->manualContactRepository->findBySyncList($syncList);
         $contacts = [];
 
         foreach ($entities as $entity) {

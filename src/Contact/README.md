@@ -4,7 +4,7 @@ The `App\Contact` namespace contains the domain model for contacts and the logic
 
 ## ContactListAnalyzer
 
-Computes the diff between a **source** list (Planning Center + in-memory contacts) and a **destination** list (Google Group). The diff determines which contacts need to be added to or removed from the destination.
+Computes the diff between a **source** list (Planning Center + manual contacts) and a **destination** list (Google Group). The diff determines which contacts need to be added to or removed from the destination.
 
 ### Algorithm
 
@@ -19,7 +19,7 @@ Each direction is computed by `buildDiffArray()`, which indexes the comparison l
 
 ```mermaid
 graph LR
-    subgraph Source ["☁️ Source (PC + In-Memory)"]
+    subgraph Source ["☁️ Source (PC + Manual)"]
         A["alice@x.com"]
         B["bob@x.com"]
         C["carol@x.com"]

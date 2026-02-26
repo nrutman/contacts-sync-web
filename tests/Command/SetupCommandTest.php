@@ -597,7 +597,7 @@ class SetupCommandTest extends MockeryTestCase
         array $googleConfiguration = [],
         string $googleDomain = 'REPLACE_ME',
         array $lists = [],
-        array $inMemoryContacts = [],
+        array $manualContacts = [],
     ): string {
         $config = [
             'parameters' => [
@@ -606,7 +606,7 @@ class SetupCommandTest extends MockeryTestCase
                 'google.authentication' => $googleConfiguration,
                 'google.domain' => $googleDomain,
                 'lists' => $lists,
-                'contacts' => $inMemoryContacts,
+                'contacts' => $manualContacts,
             ],
         ];
 

@@ -19,7 +19,7 @@ flowchart LR
 
 The application is a Symfony 7.2 web application with a Turbo + Stimulus SPA-like UI. It syncs contacts from a configurable source provider to a configurable destination provider by following a **source → diff → destination** pipeline:
 
-1. Source contacts are read from the source provider (e.g. Planning Center) and merged with in-memory contacts stored in the database.
+1. Source contacts are read from the source provider (e.g. Planning Center) and merged with manual contacts stored in the database.
 2. The merged list is compared against the current members of the destination (e.g. a Google Group).
 3. The diff is applied to bring the destination in sync with the source.
 
@@ -35,9 +35,9 @@ Syncs can be triggered three ways: manually from the web UI, on a cron schedule 
 | `App\Client\Google` | Google Workspace Directory API integration (OAuth, token management, group membership) | [Google README](Client/Google/README.md) |
 | `App\Client\PlanningCenter` | Planning Center People API integration (list lookup, pagination, email resolution) | [PlanningCenter README](Client/PlanningCenter/README.md) |
 | `App\Command` | Symfony console commands (sync, setup wizard, user management, config migration, key rotation) | [Command README](Command/README.md) |
-| `App\Contact` | Contact domain model, list diffing, and in-memory contact management | [Contact README](Contact/README.md) |
+| `App\Contact` | Contact domain model, list diffing, and manual contact management | [Contact README](Contact/README.md) |
 | `App\Controller` | Symfony web controllers (dashboard, CRUD, settings, auth, sync triggers, credential management) | — |
-| `App\Entity` | Doctrine ORM entities (`User`, `Organization`, `SyncList`, `SyncRun`, `InMemoryContact`, `ProviderCredential`) | — |
+| `App\Entity` | Doctrine ORM entities (`User`, `Organization`, `SyncList`, `SyncRun`, `ManualContact`, `ProviderCredential`) | — |
 | `App\Event` | Domain events dispatched during sync execution | — |
 | `App\EventListener` | Doctrine listeners for field encryption and scheduler cache invalidation | — |
 | `App\File` | File I/O abstraction used by the Google client | — |
@@ -60,7 +60,7 @@ flowchart TD
     A[Create or resume SyncRun] --> B[Look up source & destination providers via ProviderRegistry]
     B --> C[Build API clients from ProviderCredential entities]
     C --> D[Fetch source contacts from source provider]
-    D --> E[Merge with in-memory contacts from DB]
+    D --> E[Merge with manual contacts from DB]
     E --> F[Deduplicate by email]
     F --> G[Fetch destination contacts from destination provider]
     G --> H[Compute diff via ContactListAnalyzer]
@@ -102,8 +102,8 @@ Organization (single-tenant, one row)
 │      ├── isEnabled
 │      ├── cronExpression (nullable)
 │      ├── ── SyncRun[]
-│      └── ── InMemoryContact[] (many-to-many)
-└── ── InMemoryContact[]
+│      └── ── ManualContact[] (many-to-many)
+└── ── ManualContact[]
        ├── name
        ├── email
        └── ── SyncList[] (many-to-many)

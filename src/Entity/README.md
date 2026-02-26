@@ -3,7 +3,7 @@
 ## Overview
 
 ### Organization
-The top-level tenant. All sync configuration — lists, credentials, and in-memory contacts — is scoped to an Organization. Deleting an Organization cascade-removes all of its owned entities.
+The top-level tenant. All sync configuration — lists, credentials, and manual contacts — is scoped to an Organization. Deleting an Organization cascade-removes all of its owned entities.
 
 ### User
 An authenticated application user. Users log in via email/password, have role-based access (`roles` JSON column), and configure per-user notification preferences that control which sync outcomes (success, failure, no changes) trigger email alerts. Users are independent of Organization — they are not scoped to a single tenant.
@@ -17,8 +17,8 @@ Defines a single sync job: pull contacts from a source and push them to a destin
 ### SyncRun
 An immutable record of a single sync execution for a SyncList. Tracks status (`pending`, `running`, `completed`, `failed`), contact counts (source, destination, added, removed), timing (startedAt/completedAt), and any error message or log output. Optionally references the User who triggered the run.
 
-### InMemoryContact
-A contact that exists only in the database, not sourced from an external provider. Belongs to an Organization and is associated with SyncLists via a many-to-many join table (`in_memory_contact_sync_list`), allowing the same contact to participate in multiple sync jobs as a source.
+### ManualContact
+A manually-entered contact stored in the database, not sourced from an external provider. Belongs to an Organization and is associated with SyncLists via a many-to-many join table (`manual_contact_sync_list`), allowing the same contact to participate in multiple sync jobs as a source.
 
 ## Entity Relationship Diagram
 
@@ -26,11 +26,11 @@ A contact that exists only in the database, not sourced from an external provide
 erDiagram
     Organization ||--o{ SyncList : "has many"
     Organization ||--o{ ProviderCredential : "has many"
-    Organization ||--o{ InMemoryContact : "has many"
+    Organization ||--o{ ManualContact : "has many"
     SyncList }o--o| ProviderCredential : "sourceCredential"
     SyncList }o--o| ProviderCredential : "destinationCredential"
     SyncList ||--o{ SyncRun : "has many"
-    SyncList }o--o{ InMemoryContact : "many-to-many"
+    SyncList }o--o{ ManualContact : "many-to-many"
     SyncRun }o--o| User : "triggeredByUser"
 
     Organization {
@@ -97,7 +97,7 @@ erDiagram
         datetime createdAt
     }
 
-    InMemoryContact {
+    ManualContact {
         uuid id PK
         uuid organization_id FK
         string name

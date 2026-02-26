@@ -64,7 +64,7 @@ If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-
 - Symfony autowiring and autoconfigure are enabled. New services placed in `src/` are registered automatically — no manual service definitions needed unless non-standard wiring is required.
 - Doctrine ORM entities live in `src/Entity/` and are excluded from the service container. Repositories in `src/Repository/` are auto-registered. When adding, removing, or changing entities, update both the Mermaid ERD and the entity descriptions in [src/Entity/README.md](src/Entity/README.md) to match.
 - Sensitive data (API keys, OAuth tokens) is stored encrypted in PostgreSQL via `#[Encrypted]` attribute + `EncryptedFieldListener`. The encryption key is in `APP_ENCRYPTION_KEY` env var — never commit it.
-- API credentials, sync lists, and in-memory contacts are stored in the database via `Organization` entities. The legacy `parameters.yml` file has been removed; use `app:migrate-config <file>` to import old config.
+- API credentials, sync lists, and manual contacts are stored in the database via `Organization` entities. The legacy `parameters.yml` file has been removed; use `app:migrate-config <file>` to import old config.
 - Sync and refresh operations from the web UI are dispatched via Symfony Messenger (async transport). The worker (`messenger:consume async scheduler_sync`) must be running to process them.
 - Symfony Scheduler reads cron expressions from `SyncList` entities via `SyncScheduleProvider`. The `ScheduleCacheInvalidator` listener clears the scheduler cache when lists change.
 - `var/` contains runtime artifacts and is not committed to version control.

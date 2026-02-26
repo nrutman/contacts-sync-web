@@ -7,7 +7,7 @@
     <nav class="flex" aria-label="Breadcrumb">
         <ol role="list" class="flex items-center space-x-4">
             <li>
-                <a href="{{ path('app_contact_index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">In-Memory Contacts</a>
+                <a href="{{ path('app_contact_index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">Manual Contacts</a>
             </li>
             <li>
                 <div class="flex items-center">
@@ -26,7 +26,7 @@
 <div class="max-w-2xl">
     <div class="bg-white shadow sm:rounded-lg">
         <div class="px-4 py-5 sm:p-6">
-            {% include 'in_memory_contact/_form.html.twig' with { button_label: 'Update Contact' } %}
+            {% include 'manual_contact/_form.html.twig' with { button_label: 'Update Contact' } %}
         </div>
     </div>
 </div>
