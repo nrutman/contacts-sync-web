@@ -3,63 +3,42 @@
 {% block title %}Log In — Contacts Sync{% endblock %}
 
 {% block body %}
-<div class="bg-white rounded-lg shadow-md p-8">
-    <h2 class="text-xl font-bold text-center text-gray-900 mb-6">Log In</h2>
+<twig:Card class="p-8">
+    <h2 class="text-xl font-bold text-center text-foreground mb-6">Log In</h2>
 
     {% if rate_limit_exceeded|default(false) %}
-        <div class="mb-4 rounded-md bg-yellow-50 border border-yellow-200 p-4">
-            <div class="flex">
-                <div class="shrink-0">
-                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm text-yellow-700">Too many login attempts. Please wait a moment before trying again.</p>
-                </div>
-            </div>
-        </div>
+        <twig:Alert variant="warning" class="mb-4">
+            <twig:ux:icon name="lucide:triangle-alert" class="size-4" />
+            <twig:Alert:Description>Too many login attempts. Please wait a moment before trying again.</twig:Alert:Description>
+        </twig:Alert>
     {% elseif error %}
-        <div class="mb-4 rounded-md bg-red-50 border border-red-200 p-4">
-            <div class="flex">
-                <div class="shrink-0">
-                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm text-red-700">{{ error.messageKey|trans(error.messageData, 'security') }}</p>
-                </div>
-            </div>
-        </div>
+        <twig:Alert variant="destructive" class="mb-4">
+            <twig:ux:icon name="lucide:circle-x" class="size-4" />
+            <twig:Alert:Description>{{ error.messageKey|trans(error.messageData, 'security') }}</twig:Alert:Description>
+        </twig:Alert>
     {% endif %}
 
     <form method="post">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
 
         <div class="mb-4">
-            <label for="input-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input type="email" id="input-email" name="_username" value="{{ last_username }}" required autofocus
-                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm"
-                   placeholder="you@example.com">
+            <twig:Label for="input-email" class="mb-1">Email</twig:Label>
+            <twig:Input type="email" id="input-email" name="_username" value="{{ last_username }}" required autofocus placeholder="you@example.com" />
         </div>
 
         <div class="mb-4">
-            <label for="input-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input type="password" id="input-password" name="_password" required
-                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+            <twig:Label for="input-password" class="mb-1">Password</twig:Label>
+            <twig:Input type="password" id="input-password" name="_password" required />
         </div>
 
-        <div class="mb-6 flex items-center">
-            <input type="checkbox" id="input-remember-me" name="_remember_me"
-                   class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-            <label for="input-remember-me" class="ml-2 block text-sm text-gray-700">Remember me</label>
+        <div class="mb-6 flex items-center gap-2">
+            <twig:Checkbox id="input-remember-me" name="_remember_me" />
+            <twig:Label for="input-remember-me">Remember me</twig:Label>
         </div>
 
-        <button type="submit"
-                class="w-full flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+        <twig:Button type="submit" class="w-full">
             Log in
-        </button>
+        </twig:Button>
     </form>
-</div>
+</twig:Card>
 {% endblock %}

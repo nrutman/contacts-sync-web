@@ -4,110 +4,103 @@
 
 {% block body %}
 <div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
-    <p class="mt-1 text-sm text-gray-500">Manage your organization name and provider credentials.</p>
+    <h1 class="text-2xl font-bold text-foreground">Settings</h1>
+    <p class="mt-1 text-sm text-muted-foreground">Manage your organization name and provider credentials.</p>
 </div>
 
 {# Organization Settings Form #}
 <div class="max-w-3xl">
-    <div class="bg-white shadow sm:rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-1">
+    <twig:Card>
+        <twig:Card:Header>
+            <twig:Card:Title>
                 {% if is_edit %}
                     Organization Settings
                 {% else %}
                     Initial Setup
                 {% endif %}
-            </h2>
-            <p class="text-sm text-gray-500 mb-6">
+            </twig:Card:Title>
+            <twig:Card:Description>
                 {% if is_edit %}
                     Update your organization name.
                 {% else %}
                     Set your organization name to get started.
                 {% endif %}
-            </p>
-
+            </twig:Card:Description>
+        </twig:Card:Header>
+        <twig:Card:Content>
             {{ form_start(form, { attr: { class: 'space-y-6', novalidate: 'novalidate' } }) }}
 
-                {# Organization Name #}
-                <div>
-                    {{ form_label(form.name, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-                    <div class="mt-1">
-                        {{ form_widget(form.name, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
-                    </div>
-                    {{ form_errors(form.name, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-                </div>
+                {{ form_row(form.name) }}
 
-                <div class="flex items-center justify-end gap-x-4 border-t border-gray-200 pt-6">
+                <twig:Separator />
+                <div class="flex items-center justify-end gap-x-4">
                     {% if is_edit %}
-                        <a href="{{ path('app_dashboard') }}" class="text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</a>
+                        <twig:Button as="a" href="{{ path('app_dashboard') }}" variant="outline">Cancel</twig:Button>
                     {% endif %}
-                    <button type="submit"
-                            class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                    <twig:Button type="submit">
                         {% if is_edit %}
                             Save Settings
                         {% else %}
                             Complete Setup
                         {% endif %}
-                    </button>
+                    </twig:Button>
                 </div>
 
             {{ form_end(form) }}
-        </div>
-    </div>
+        </twig:Card:Content>
+    </twig:Card>
 </div>
 
 {# Provider Credentials Section #}
 {% if is_edit %}
 <div class="max-w-3xl mt-8">
-    <div class="bg-white shadow sm:rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-            <div class="flex items-center justify-between mb-4">
+    <twig:Card>
+        <twig:Card:Header>
+            <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Provider Credentials</h2>
-                    <p class="mt-1 text-sm text-gray-500">Manage API credentials for sync sources and destinations.</p>
+                    <twig:Card:Title>Provider Credentials</twig:Card:Title>
+                    <twig:Card:Description>Manage API credentials for sync sources and destinations.</twig:Card:Description>
                 </div>
-                <a href="{{ path('app_credentials_index') }}"
-                   class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                <twig:Button as="a" href="{{ path('app_credentials_index') }}">
                     Manage Credentials
-                </a>
+                </twig:Button>
             </div>
-
+        </twig:Card:Header>
+        <twig:Card:Content>
             {% if credentials|length > 0 %}
-                <div class="divide-y divide-gray-200">
+                <div class="divide-y divide-border">
                     {% for credential in credentials %}
                         <div class="py-3 flex items-center justify-between">
-                            <div>
-                                <span class="text-sm font-medium text-gray-900">{{ credential.displayLabel }}</span>
-                                <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ credential.providerName }}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-foreground">{{ credential.displayLabel }}</span>
+                                <twig:Badge variant="secondary">{{ credential.providerName }}</twig:Badge>
                             </div>
-                            <span class="text-xs text-gray-400">Added {{ credential.createdAt|date('M j, Y') }}</span>
+                            <span class="text-xs text-muted-foreground"
+                                  data-controller="timezone"
+                                  data-timezone-datetime-value="{{ credential.createdAt|date('c') }}"
+                                  data-timezone-format-value="date"
+                                  title="{{ credential.createdAt|date('Y-m-d H:i:s T') }}">
+                                Added {{ credential.createdAt|date('M j, Y') }}
+                            </span>
                         </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="text-sm text-gray-500">No credentials configured yet. <a href="{{ path('app_credentials_index') }}" class="text-indigo-600 hover:text-indigo-500">Add one</a> to get started.</p>
+                <p class="text-sm text-muted-foreground">No credentials configured yet. <a href="{{ path('app_credentials_index') }}" class="text-primary hover:underline">Add one</a> to get started.</p>
             {% endif %}
-        </div>
-    </div>
+        </twig:Card:Content>
+    </twig:Card>
 </div>
 {% endif %}
 
 {# Encryption Notice #}
 <div class="max-w-3xl mt-8">
-    <div class="rounded-md bg-blue-50 border border-blue-200 p-4">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-3">
-                <p class="text-sm text-blue-700">
-                    API credentials and secrets are encrypted at rest using authenticated encryption (XSalsa20-Poly1305).
-                </p>
-            </div>
-        </div>
-    </div>
+    <twig:Alert>
+        <twig:ux:icon name="lucide:lock" class="size-4" />
+        <twig:Alert:Title>Encryption</twig:Alert:Title>
+        <twig:Alert:Description>
+            API credentials and secrets are encrypted at rest using authenticated encryption (XSalsa20-Poly1305).
+        </twig:Alert:Description>
+    </twig:Alert>
 </div>
 {% endblock %}

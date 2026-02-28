@@ -116,10 +116,10 @@ export default class extends Controller {
             };
 
             const colors = {
-                waiting: "text-gray-400",
-                syncing: "text-indigo-600",
+                waiting: "text-muted-foreground",
+                syncing: "text-primary",
                 done: "text-green-600",
-                failed: "text-red-600",
+                failed: "text-destructive",
             };
 
             statusEl.textContent = labels[status] || status;

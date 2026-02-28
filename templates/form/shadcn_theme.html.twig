@@ -1,0 +1,107 @@
+{% use 'form_div_layout.html.twig' %}
+
+{# ── Row wrapper ── #}
+{% block form_row %}
+    <twig:Field{% if not valid %} data-invalid="true"{% endif %}>
+        {{- form_label(form) -}}
+        <twig:Field:Content>
+            {{- form_widget(form) -}}
+            {{- form_help(form) -}}
+            {{- form_errors(form) -}}
+        </twig:Field:Content>
+    </twig:Field>
+{% endblock %}
+
+{# ── Label ── #}
+{% block form_label %}
+    {% if label is not same as(false) %}
+        <twig:Field:Label for="{{ id }}">
+            {{- label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
+            {%- if required %} <span class="text-destructive">*</span>{% endif -%}
+        </twig:Field:Label>
+    {% endif %}
+{% endblock %}
+
+{# ── Text-like inputs ── #}
+{% block form_widget_simple %}
+    <twig:Input type="{{ type }}" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}{% if attr.readonly is defined and attr.readonly %} readonly{% endif %} />
+{% endblock %}
+
+{# ── Textarea ── #}
+{% block textarea_widget %}
+    <twig:Textarea id="{{ id }}" name="{{ full_name }}"{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}>{{ value }}</twig:Textarea>
+{% endblock %}
+
+{# ── Select (choice as dropdown) ── #}
+{% block choice_widget_collapsed %}
+    <twig:Select id="{{ id }}" name="{{ full_name }}{% if multiple %}[]{% endif %}"{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if multiple %} multiple{% endif %}>
+        {% if placeholder is not none %}
+            <option value="">{{ placeholder != '' ? (translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain)) : '' }}</option>
+        {% endif %}
+        {% if preferred_choices|length > 0 %}
+            {% set options = preferred_choices %}
+            {% for group_label, choice in options %}
+                {% if choice is iterable %}
+                    <optgroup label="{{ choice_translation_domain is same as(false) ? group_label : group_label|trans({}, choice_translation_domain) }}">
+                        {% for child in choice %}
+                            <option value="{{ child.value }}"{% if child.attr is defined %}{% for k, v in child.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if child is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? child.label : child.label|trans({}, choice_translation_domain) }}</option>
+                        {% endfor %}
+                    </optgroup>
+                {% else %}
+                    <option value="{{ choice.value }}"{% if choice.attr is defined %}{% for k, v in choice.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if choice is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans({}, choice_translation_domain) }}</option>
+                {% endif %}
+            {% endfor %}
+            <option disabled>---</option>
+        {% endif %}
+        {% set options = choices %}
+        {% for group_label, choice in options %}
+            {% if choice is iterable %}
+                <optgroup label="{{ choice_translation_domain is same as(false) ? group_label : group_label|trans({}, choice_translation_domain) }}">
+                    {% for child in choice %}
+                        <option value="{{ child.value }}"{% if child.attr is defined %}{% for k, v in child.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if child is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? child.label : child.label|trans({}, choice_translation_domain) }}</option>
+                    {% endfor %}
+                </optgroup>
+            {% else %}
+                <option value="{{ choice.value }}"{% if choice.attr is defined %}{% for k, v in choice.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if choice is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans({}, choice_translation_domain) }}</option>
+            {% endif %}
+        {% endfor %}
+    </twig:Select>
+{% endblock %}
+
+{# ── Checkbox (single) ── #}
+{% block checkbox_widget %}
+    <twig:Checkbox id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}{% if required %} required{% endif %} />
+{% endblock %}
+
+{# ── Checkbox row: horizontal layout ── #}
+{% block checkbox_row %}
+    <twig:Field orientation="horizontal"{% if not valid %} data-invalid="true"{% endif %}>
+        <twig:Field:Label for="{{ form.vars.id }}">
+            {{- form_widget(form) -}}
+            {{- label is not same as(false) ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
+        </twig:Field:Label>
+        <twig:Field:Content>
+            {{- form_help(form) -}}
+            {{- form_errors(form) -}}
+        </twig:Field:Content>
+    </twig:Field>
+{% endblock %}
+
+{# ── Errors ── #}
+{% block form_errors %}
+    {% if errors|length > 0 %}
+        <twig:Field:Error :errors="errors" />
+    {% endif %}
+{% endblock %}
+
+{# ── Help text ── #}
+{% block form_help %}
+    {% if help is not empty %}
+        <twig:Field:Description>{{ translation_domain is same as(false) ? help : help|trans({}, translation_domain) }}</twig:Field:Description>
+    {% endif %}
+{% endblock %}
+
+{# ── Button ── #}
+{% block button_widget %}
+    <twig:Button type="{{ type|default('submit') }}"{% if disabled %} disabled{% endif %}>{{ label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize }}</twig:Button>
+{% endblock %}

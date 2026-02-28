@@ -120,6 +120,44 @@ class SyncRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns a map of sync list ID → destination contact count from the last successful sync run for each list.
+     *
+     * @return array<string, int>
+     */
+    public function findDestinationCountsByOrganization(Organization $organization): array
+    {
+        // Subquery: get the max completedAt for each successful sync run per list
+        $subQb = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(sr2.syncList)', 'MAX(sr2.completedAt) AS maxCompleted')
+            ->from(SyncRun::class, 'sr2')
+            ->innerJoin('sr2.syncList', 'sl2')
+            ->where('sl2.organization = :org')
+            ->andWhere('sr2.status = :status')
+            ->groupBy('sr2.syncList');
+
+        // Main query: join back to get the destinationCount for each list's latest successful run
+        $results = $this->createQueryBuilder('sr')
+            ->select('IDENTITY(sr.syncList) AS listId', 'sr.destinationCount')
+            ->innerJoin('sr.syncList', 'sl')
+            ->where('sl.organization = :org')
+            ->andWhere('sr.status = :status')
+            ->andWhere(sprintf('sr.completedAt IN (%s)', $subQb->getDQL()))
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('status', 'success')
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+        foreach ($results as $row) {
+            if ($row['destinationCount'] !== null) {
+                $counts[$row['listId']] = $row['destinationCount'];
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
      * Returns the total count of sync runs for the given organization with optional filters.
      */
     public function countByOrganization(

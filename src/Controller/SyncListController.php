@@ -50,9 +50,14 @@ class SyncListController extends AbstractController
             $organization,
         );
 
+        $contactCounts = $this->syncRunRepository->findDestinationCountsByOrganization(
+            $organization,
+        );
+
         return $this->render('sync_list/index.html.twig', [
             'sync_lists' => $syncLists,
             'enabledSyncLists' => $enabledSyncLists,
+            'contactCounts' => $contactCounts,
         ]);
     }
 

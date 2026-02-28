@@ -5,8 +5,8 @@
 {% block body %}
 <div class="sm:flex sm:items-center sm:justify-between mb-8">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Sync History</h1>
-        <p class="mt-1 text-sm text-gray-500">
+        <h1 class="text-2xl font-bold text-foreground">Sync History</h1>
+        <p class="mt-1 text-sm text-muted-foreground">
             {% if total_count == 1 %}
                 1 sync run
             {% else %}
@@ -19,171 +19,155 @@
 </div>
 
 {# Filters #}
-<div class="mb-6 bg-white shadow sm:rounded-lg p-4">
+<twig:Card class="mb-6 p-4">
     <form method="get" action="{{ path('app_history_index') }}" class="flex flex-wrap items-end gap-4">
-        <div>
-            <label for="filter-list" class="block text-sm font-medium text-gray-700 mb-1">Sync List</label>
-            <select id="filter-list" name="list"
-                    class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
-                <option value="">All Lists</option>
-                {% for list in all_lists %}
-                    <option value="{{ list.id }}" {% if current_list and current_list.id == list.id %}selected{% endif %}>
-                        {{ list.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
+        <twig:Field>
+            <twig:Field:Label for="filter-list">Sync List</twig:Field:Label>
+            <twig:Field:Content>
+                <twig:Select id="filter-list" name="list">
+                    <option value="">All Lists</option>
+                    {% for list in all_lists %}
+                        <option value="{{ list.id }}" {% if current_list and current_list.id == list.id %}selected{% endif %}>
+                            {{ list.name }}
+                        </option>
+                    {% endfor %}
+                </twig:Select>
+            </twig:Field:Content>
+        </twig:Field>
 
-        <div>
-            <label for="filter-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select id="filter-status" name="status"
-                    class="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm">
-                <option value="">All Statuses</option>
-                <option value="success" {% if current_status == 'success' %}selected{% endif %}>Success</option>
-                <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
-                <option value="running" {% if current_status == 'running' %}selected{% endif %}>Running</option>
-                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
-            </select>
-        </div>
+        <twig:Field>
+            <twig:Field:Label for="filter-status">Status</twig:Field:Label>
+            <twig:Field:Content>
+                <twig:Select id="filter-status" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="success" {% if current_status == 'success' %}selected{% endif %}>Success</option>
+                    <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="running" {% if current_status == 'running' %}selected{% endif %}>Running</option>
+                    <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                </twig:Select>
+            </twig:Field:Content>
+        </twig:Field>
 
         <div class="flex items-end gap-x-2">
-            <button type="submit"
-                    class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
-                <svg class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-                </svg>
+            <twig:Button type="submit">
+                <twig:ux:icon name="lucide:filter" class="size-4" />
                 Filter
-            </button>
+            </twig:Button>
             {% if current_list or current_status %}
-                <a href="{{ path('app_history_index') }}"
-                   class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors">
-                    Clear
-                </a>
+                <twig:Button as="a" href="{{ path('app_history_index') }}" variant="outline">Clear</twig:Button>
             {% endif %}
         </div>
     </form>
-</div>
+</twig:Card>
 
 {% if sync_runs|length > 0 %}
-    <div class="overflow-hidden bg-white shadow ring-1 ring-black/5 sm:rounded-lg">
-        <table class="min-w-full divide-y divide-gray-300">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">List</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Trigger</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Added</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Removed</th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Duration</th>
-                    <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6"><span class="sr-only">View</span></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 bg-white">
+    <twig:Card>
+        <twig:Table>
+            <twig:Table:Header>
+                <twig:Table:Row>
+                    <twig:Table:Head>Date</twig:Table:Head>
+                    <twig:Table:Head>List</twig:Table:Head>
+                    <twig:Table:Head>Trigger</twig:Table:Head>
+                    <twig:Table:Head>Status</twig:Table:Head>
+                    <twig:Table:Head>Added</twig:Table:Head>
+                    <twig:Table:Head>Removed</twig:Table:Head>
+                    <twig:Table:Head>Duration</twig:Table:Head>
+                    <twig:Table:Head class="text-right"><span class="sr-only">View</span></twig:Table:Head>
+                </twig:Table:Row>
+            </twig:Table:Header>
+            <twig:Table:Body>
                 {% for run in sync_runs %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6" title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
-                            {{ run.createdAt|date('M j, Y g:ia') }}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            <a href="{{ path('app_sync_list_history', { id: run.syncList.id }) }}" class="text-indigo-600 hover:text-indigo-900">
+                    <twig:Table:Row>
+                        <twig:Table:Cell class="font-medium">
+                            <span data-controller="timezone"
+                                  data-timezone-datetime-value="{{ run.createdAt|date('c') }}"
+                                  title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
+                                {{ run.createdAt|date('M j, Y g:ia') }}
+                            </span>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <a href="{{ path('app_sync_list_history', { id: run.syncList.id }) }}" class="text-primary hover:underline">
                                 {{ run.syncList.name }}
                             </a>
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                {% if run.triggeredBy == 'manual' %}bg-blue-100 text-blue-700
-                                {% elseif run.triggeredBy == 'schedule' %}bg-purple-100 text-purple-700
-                                {% elseif run.triggeredBy == 'cli' %}bg-gray-100 text-gray-700
-                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <twig:Badge variant="{% if run.triggeredBy == 'manual' %}default{% elseif run.triggeredBy == 'schedule' %}secondary{% else %}outline{% endif %}">
                                 {{ run.triggeredBy|capitalize }}
-                            </span>
+                            </twig:Badge>
                             {% if run.triggeredByUser %}
-                                <span class="ml-1 text-xs text-gray-400">by {{ run.triggeredByUser.fullName }}</span>
+                                <span class="ml-1 text-xs text-muted-foreground">by {{ run.triggeredByUser.fullName }}</span>
                             {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                                {% if run.status == 'success' %}bg-green-100 text-green-800
-                                {% elseif run.status == 'failed' %}bg-red-100 text-red-800
-                                {% elseif run.status == 'running' %}bg-yellow-100 text-yellow-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <twig:Badge variant="{% if run.status == 'success' %}default{% elseif run.status == 'failed' %}destructive{% elseif run.status == 'running' %}secondary{% else %}outline{% endif %}">
                                 {{ run.status|capitalize }}
-                            </span>
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                            </twig:Badge>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
                             {% if run.addedCount is not null %}
-                                <span class="{% if run.addedCount > 0 %}text-green-600 font-medium{% else %}text-gray-500{% endif %}">
+                                <span class="{% if run.addedCount > 0 %}text-green-600 font-medium{% else %}text-muted-foreground{% endif %}">
                                     +{{ run.addedCount }}
                                 </span>
                             {% else %}
-                                <span class="text-gray-400">—</span>
+                                <span class="text-muted-foreground">—</span>
                             {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
                             {% if run.removedCount is not null %}
-                                <span class="{% if run.removedCount > 0 %}text-red-600 font-medium{% else %}text-gray-500{% endif %}">
+                                <span class="{% if run.removedCount > 0 %}text-red-600 font-medium{% else %}text-muted-foreground{% endif %}">
                                     -{{ run.removedCount }}
                                 </span>
                             {% else %}
-                                <span class="text-gray-400">—</span>
+                                <span class="text-muted-foreground">—</span>
                             {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
                             {% if run.durationSeconds is not null %}
                                 {{ run.durationSeconds|number_format(1) }}s
                             {% else %}
                                 —
                             {% endif %}
-                        </td>
-                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <a href="{{ path('app_history_show', { id: run.id }) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
-                        </td>
-                    </tr>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell class="text-right">
+                            <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
+                        </twig:Table:Cell>
+                    </twig:Table:Row>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
+            </twig:Table:Body>
+        </twig:Table>
+    </twig:Card>
 
     {# Pagination #}
     {% if total_pages > 1 %}
         <nav class="mt-6 flex items-center justify-between" aria-label="Pagination">
             <div class="hidden sm:block">
-                <p class="text-sm text-gray-700">
+                <p class="text-sm text-muted-foreground">
                     Page <span class="font-medium">{{ page }}</span> of <span class="font-medium">{{ total_pages }}</span>
                 </p>
             </div>
             <div class="flex flex-1 justify-between sm:justify-end gap-x-3">
                 {% if page > 1 %}
-                    <a href="{{ path('app_history_index', { page: page - 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}"
-                       class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors">
-                        <svg class="-ml-0.5 mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                        </svg>
+                    <twig:Button as="a" href="{{ path('app_history_index', { page: page - 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}" variant="outline">
+                        <twig:ux:icon name="lucide:chevron-left" class="size-4" />
                         Previous
-                    </a>
+                    </twig:Button>
                 {% endif %}
                 {% if page < total_pages %}
-                    <a href="{{ path('app_history_index', { page: page + 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}"
-                       class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors">
+                    <twig:Button as="a" href="{{ path('app_history_index', { page: page + 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}" variant="outline">
                         Next
-                        <svg class="-mr-0.5 ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                        </svg>
-                    </a>
+                        <twig:ux:icon name="lucide:chevron-right" class="size-4" />
+                    </twig:Button>
                 {% endif %}
             </div>
         </nav>
     {% endif %}
 {% else %}
-    <div class="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <h3 class="mt-2 text-sm font-semibold text-gray-900">No sync runs found</h3>
-        <p class="mt-1 text-sm text-gray-500">
+    <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+        <twig:ux:icon name="lucide:clock" class="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 class="mt-2 text-sm font-semibold text-foreground">No sync runs found</h3>
+        <p class="mt-1 text-sm text-muted-foreground">
             {% if current_list or current_status %}
-                No sync runs match the current filters. Try adjusting or <a href="{{ path('app_history_index') }}" class="text-indigo-600 hover:text-indigo-500 underline">clearing the filters</a>.
+                No sync runs match the current filters. Try adjusting or <a href="{{ path('app_history_index') }}" class="text-primary underline">clearing the filters</a>.
             {% else %}
                 Sync history will appear here after a sync is triggered.
             {% endif %}

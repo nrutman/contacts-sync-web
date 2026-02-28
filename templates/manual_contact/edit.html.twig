@@ -4,30 +4,24 @@
 
 {% block body %}
 <div class="mb-8">
-    <nav class="flex" aria-label="Breadcrumb">
-        <ol role="list" class="flex items-center space-x-4">
-            <li>
-                <a href="{{ path('app_contact_index') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">Manual Contacts</a>
-            </li>
-            <li>
-                <div class="flex items-center">
-                    <svg class="h-5 w-5 flex-shrink-0 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                    </svg>
-                    <span class="ml-4 text-sm font-medium text-gray-900">Edit</span>
-                </div>
-            </li>
-        </ol>
-    </nav>
-    <h1 class="mt-4 text-2xl font-bold text-gray-900">Edit Contact</h1>
-    <p class="mt-1 text-sm text-gray-500">Update details for <strong>{{ contact.name }}</strong> ({{ contact.email }}).</p>
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_contact_index') }}">Manual Contacts</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>Edit</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <h1 class="mt-4 text-2xl font-bold text-foreground">Edit Contact</h1>
+    <p class="mt-1 text-sm text-muted-foreground">Update details for <strong>{{ contact.name }}</strong> ({{ contact.email }}).</p>
 </div>
 
 <div class="max-w-2xl">
-    <div class="bg-white shadow sm:rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-            {% include 'manual_contact/_form.html.twig' with { button_label: 'Update Contact' } %}
-        </div>
-    </div>
+    <twig:Card class="p-6">
+        {% include 'manual_contact/_form.html.twig' with { button_label: 'Update Contact' } %}
+    </twig:Card>
 </div>
 {% endblock %}

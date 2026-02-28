@@ -5,8 +5,8 @@
 {% block body %}
 <div class="sm:flex sm:items-center sm:justify-between mb-8">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p class="mt-1 text-sm text-gray-500">Overview of your contact sync status.</p>
+        <h1 class="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Overview of your contact sync status.</p>
     </div>
     {% if organization is not null %}
         <div class="mt-4 sm:mt-0"
@@ -15,14 +15,10 @@
              data-sync-all-csrf-token-value="{{ csrf_token('sync-run-all') }}">
             <form action="{{ path('app_sync_run_all') }}" method="post" class="inline">
                 <input type="hidden" name="_token" value="{{ csrf_token('sync-run-all') }}">
-                <button type="submit"
-                        data-action="click->sync-all#submit"
-                        class="relative inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
-                    <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                    </svg>
+                <twig:Button type="submit" data-action="click->sync-all#submit">
+                    <twig:ux:icon name="lucide:play" class="size-4" />
                     Sync All
-                </button>
+                </twig:Button>
             </form>
 
             {{ include('_sync_all_dialog.html.twig') }}
@@ -31,253 +27,206 @@
 </div>
 
 {% if organization is null %}
-    <div class="rounded-md bg-yellow-50 border border-yellow-200 p-4 mb-6">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-yellow-800">Setup Required</h3>
-                <p class="mt-1 text-sm text-yellow-700">
-                    No organization has been configured yet.
-                    {% if is_granted('ROLE_ADMIN') %}
-                        <a href="{{ path('app_settings') }}" class="font-medium underline hover:text-yellow-600">Go to Settings</a> to get started.
-                    {% else %}
-                        Please ask an administrator to complete the setup.
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
+    <twig:Alert class="mb-6 border-yellow-500/50">
+        <twig:ux:icon name="lucide:triangle-alert" class="h-4 w-4 text-yellow-600" />
+        <twig:Alert:Title>Setup Required</twig:Alert:Title>
+        <twig:Alert:Description>
+            No organization has been configured yet.
+            {% if is_granted('ROLE_ADMIN') %}
+                <a href="{{ path('app_settings') }}" class="font-medium underline hover:text-foreground">Go to Settings</a> to get started.
+            {% else %}
+                Please ask an administrator to complete the setup.
+            {% endif %}
+        </twig:Alert:Description>
+    </twig:Alert>
 {% else %}
     {# Stats cards #}
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {# Total Lists #}
-        <div class="overflow-hidden rounded-lg bg-white shadow">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Sync Lists</dt>
-                            <dd class="text-lg font-semibold text-gray-900">
-                                {{ enabledLists }} <span class="text-sm font-normal text-gray-500">/ {{ totalLists }} enabled</span>
-                            </dd>
-                        </dl>
-                    </div>
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    <twig:ux:icon name="lucide:list" class="h-5 w-5 text-muted-foreground" />
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Sync Lists</twig:Card:Title>
                 </div>
-            </div>
-            <div class="bg-gray-50 px-5 py-3">
-                <a href="{{ path('app_sync_list_index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">View all lists</a>
-            </div>
-        </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                <p class="text-2xl font-semibold text-foreground">
+                    {{ enabledLists }} <span class="text-sm font-normal text-muted-foreground">/ {{ totalLists }} enabled</span>
+                </p>
+            </twig:Card:Content>
+            <twig:Card:Footer class="pt-0">
+                <a href="{{ path('app_sync_list_index') }}" class="text-sm font-medium text-primary hover:underline">View all lists</a>
+            </twig:Card:Footer>
+        </twig:Card>
 
         {# Last Sync Run #}
-        <div class="overflow-hidden rounded-lg bg-white shadow">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        {% if lastSyncRun %}
-                            {% if lastSyncRun.status == 'success' %}
-                                <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            {% elseif lastSyncRun.status == 'failed' %}
-                                <svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                                </svg>
-                            {% else %}
-                                <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            {% endif %}
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    {% if lastSyncRun %}
+                        {% if lastSyncRun.status == 'success' %}
+                            <twig:ux:icon name="lucide:circle-check" class="h-5 w-5 text-green-500" />
+                        {% elseif lastSyncRun.status == 'failed' %}
+                            <twig:ux:icon name="lucide:circle-x" class="h-5 w-5 text-red-500" />
                         {% else %}
-                            <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <twig:ux:icon name="lucide:clock" class="h-5 w-5 text-muted-foreground" />
                         {% endif %}
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Last Sync</dt>
-                            <dd class="text-lg font-semibold text-gray-900">
-                                {% if lastSyncRun %}
-                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                                        {% if lastSyncRun.status == 'success' %}bg-green-100 text-green-800
-                                        {% elseif lastSyncRun.status == 'failed' %}bg-red-100 text-red-800
-                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                        {{ lastSyncRun.status|capitalize }}
-                                    </span>
-                                    <span class="block mt-1 text-xs font-normal text-gray-500" title="{{ lastSyncRun.completedAt|date('Y-m-d H:i:s T') }}">
-                                        {{ lastSyncRun.completedAt|date('M j, g:ia') }}
-                                    </span>
-                                {% else %}
-                                    <span class="text-sm font-normal text-gray-500">No syncs yet</span>
-                                {% endif %}
-                            </dd>
-                        </dl>
-                    </div>
+                    {% else %}
+                        <twig:ux:icon name="lucide:clock" class="h-5 w-5 text-muted-foreground" />
+                    {% endif %}
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Last Sync</twig:Card:Title>
                 </div>
-            </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                {% if lastSyncRun %}
+                    <twig:Badge variant="{{ lastSyncRun.status == 'success' ? 'default' : (lastSyncRun.status == 'failed' ? 'destructive' : 'secondary') }}">
+                        {{ lastSyncRun.status|capitalize }}
+                    </twig:Badge>
+                    <span class="block mt-1 text-xs text-muted-foreground"
+                          data-controller="timezone"
+                          data-timezone-datetime-value="{{ lastSyncRun.completedAt|date('c') }}"
+                          title="{{ lastSyncRun.completedAt|date('Y-m-d H:i:s T') }}">
+                        {{ lastSyncRun.completedAt|date('M j, g:ia') }}
+                    </span>
+                {% else %}
+                    <span class="text-sm text-muted-foreground">No syncs yet</span>
+                {% endif %}
+            </twig:Card:Content>
             {% if lastSyncRun %}
-                <div class="bg-gray-50 px-5 py-3">
-                    <a href="{{ path('app_history_show', { id: lastSyncRun.id }) }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">View details</a>
-                </div>
+                <twig:Card:Footer class="pt-0">
+                    <a href="{{ path('app_history_show', { id: lastSyncRun.id }) }}" class="text-sm font-medium text-primary hover:underline">View details</a>
+                </twig:Card:Footer>
             {% endif %}
-        </div>
+        </twig:Card>
 
         {# Last Sync Stats #}
-        <div class="overflow-hidden rounded-lg bg-white shadow">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5-6L16.5 15m0 0L12 10.5m4.5 4.5V6" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Last Sync Changes</dt>
-                            <dd class="text-lg font-semibold text-gray-900">
-                                {% if lastSyncRun and lastSyncRun.status == 'success' %}
-                                    <span class="text-green-600">+{{ lastSyncRun.addedCount ?? 0 }}</span>
-                                    <span class="text-gray-400 mx-1">/</span>
-                                    <span class="text-red-600">-{{ lastSyncRun.removedCount ?? 0 }}</span>
-                                {% else %}
-                                    <span class="text-sm font-normal text-gray-500">—</span>
-                                {% endif %}
-                            </dd>
-                        </dl>
-                    </div>
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    <twig:ux:icon name="lucide:arrow-up-down" class="h-5 w-5 text-muted-foreground" />
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Last Sync Changes</twig:Card:Title>
                 </div>
-            </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                {% if lastSyncRun and lastSyncRun.status == 'success' %}
+                    <p class="text-2xl font-semibold">
+                        <span class="text-green-600">+{{ lastSyncRun.addedCount ?? 0 }}</span>
+                        <span class="text-muted-foreground mx-1">/</span>
+                        <span class="text-red-600">-{{ lastSyncRun.removedCount ?? 0 }}</span>
+                    </p>
+                {% else %}
+                    <span class="text-sm text-muted-foreground">—</span>
+                {% endif %}
+            </twig:Card:Content>
             {% if lastSyncRun and lastSyncRun.status == 'success' %}
-                <div class="bg-gray-50 px-5 py-3">
-                    <span class="text-xs text-gray-500">{{ lastSyncRun.syncList.name }}</span>
-                </div>
+                <twig:Card:Footer class="pt-0">
+                    <span class="text-xs text-muted-foreground">{{ lastSyncRun.syncList.name }}</span>
+                </twig:Card:Footer>
             {% endif %}
-        </div>
+        </twig:Card>
 
         {# Next Scheduled Sync #}
-        <div class="overflow-hidden rounded-lg bg-white shadow">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                        </svg>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="truncate text-sm font-medium text-gray-500">Next Scheduled Sync</dt>
-                            <dd class="text-lg font-semibold text-gray-900">
-                                {% if nextScheduledSync %}
-                                    <span class="text-sm" title="{{ nextScheduledSync.time|date('Y-m-d H:i:s T') }}">
-                                        {{ nextScheduledSync.time|date('M j, g:ia') }}
-                                    </span>
-                                    <span class="block mt-1 text-xs font-normal text-gray-500">{{ nextScheduledSync.listName }}</span>
-                                {% else %}
-                                    <span class="text-sm font-normal text-gray-500">Not scheduled</span>
-                                {% endif %}
-                            </dd>
-                        </dl>
-                    </div>
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    <twig:ux:icon name="lucide:calendar" class="h-5 w-5 text-muted-foreground" />
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Next Scheduled Sync</twig:Card:Title>
                 </div>
-            </div>
-            <div class="bg-gray-50 px-5 py-3">
-                <a href="{{ path('app_sync_list_index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Manage schedules</a>
-            </div>
-        </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                {% if nextScheduledSync %}
+                    <span class="text-sm font-semibold text-foreground"
+                          data-controller="timezone"
+                          data-timezone-datetime-value="{{ nextScheduledSync.time|date('c') }}"
+                          title="{{ nextScheduledSync.time|date('Y-m-d H:i:s T') }}">
+                        {{ nextScheduledSync.time|date('M j, g:ia') }}
+                    </span>
+                    <span class="block mt-1 text-xs text-muted-foreground">{{ nextScheduledSync.listName }}</span>
+                {% else %}
+                    <span class="text-sm text-muted-foreground">Not scheduled</span>
+                {% endif %}
+            </twig:Card:Content>
+            <twig:Card:Footer class="pt-0">
+                <a href="{{ path('app_sync_list_index') }}" class="text-sm font-medium text-primary hover:underline">Manage schedules</a>
+            </twig:Card:Footer>
+        </twig:Card>
     </div>
 
     {# Recent Sync Runs #}
     <div class="mb-6">
         <div class="sm:flex sm:items-center sm:justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Recent Sync Runs</h2>
-            <a href="{{ path('app_history_index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">View all history &rarr;</a>
+            <h2 class="text-lg font-semibold text-foreground">Recent Sync Runs</h2>
+            <a href="{{ path('app_history_index') }}" class="text-sm font-medium text-primary hover:underline">View all history &rarr;</a>
         </div>
 
         <turbo-frame id="recent-syncs">
             {% if recentSyncRuns|length > 0 %}
-                <div class="overflow-hidden bg-white shadow ring-1 ring-black/5 sm:rounded-lg">
-                    <table class="min-w-full divide-y divide-gray-300">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">List</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Trigger</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Changes</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Duration</th>
-                                <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6"><span class="sr-only">View</span></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white">
+                <twig:Card>
+                    <twig:Table>
+                        <twig:Table:Header>
+                            <twig:Table:Row>
+                                <twig:Table:Head>Date</twig:Table:Head>
+                                <twig:Table:Head>List</twig:Table:Head>
+                                <twig:Table:Head>Trigger</twig:Table:Head>
+                                <twig:Table:Head>Status</twig:Table:Head>
+                                <twig:Table:Head>Changes</twig:Table:Head>
+                                <twig:Table:Head>Duration</twig:Table:Head>
+                                <twig:Table:Head class="text-right"><span class="sr-only">View</span></twig:Table:Head>
+                            </twig:Table:Row>
+                        </twig:Table:Header>
+                        <twig:Table:Body>
                             {% for run in recentSyncRuns %}
-                                <tr class="hover:bg-gray-50">
-                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6" title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
-                                        {{ run.createdAt|date('M j, g:ia') }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                        {{ run.syncList.name }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                            {% if run.triggeredBy == 'manual' %}bg-blue-100 text-blue-700
-                                            {% elseif run.triggeredBy == 'schedule' %}bg-purple-100 text-purple-700
-                                            {% elseif run.triggeredBy == 'cli' %}bg-gray-100 text-gray-700
-                                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                <twig:Table:Row>
+                                    <twig:Table:Cell class="font-medium">
+                                        <span data-controller="timezone"
+                                              data-timezone-datetime-value="{{ run.createdAt|date('c') }}"
+                                              title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
+                                            {{ run.createdAt|date('M j, g:ia') }}
+                                        </span>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>{{ run.syncList.name }}</twig:Table:Cell>
+                                    <twig:Table:Cell>
+                                        <twig:Badge variant="{% if run.triggeredBy == 'manual' %}default{% elseif run.triggeredBy == 'schedule' %}secondary{% else %}outline{% endif %}">
                                             {{ run.triggeredBy|capitalize }}
-                                        </span>
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                                            {% if run.status == 'success' %}bg-green-100 text-green-800
-                                            {% elseif run.status == 'failed' %}bg-red-100 text-red-800
-                                            {% elseif run.status == 'running' %}bg-yellow-100 text-yellow-800
-                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        </twig:Badge>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>
+                                        <twig:Badge variant="{% if run.status == 'success' %}default{% elseif run.status == 'failed' %}destructive{% else %}secondary{% endif %}">
                                             {{ run.status|capitalize }}
-                                        </span>
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                        </twig:Badge>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>
                                         {% if run.status == 'success' %}
                                             <span class="text-green-600">+{{ run.addedCount ?? 0 }}</span>
-                                            <span class="text-gray-400">/</span>
+                                            <span class="text-muted-foreground">/</span>
                                             <span class="text-red-600">-{{ run.removedCount ?? 0 }}</span>
                                         {% elseif run.status == 'failed' %}
                                             <span class="text-red-500">Error</span>
                                         {% else %}
                                             —
                                         {% endif %}
-                                    </td>
-                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>
                                         {% if run.durationSeconds is not null %}
                                             {{ run.durationSeconds|number_format(1) }}s
                                         {% else %}
                                             —
                                         {% endif %}
-                                    </td>
-                                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <a href="{{ path('app_history_show', { id: run.id }) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
-                                    </td>
-                                </tr>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell class="text-right">
+                                        <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
+                                    </twig:Table:Cell>
+                                </twig:Table:Row>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                        </twig:Table:Body>
+                    </twig:Table>
+                </twig:Card>
             {% else %}
-                <div class="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <h3 class="mt-2 text-sm font-semibold text-gray-900">No sync runs yet</h3>
-                    <p class="mt-1 text-sm text-gray-500">Sync runs will appear here after you trigger a sync or a scheduled sync runs.</p>
+                <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+                    <twig:ux:icon name="lucide:clock" class="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 class="mt-2 text-sm font-semibold text-foreground">No sync runs yet</h3>
+                    <p class="mt-1 text-sm text-muted-foreground">Sync runs will appear here after you trigger a sync or a scheduled sync runs.</p>
                 </div>
             {% endif %}
         </turbo-frame>

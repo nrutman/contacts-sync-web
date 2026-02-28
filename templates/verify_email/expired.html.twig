@@ -3,31 +3,26 @@
 {% block title %}Link Expired — Contacts Sync{% endblock %}
 
 {% block body %}
-<div class="bg-white rounded-lg shadow-md p-8 text-center">
-    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
-        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-        </svg>
+<twig:Card class="p-8 text-center">
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-4">
+        <twig:ux:icon name="lucide:triangle-alert" class="size-6 text-destructive" />
     </div>
 
-    <h2 class="text-xl font-bold text-gray-900 mb-2">Verification Link Invalid</h2>
+    <h2 class="text-xl font-bold text-foreground mb-2">Verification Link Invalid</h2>
 
-    <p class="text-sm text-gray-600 mb-6">
+    <p class="text-sm text-muted-foreground mb-6">
         {{ message|default('This verification link has expired or is invalid. Please ask your administrator to resend the invitation.') }}
     </p>
 
-    <div class="border-t border-gray-200 pt-6">
-        <a href="{{ path('app_login') }}"
-           class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
-            <svg class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-            </svg>
-            Go to Login
-        </a>
-    </div>
+    <twig:Separator class="mb-6" />
 
-    <p class="mt-6 text-xs text-gray-400">
+    <twig:Button as="a" href="{{ path('app_login') }}">
+        <twig:ux:icon name="lucide:log-in" class="size-4" />
+        Go to Login
+    </twig:Button>
+
+    <p class="mt-6 text-xs text-muted-foreground">
         If you continue to have trouble, please contact your administrator to receive a new invitation.
     </p>
-</div>
+</twig:Card>
 {% endblock %}

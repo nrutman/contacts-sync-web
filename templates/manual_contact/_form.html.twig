@@ -1,43 +1,25 @@
 {{ form_start(form, { attr: { class: 'space-y-6' } }) }}
-    <div>
-        {{ form_label(form.name, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-        <div class="mt-1">
-            {{ form_widget(form.name, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
-        </div>
-        {{ form_errors(form.name, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
+    {{ form_row(form.name) }}
+    {{ form_row(form.email) }}
+
+    <div class="space-y-2">
+        <twig:Label>Sync Lists</twig:Label>
+        {% for child in form.syncLists %}
+            <twig:Field orientation="horizontal">
+                <twig:Field:Label for="{{ child.vars.id }}">
+                    {{ form_widget(child) }}
+                    {{ child.vars.label }}
+                </twig:Field:Label>
+            </twig:Field>
+        {% else %}
+            <p class="text-sm text-muted-foreground italic">No sync lists have been created yet.</p>
+        {% endfor %}
+        {{ form_errors(form.syncLists) }}
     </div>
 
-    <div>
-        {{ form_label(form.email, null, { label_attr: { class: 'block text-sm font-medium text-gray-700' } }) }}
-        <div class="mt-1">
-            {{ form_widget(form.email, { attr: { class: 'block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm' } }) }}
-        </div>
-        {{ form_errors(form.email, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-    </div>
-
-    <fieldset>
-        <legend class="block text-sm font-medium text-gray-700">{{ form_label(form.syncLists) }}</legend>
-        {% if form.syncLists.vars.help %}
-            <p class="mt-1 text-sm text-gray-500">{{ form.syncLists.vars.help }}</p>
-        {% endif %}
-        <div class="mt-2 space-y-2">
-            {% for child in form.syncLists %}
-                <div class="flex items-center gap-x-3">
-                    {{ form_widget(child, { attr: { class: 'h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500' } }) }}
-                    {{ form_label(child, null, { label_attr: { class: 'text-sm text-gray-700' } }) }}
-                </div>
-            {% else %}
-                <p class="text-sm text-gray-500 italic">No sync lists have been created yet.</p>
-            {% endfor %}
-        </div>
-        {{ form_errors(form.syncLists, { attr: { class: 'mt-1 text-sm text-red-600' } }) }}
-    </fieldset>
-
-    <div class="flex items-center justify-end gap-x-4 border-t border-gray-200 pt-6">
-        <a href="{{ path('app_contact_index') }}" class="text-sm font-semibold text-gray-700 hover:text-gray-900">Cancel</a>
-        <button type="submit"
-                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
-            {{ button_label|default('Save') }}
-        </button>
+    <twig:Separator />
+    <div class="flex items-center justify-end gap-x-4">
+        <twig:Button as="a" href="{{ path('app_contact_index') }}" variant="outline">Cancel</twig:Button>
+        <twig:Button type="submit">{{ button_label|default('Save') }}</twig:Button>
     </div>
 {{ form_end(form) }}

@@ -14,6 +14,7 @@ Read these READMEs to understand the codebase before making changes:
 - [src/Security/README.md](src/Security/README.md) — encryption, key rotation, user verification, invitation flow
 - [src/Entity/README.md](src/Entity/README.md) — entity relationship diagram (Mermaid ERD) and entity descriptions
 - [src/Sync/README.md](src/Sync/README.md) — sync service orchestration and result DTO
+- [src/Frontend/README.md](src/Frontend/README.md) — front-end architecture, Shadcn components, theming, Stimulus controllers
 
 ## Commands
 

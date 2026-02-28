@@ -8,7 +8,12 @@
       "Bash(find:*)",
       "Bash(composer require:*)",
       "Bash(curl:*)",
-      "Bash(composer remove:*)"
+      "Bash(composer remove:*)",
+      "WebSearch",
+      "WebFetch(domain:ux.symfony.com)",
+      "Bash(ls:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:packagist.org)"
     ]
   }
 }

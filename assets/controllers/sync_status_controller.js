@@ -89,11 +89,11 @@ export default class extends Controller {
                 const cls =
                     data.addedCount > 0
                         ? "text-green-600 font-medium"
-                        : "text-gray-500";
+                        : "text-muted-foreground";
                 this.addedTarget.innerHTML = `<span class="${cls}">+${data.addedCount}</span>`;
             } else {
                 this.addedTarget.innerHTML =
-                    '<span class="text-gray-400">\u2014</span>';
+                    '<span class="text-muted-foreground">\u2014</span>';
             }
         }
 
@@ -101,12 +101,12 @@ export default class extends Controller {
             if (data.removedCount !== null) {
                 const cls =
                     data.removedCount > 0
-                        ? "text-red-600 font-medium"
-                        : "text-gray-500";
+                        ? "text-destructive font-medium"
+                        : "text-muted-foreground";
                 this.removedTarget.innerHTML = `<span class="${cls}">-${data.removedCount}</span>`;
             } else {
                 this.removedTarget.innerHTML =
-                    '<span class="text-gray-400">\u2014</span>';
+                    '<span class="text-muted-foreground">\u2014</span>';
             }
         }
 
@@ -122,13 +122,13 @@ export default class extends Controller {
 
     renderStatusBadge(status) {
         const styles = {
-            success: "bg-green-100 text-green-800",
-            failed: "bg-red-100 text-red-800",
-            running: "bg-yellow-100 text-yellow-800",
-            pending: "bg-gray-100 text-gray-800",
+            success: "border-transparent bg-primary text-primary-foreground",
+            failed: "border-transparent bg-destructive text-destructive-foreground",
+            running: "border-transparent bg-secondary text-secondary-foreground",
+            pending: "border-transparent bg-secondary text-secondary-foreground",
         };
 
-        const css = styles[status] || "bg-gray-100 text-gray-800";
+        const css = styles[status] || "border-transparent bg-secondary text-secondary-foreground";
         const label = status.charAt(0).toUpperCase() + status.slice(1);
 
         let extra = "";
@@ -137,6 +137,6 @@ export default class extends Controller {
                 '<svg class="ml-1 h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
         }
 
-        return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${css}">${label}${extra}</span>`;
+        return `<span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${css}">${label}${extra}</span>`;
     }
 }
