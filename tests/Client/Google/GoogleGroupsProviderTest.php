@@ -72,6 +72,26 @@ class GoogleGroupsProviderTest extends MockeryTestCase
         );
     }
 
+    public function testNormalizeOAuthConfigSetsRedirectUriWhenCallbackProvided(): void
+    {
+        $method = new \ReflectionMethod($this->provider, 'normalizeOAuthConfig');
+        $config = ['web' => ['client_id' => 'test', 'client_secret' => 'secret']];
+
+        $result = $method->invoke($this->provider, $config, 'https://example.com/callback');
+
+        self::assertEquals(['https://example.com/callback'], $result['web']['redirect_uris']);
+    }
+
+    public function testNormalizeOAuthConfigDoesNotSetEmptyRedirectUri(): void
+    {
+        $method = new \ReflectionMethod($this->provider, 'normalizeOAuthConfig');
+        $config = ['web' => ['client_id' => 'test', 'client_secret' => 'secret']];
+
+        $result = $method->invoke($this->provider, $config, '');
+
+        self::assertArrayNotHasKey('redirect_uris', $result['web']);
+    }
+
     private function makeCredential(array $data): ProviderCredential
     {
         $org = new Organization();

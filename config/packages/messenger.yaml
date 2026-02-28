@@ -24,7 +24,6 @@ framework:
 
         routing:
             'App\Message\SyncMessage': async
-            'App\Message\RefreshListMessage': async
 
 when@test:
     framework:

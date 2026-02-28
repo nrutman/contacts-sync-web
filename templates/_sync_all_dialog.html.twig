@@ -1,0 +1,79 @@
+{#
+    Sync All progress dialog.
+
+    Required variables:
+      - enabledSyncLists: array of SyncList entities (id, name)
+
+    Must be placed inside an element with data-controller="sync-all".
+#}
+<dialog data-sync-all-target="modal"
+        data-action="cancel->sync-all#preventCloseWhileRunning"
+        class="w-full max-w-lg rounded-xl bg-white p-0 shadow-2xl ring-1 ring-gray-900/5">
+    <div class="px-6 pt-5 pb-4">
+        <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50">
+                <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M2.985 19.644l3.181-3.183" />
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Syncing All Lists</h3>
+                <p class="text-sm text-gray-500">Running sync for each enabled list.</p>
+            </div>
+        </div>
+    </div>
+
+    <ul class="divide-y divide-gray-100 border-t border-gray-100">
+        {% for list in enabledSyncLists %}
+            <li class="flex items-center justify-between px-6 py-3"
+                data-sync-all-target="listStatus"
+                data-list-id="{{ list.id }}">
+                <div class="flex items-center gap-3 min-w-0">
+                    {# Waiting icon — gray dot #}
+                    <span data-role="icon-waiting" class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4" />
+                        </svg>
+                    </span>
+
+                    {# Syncing icon — spinner #}
+                    <span data-role="icon-syncing" class="hidden flex-shrink-0">
+                        <svg class="h-5 w-5 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </span>
+
+                    {# Done icon — green check circle #}
+                    <span data-role="icon-done" class="hidden flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                    </span>
+
+                    {# Failed icon — red X circle #}
+                    <span data-role="icon-failed" class="hidden flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                    </span>
+
+                    <span class="text-sm font-medium text-gray-700 truncate">{{ list.name }}</span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+                    <span data-role="status" class="text-sm font-medium text-gray-400">Waiting</span>
+                    <span data-role="detail" class="text-xs text-gray-400"></span>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <div class="flex justify-end border-t border-gray-100 bg-gray-50 px-6 py-4 rounded-b-xl">
+        <button data-sync-all-target="closeButton"
+                data-action="click->sync-all#close"
+                disabled
+                class="rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Close
+        </button>
+    </div>
+</dialog>

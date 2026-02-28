@@ -6,6 +6,7 @@ use App\Entity\SyncRun;
 use App\Entity\User;
 use App\Event\SyncCompletedEvent;
 use App\Repository\UserRepository;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
@@ -18,6 +19,7 @@ class SyncNotificationService
         private readonly UserRepository $userRepository,
         private readonly MailerInterface $mailer,
         private readonly Environment $twig,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -89,6 +91,14 @@ class SyncNotificationService
             ))
             ->html($html);
 
-        $this->mailer->send($email);
+        try {
+            $this->mailer->send($email);
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to send sync notification to {email}: {error}', [
+                'email' => $user->getEmail(),
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+        }
     }
 }

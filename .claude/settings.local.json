@@ -5,7 +5,10 @@
       "Bash(wc:*)",
       "Bash(composer show:*)",
       "Bash(php:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(composer require:*)",
+      "Bash(curl:*)",
+      "Bash(composer remove:*)"
     ]
   }
 }

@@ -10,6 +10,7 @@ use App\Notification\SyncNotificationService;
 use App\Repository\UserRepository;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Twig\Environment;
@@ -37,6 +38,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             $this->userRepository,
             $this->mailer,
             $this->twig,
+            m::mock(LoggerInterface::class)->shouldIgnoreMissing(),
         );
     }
 
@@ -318,6 +320,30 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('send')
             ->once();
 
+        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+    }
+
+    public function testMailerExceptionIsHandledGracefully(): void
+    {
+        $syncRun = $this->makeSyncRun('failed');
+        $user = $this->makeUser('admin@example.com', notifyOnFailure: true);
+
+        $this->userRepository
+            ->shouldReceive('findAll')
+            ->once()
+            ->andReturn([$user]);
+
+        $this->twig
+            ->shouldReceive('render')
+            ->once()
+            ->andReturn('<html>error</html>');
+
+        $this->mailer
+            ->shouldReceive('send')
+            ->once()
+            ->andThrow(new \RuntimeException('SMTP connection failed'));
+
+        // Should not throw — exception is caught and logged
         $this->service->__invoke(new SyncCompletedEvent($syncRun));
     }
 

@@ -37,7 +37,7 @@
                 {% for credential in credentials %}
                     {% set provider = providers[credential.providerName] ?? null %}
                     {% set credArray = credential.credentialsArray %}
-                    {% set isOAuth = provider is not null and provider is instanceof('App\\Client\\Provider\\OAuthProviderInterface') %}
+                    {% set isOAuth = credential.providerName in oauth_providers %}
                     {% set isConnected = credArray.token is defined and credArray.token is not null %}
                     <tr class="hover:bg-gray-50">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">

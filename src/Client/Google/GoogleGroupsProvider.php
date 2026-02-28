@@ -62,6 +62,7 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface
     {
         $creds = $credential->getCredentialsArray();
         $oauthConfig = json_decode($creds['oauth_credentials'], true, 512, JSON_THROW_ON_ERROR);
+        $oauthConfig = $this->normalizeOAuthConfig($oauthConfig, '');
         $domain = $creds['domain'] ?? $credential->getMetadataValue('domain', '');
 
         $googleClient = new GoogleClient(
@@ -113,6 +114,7 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface
             $domain,
             '',
         );
+        $googleClient->configure();
 
         return $googleClient->createAuthUrl();
     }
@@ -133,6 +135,7 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface
             $domain,
             '',
         );
+        $googleClient->configure();
 
         $googleClient->setAuthCode($code);
 
@@ -156,7 +159,19 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface
             unset($config['installed']);
         }
 
-        if (isset($config['web'])) {
+        // If credentials were pasted without the "web"/"installed" wrapper,
+        // wrap them so Google\Client::setAuthConfig() can find them.
+        if (!isset($config['web']) && isset($config['client_id'])) {
+            $config = ['web' => $config];
+        }
+
+        // Validate that the config contains OAuth client credentials, not a token.
+        $inner = $config['web'] ?? $config;
+        if (!isset($inner['client_id'])) {
+            throw new \InvalidArgumentException('The OAuth credentials JSON is missing "client_id". Edit this credential and paste the OAuth client JSON downloaded from Google Cloud Console (it should contain "client_id" and "client_secret").');
+        }
+
+        if (isset($config['web']) && $callbackUrl !== '') {
             $config['web']['redirect_uris'] = [$callbackUrl];
         }
 

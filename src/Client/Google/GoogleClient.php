@@ -46,14 +46,10 @@ class GoogleClient implements
     }
 
     /**
-     * Initializes a Google Client based on configuration.
-     *
-     * @see https://developers.google.com/admin-sdk/directory/v1/quickstart/php
-     *
-     * @throws FileNotFoundException
-     * @throws GoogleException
+     * Configures the underlying Google Client with application settings,
+     * scopes, and auth config — without loading or validating tokens.
      */
-    public function initialize(): self
+    public function configure(): self
     {
         $this->client->setApplicationName('Contacts Sync');
         $this->client->setScopes([
@@ -64,6 +60,21 @@ class GoogleClient implements
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
         $this->client->setHostedDomain($this->domain);
+
+        return $this;
+    }
+
+    /**
+     * Initializes a Google Client based on configuration.
+     *
+     * @see https://developers.google.com/admin-sdk/directory/v1/quickstart/php
+     *
+     * @throws FileNotFoundException
+     * @throws GoogleException
+     */
+    public function initialize(): self
+    {
+        $this->configure();
 
         // If a token was pre-set via setTokenData(), use it directly;
         // otherwise fall back to loading from the saved file.
@@ -189,6 +200,12 @@ class GoogleClient implements
 
     private function saveToken(): void
     {
+        // Skip file-based token storage when no varPath is configured;
+        // the web flow persists tokens to the database instead.
+        if ($this->varPath === '') {
+            return;
+        }
+
         $this->fileProvider->saveContents(
             $this->getTokenPath(),
             json_encode($this->client->getAccessToken(), JSON_THROW_ON_ERROR),

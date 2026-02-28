@@ -9,24 +9,23 @@
         <p class="mt-1 text-sm text-gray-500">Overview of your contact sync status.</p>
     </div>
     {% if organization is not null %}
-        <div class="mt-4 sm:mt-0">
-            <form action="{{ path('app_sync_run_all') }}" method="post" class="inline"
-                  data-controller="sync-button">
+        <div class="mt-4 sm:mt-0"
+             data-controller="sync-all"
+             data-sync-all-lists-value="{{ enabledSyncLists|map(l => { id: l.id, name: l.name })|json_encode|e('html_attr') }}"
+             data-sync-all-csrf-token-value="{{ csrf_token('sync-run-all') }}">
+            <form action="{{ path('app_sync_run_all') }}" method="post" class="inline">
                 <input type="hidden" name="_token" value="{{ csrf_token('sync-run-all') }}">
                 <button type="submit"
-                        data-sync-button-target="button"
-                        data-action="click->sync-button#submit"
+                        data-action="click->sync-all#submit"
                         class="relative inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
                     <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
                     </svg>
-                    <span data-sync-button-target="label">Sync All</span>
-                    <svg data-sync-button-target="spinner" class="hidden absolute inset-0 m-auto h-5 w-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
+                    Sync All
                 </button>
             </form>
+
+            {{ include('_sync_all_dialog.html.twig') }}
         </div>
     {% endif %}
 </div>

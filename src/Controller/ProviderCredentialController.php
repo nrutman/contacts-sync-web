@@ -41,9 +41,17 @@ class ProviderCredentialController extends AbstractController
 
         $credentials = $this->credentialRepository->findByOrganization($organization);
 
+        $oauthProviders = [];
+        foreach ($this->providerRegistry->all() as $name => $provider) {
+            if ($provider instanceof OAuthProviderInterface) {
+                $oauthProviders[] = $name;
+            }
+        }
+
         return $this->render('provider_credential/index.html.twig', [
             'credentials' => $credentials,
             'providers' => $this->providerRegistry->all(),
+            'oauth_providers' => $oauthProviders,
         ]);
     }
 

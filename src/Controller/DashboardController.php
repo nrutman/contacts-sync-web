@@ -2,17 +2,14 @@
 
 namespace App\Controller;
 
-use App\Entity\SyncRun;
-use App\Message\SyncMessage;
 use App\Repository\OrganizationRepository;
 use App\Repository\SyncListRepository;
 use App\Repository\SyncRunRepository;
+use App\Sync\SyncService;
 use Cron\CronExpression as CronExpressionLib;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -22,8 +19,7 @@ class DashboardController extends AbstractController
         private readonly OrganizationRepository $organizationRepository,
         private readonly SyncListRepository $syncListRepository,
         private readonly SyncRunRepository $syncRunRepository,
-        private readonly MessageBusInterface $messageBus,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly SyncService $syncService,
     ) {
     }
 
@@ -37,6 +33,7 @@ class DashboardController extends AbstractController
                 'organization' => null,
                 'totalLists' => 0,
                 'enabledLists' => 0,
+                'enabledSyncLists' => [],
                 'lastSyncRun' => null,
                 'nextScheduledSync' => null,
                 'recentSyncRuns' => [],
@@ -46,7 +43,10 @@ class DashboardController extends AbstractController
         $totalLists = $this->syncListRepository->countByOrganization(
             $organization,
         );
-        $enabledLists = $this->syncListRepository->countEnabledByOrganization(
+        $enabledCount = $this->syncListRepository->countEnabledByOrganization(
+            $organization,
+        );
+        $enabledSyncLists = $this->syncListRepository->findEnabledByOrganization(
             $organization,
         );
         $lastSyncRun = $this->syncRunRepository->findLastCompletedByOrganization(
@@ -61,7 +61,8 @@ class DashboardController extends AbstractController
         return $this->render('dashboard/index.html.twig', [
             'organization' => $organization,
             'totalLists' => $totalLists,
-            'enabledLists' => $enabledLists,
+            'enabledLists' => $enabledCount,
+            'enabledSyncLists' => $enabledSyncLists,
             'lastSyncRun' => $lastSyncRun,
             'nextScheduledSync' => $nextScheduledSync,
             'recentSyncRuns' => $recentSyncRuns,
@@ -104,34 +105,38 @@ class DashboardController extends AbstractController
         /** @var \App\Entity\User $user */
         $user = $this->getUser();
 
-        foreach ($enabledLists as $syncList) {
-            // Create a pending SyncRun so the UI can display it immediately
-            $syncRun = new SyncRun();
-            $syncRun->setSyncList($syncList);
-            $syncRun->setTriggeredBy('manual');
-            $syncRun->setTriggeredByUser($user);
-            $syncRun->setStatus('pending');
-            $this->entityManager->persist($syncRun);
-            $this->entityManager->flush();
+        $successCount = 0;
+        $failCount = 0;
 
-            // Dispatch async message for the worker to process
-            $this->messageBus->dispatch(
-                new SyncMessage(
-                    syncListId: (string) $syncList->getId(),
-                    triggeredByUserId: (string) $user->getId(),
-                    trigger: 'manual',
-                    syncRunId: (string) $syncRun->getId(),
+        foreach ($enabledLists as $syncList) {
+            $result = $this->syncService->executeSync(
+                syncList: $syncList,
+                triggeredBy: $user,
+                trigger: 'manual',
+            );
+
+            if ($result->success) {
+                ++$successCount;
+            } else {
+                ++$failCount;
+            }
+        }
+
+        if ($failCount === 0) {
+            $this->addFlash(
+                'success',
+                sprintf('%d sync(s) completed successfully.', $successCount),
+            );
+        } else {
+            $this->addFlash(
+                'warning',
+                sprintf(
+                    '%d sync(s) completed, %d failed. Check sync history for details.',
+                    $successCount,
+                    $failCount,
                 ),
             );
         }
-
-        $this->addFlash(
-            'info',
-            sprintf(
-                '%d sync(s) have been queued and will begin processing shortly.',
-                count($enabledLists),
-            ),
-        );
 
         return $this->redirectToRoute('app_dashboard');
     }

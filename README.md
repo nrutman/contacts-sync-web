@@ -112,12 +112,39 @@ php bin/console cache:clear --env=prod
 # 5. Compile frontend assets
 php bin/console tailwind:build --minify
 php bin/console asset-map:compile
-
-# 6. Start the Messenger worker (see systemd unit below)
-php bin/console messenger:consume async scheduler_sync --time-limit=3600
 ```
 
-### Messenger Worker (systemd)
+### Sync Execution
+
+Syncs and source refreshes triggered from the web UI run **synchronously** during the HTTP request — no background worker is required for the web interface to function. The "Sync All" dashboard action uses AJAX to sync each list sequentially with a progress dialog, falling back to a single synchronous POST if JavaScript is unavailable.
+
+### Scheduled Syncs
+
+If you configure cron expressions on sync lists, you have two options for running them automatically:
+
+#### Option A: System Cron (recommended for simple setups)
+
+Use a system-level cron job with the `--scheduled` flag. This evaluates each sync list's cron expression against its last run time and only syncs lists that are due:
+
+```bash
+# Run every minute — the command itself determines which lists are due
+* * * * * cd /path/to/contacts-sync && php bin/console sync:run --scheduled --env=prod >> var/log/cron.log 2>&1
+```
+
+The `--scheduled` flag:
+- Skips lists without a cron expression configured
+- Runs lists that have never been synced
+- Compares each list's cron expression against the last sync run time to determine if a sync is due
+- Returns success when no lists are due (normal for cron)
+- Combines with `--dry-run` and `--list` for testing
+
+#### Option B: Messenger Worker (for Symfony Scheduler integration)
+
+If you prefer Symfony's built-in Scheduler component, run the Messenger worker:
+
+```bash
+php bin/console messenger:consume async scheduler_sync --time-limit=3600
+```
 
 Create `/etc/systemd/system/contacts-sync-worker.service`:
 
@@ -145,25 +172,7 @@ sudo systemctl enable contacts-sync-worker
 sudo systemctl start contacts-sync-worker
 ```
 
-The `--time-limit=3600` flag restarts the worker every hour to prevent memory leaks. systemd's `Restart=always` brings it back up immediately. The worker processes both manually triggered syncs and scheduled syncs defined via cron expressions on sync lists.
-
-### System Cron Alternative
-
-If your server cannot run a long-lived Messenger worker (e.g. shared hosting), you can use a system-level cron job with the `--scheduled` flag instead. This evaluates each sync list's cron expression against its last run time and only syncs lists that are due:
-
-```bash
-# Run every minute — the command itself determines which lists are due
-* * * * * cd /path/to/contacts-sync && php bin/console sync:run --scheduled --env=prod >> var/log/cron.log 2>&1
-```
-
-The `--scheduled` flag:
-- Skips lists without a cron expression configured
-- Runs lists that have never been synced
-- Compares each list's cron expression against the last sync run time to determine if a sync is due
-- Returns success when no lists are due (normal for cron)
-- Combines with `--dry-run` and `--list` for testing
-
-Note: when using system cron, you still need a Messenger worker (`messenger:consume async`) to process web-triggered syncs. If you only use CLI syncs, the worker is not required.
+The `--time-limit=3600` flag restarts the worker every hour to prevent memory leaks. systemd's `Restart=always` brings it back up immediately.
 
 ### Encryption Key Management
 

@@ -2,19 +2,21 @@
 
 namespace App\Controller;
 
+use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\ProviderRegistry;
 use App\Entity\SyncList;
-use App\Message\RefreshListMessage;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class PlanningCenterController extends AbstractController
 {
     public function __construct(
-        private readonly MessageBusInterface $messageBus,
+        private readonly ProviderRegistry $providerRegistry,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -41,23 +43,45 @@ class PlanningCenterController extends AbstractController
             ]);
         }
 
-        /** @var \App\Entity\User $user */
-        $user = $this->getUser();
+        $sourceCredential = $syncList->getSourceCredential();
 
-        $this->messageBus->dispatch(
-            new RefreshListMessage(
-                syncListId: (string) $syncList->getId(),
-                triggeredByUserId: (string) $user->getId(),
-            ),
-        );
+        if ($sourceCredential === null) {
+            $this->addFlash(
+                'warning',
+                sprintf('Sync list "%s" has no source credential configured.', $syncList->getName()),
+            );
 
-        $this->addFlash(
-            'info',
-            sprintf(
-                'Refresh has been queued for source list "%s". It will begin processing shortly.',
-                $syncList->getName(),
-            ),
-        );
+            return $this->redirectToRoute('app_sync_list_history', [
+                'id' => $syncList->getId(),
+            ]);
+        }
+
+        try {
+            $provider = $this->providerRegistry->get($sourceCredential->getProviderName());
+
+            if ($provider instanceof PlanningCenterProvider) {
+                $provider->refreshList(
+                    $sourceCredential,
+                    $syncList->getSourceListIdentifier() ?? $syncList->getName(),
+                );
+            }
+
+            $this->addFlash(
+                'success',
+                sprintf('Source list "%s" refreshed successfully.', $syncList->getName()),
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to refresh source list "{name}": {error}', [
+                'name' => $syncList->getName(),
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            $this->addFlash(
+                'danger',
+                sprintf('Failed to refresh "%s": %s', $syncList->getName(), $e->getMessage()),
+            );
+        }
 
         return $this->redirectToRoute('app_sync_list_history', [
             'id' => $syncList->getId(),
