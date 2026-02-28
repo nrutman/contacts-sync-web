@@ -3,7 +3,9 @@ import { Controller } from "@hotwired/stimulus";
 export default class extends Controller {
     static targets = ["button", "label", "spinner"];
 
-    submit() {
+    submit(event) {
+        event.preventDefault();
+
         // Disable the button to prevent double-clicks
         this.buttonTarget.disabled = true;
         this.buttonTarget.classList.add("opacity-75", "cursor-not-allowed");
@@ -17,6 +19,7 @@ export default class extends Controller {
             this.spinnerTarget.classList.remove("hidden");
         }
 
-        // Allow the form to submit naturally
+        // Submit the form explicitly (disabled buttons suppress native submission)
+        this.element.submit();
     }
 }
