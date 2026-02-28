@@ -126,32 +126,30 @@ class SyncRunRepository extends ServiceEntityRepository
      */
     public function findDestinationCountsByOrganization(Organization $organization): array
     {
-        // Subquery: get the max completedAt for each successful sync run per list
-        $subQb = $this->getEntityManager()->createQueryBuilder()
-            ->select('IDENTITY(sr2.syncList)', 'MAX(sr2.completedAt) AS maxCompleted')
-            ->from(SyncRun::class, 'sr2')
-            ->innerJoin('sr2.syncList', 'sl2')
-            ->where('sl2.organization = :org')
-            ->andWhere('sr2.status = :status')
-            ->groupBy('sr2.syncList');
+        $conn = $this->getEntityManager()->getConnection();
 
-        // Main query: join back to get the destinationCount for each list's latest successful run
-        $results = $this->createQueryBuilder('sr')
-            ->select('IDENTITY(sr.syncList) AS listId', 'sr.destinationCount')
-            ->innerJoin('sr.syncList', 'sl')
-            ->where('sl.organization = :org')
-            ->andWhere('sr.status = :status')
-            ->andWhere(sprintf('sr.completedAt IN (%s)', $subQb->getDQL()))
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
-            ->setParameter('status', 'success')
-            ->getQuery()
-            ->getResult();
+        $sql = <<<'SQL'
+            SELECT sr.sync_list_id AS list_id, sr.destination_count
+            FROM sync_run sr
+            INNER JOIN sync_list sl ON sr.sync_list_id = sl.id
+            INNER JOIN (
+                SELECT sync_list_id, MAX(completed_at) AS max_completed
+                FROM sync_run
+                WHERE status = 'success'
+                GROUP BY sync_list_id
+            ) latest ON sr.sync_list_id = latest.sync_list_id AND sr.completed_at = latest.max_completed
+            WHERE sl.organization_id = :org
+              AND sr.status = 'success'
+              AND sr.destination_count IS NOT NULL
+            SQL;
+
+        $results = $conn->fetchAllAssociative($sql, [
+            'org' => (string) $organization->getId(),
+        ]);
 
         $counts = [];
         foreach ($results as $row) {
-            if ($row['destinationCount'] !== null) {
-                $counts[$row['listId']] = $row['destinationCount'];
-            }
+            $counts[$row['list_id']] = (int) $row['destination_count'];
         }
 
         return $counts;

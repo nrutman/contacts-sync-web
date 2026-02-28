@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{% block title %}Contacts Sync{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>🔄</text></svg>">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236366f1%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607%22/><path d=%22M7 11v4h4%22/><path d=%22M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15%22/></svg>">
         {% block stylesheets %}{% endblock %}
         {% block javascripts %}
             {% block importmap %}{{ importmap('app') }}{% endblock %}
@@ -26,7 +26,10 @@
                         {# Mobile sidebar #}
                         <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-sidebar px-6 pb-4 border-r border-border">
                             <div class="flex h-16 shrink-0 items-center">
-                                <span class="text-xl font-bold text-foreground">🔄 Contacts Sync</span>
+                                <span class="flex items-center gap-2 text-xl font-bold text-foreground">
+                                    <twig:ux:icon name="lucide:cloud-backup" class="size-6 text-primary" />
+                                    Contacts Sync
+                                </span>
                             </div>
                             <nav class="flex flex-1 flex-col">
                                 <ul role="list" class="flex flex-1 flex-col gap-y-7">
@@ -63,7 +66,10 @@
             <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
                 <div class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-sidebar px-6 pb-4">
                     <div class="flex h-16 shrink-0 items-center">
-                        <span class="text-xl font-bold text-foreground">🔄 Contacts Sync</span>
+                        <span class="flex items-center gap-2 text-xl font-bold text-foreground">
+                            <twig:ux:icon name="lucide:cloud-backup" class="size-6 text-primary" />
+                            Contacts Sync
+                        </span>
                     </div>
                     <nav class="flex flex-1 flex-col">
                         <ul role="list" class="flex flex-1 flex-col gap-y-7">
@@ -127,10 +133,12 @@
                         {% for type in ['success', 'info', 'warning', 'danger'] %}
                             {% for message in app.flashes(type) %}
                                 {% set alert_variant = type == 'danger' ? 'destructive' : 'default' %}
+                                {% set icon_html = _self.flash_icon(type) %}
+                                {% set title_text = _self.flash_title(type) %}
                                 <div class="mb-4" data-controller="flash" data-flash-target="container">
                                     <twig:Alert variant="{{ alert_variant }}" class="{{ _self.flash_border_class(type) }}">
-                                        {{ _self.flash_icon(type) }}
-                                        <twig:Alert:Title>{{ _self.flash_title(type) }}</twig:Alert:Title>
+                                        {{ icon_html|raw }}
+                                        <twig:Alert:Title>{{ title_text }}</twig:Alert:Title>
                                         <twig:Alert:Description>
                                             <div class="flex items-center justify-between">
                                                 <span>{{ message }}</span>

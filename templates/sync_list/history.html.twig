@@ -125,21 +125,22 @@
                                 <span class="ml-1 text-xs text-muted-foreground">by {{ run.triggeredByUser.fullName }}</span>
                             {% endif %}
                         </twig:Table:Cell>
-                        <twig:Table:Cell {% if is_in_progress %}data-sync-status-target="status"{% endif %}>
-                            <twig:Badge variant="{% if run.status == 'success' %}default{% elseif run.status == 'failed' %}destructive{% elseif run.status == 'running' %}secondary{% else %}outline{% endif %}">
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="status"{% endif %}>
+                            {% set status_variant = run.status == 'success' ? 'default' : (run.status == 'failed' ? 'destructive' : 'secondary') %}
+                            <twig:Badge variant="{{ status_variant }}">
                                 {{ run.status|capitalize }}
                                 {% if is_in_progress %}
                                     <twig:Spinner class="ml-1 size-3" />
                                 {% endif %}
                             </twig:Badge>
-                        </twig:Table:Cell>
-                        <twig:Table:Cell {% if is_in_progress %}data-sync-status-target="source"{% endif %}>
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="source"{% endif %}>
                             {{ run.sourceCount ?? '—' }}
-                        </twig:Table:Cell>
-                        <twig:Table:Cell {% if is_in_progress %}data-sync-status-target="destination"{% endif %}>
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="destination"{% endif %}>
                             {{ run.destinationCount ?? '—' }}
-                        </twig:Table:Cell>
-                        <twig:Table:Cell {% if is_in_progress %}data-sync-status-target="added"{% endif %}>
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="added"{% endif %}>
                             {% if run.addedCount is not null %}
                                 <span class="{% if run.addedCount > 0 %}text-green-600 font-medium{% else %}text-muted-foreground{% endif %}">
                                     +{{ run.addedCount }}
@@ -147,8 +148,8 @@
                             {% else %}
                                 <span class="text-muted-foreground">—</span>
                             {% endif %}
-                        </twig:Table:Cell>
-                        <twig:Table:Cell {% if is_in_progress %}data-sync-status-target="removed"{% endif %}>
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="removed"{% endif %}>
                             {% if run.removedCount is not null %}
                                 <span class="{% if run.removedCount > 0 %}text-red-600 font-medium{% else %}text-muted-foreground{% endif %}">
                                     -{{ run.removedCount }}
@@ -156,14 +157,14 @@
                             {% else %}
                                 <span class="text-muted-foreground">—</span>
                             {% endif %}
-                        </twig:Table:Cell>
-                        <twig:Table:Cell {% if is_in_progress %}data-sync-status-target="duration"{% endif %}>
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="duration"{% endif %}>
                             {% if run.durationSeconds is not null %}
                                 {{ run.durationSeconds|number_format(1) }}s
                             {% else %}
                                 —
                             {% endif %}
-                        </twig:Table:Cell>
+                        </td>
                         <twig:Table:Cell class="text-right">
                             <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
                         </twig:Table:Cell>

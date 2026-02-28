@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{% block title %}Contacts Sync{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>🔄</text></svg>">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236366f1%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607%22/><path d=%22M7 11v4h4%22/><path d=%22M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15%22/></svg>">
         {% block stylesheets %}{% endblock %}
         {% block javascripts %}
             {% block importmap %}{{ importmap('app') }}{% endblock %}
@@ -14,7 +14,7 @@
         <div class="min-h-full flex flex-col items-center justify-center px-4 py-12">
             <div class="w-full max-w-md">
                 <div class="text-center mb-8">
-                    <span class="text-3xl">🔄</span>
+                    <twig:ux:icon name="lucide:cloud-backup" class="mx-auto size-10 text-primary" />
                     <h1 class="mt-2 text-2xl font-bold text-foreground">Contacts Sync</h1>
                 </div>
 

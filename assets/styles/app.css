@@ -92,4 +92,14 @@
     [role="button"]:not(:disabled) {
         cursor: pointer;
     }
+
+    dialog[open] {
+        position: fixed;
+        inset: 0;
+        margin: auto;
+    }
+
+    dialog::backdrop {
+        background-color: rgb(0 0 0 / 0.5);
+    }
 }

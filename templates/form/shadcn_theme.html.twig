@@ -2,39 +2,48 @@
 
 {# ── Row wrapper ── #}
 {% block form_row %}
-    <twig:Field{% if not valid %} data-invalid="true"{% endif %}>
+    <div role="group" data-slot="field" data-orientation="vertical"{% if not valid %} data-invalid="true"{% endif %}
+         class="group/field flex w-full gap-3 flex-col [&>*]:w-full [&>.sr-only]:w-auto data-[invalid=true]:text-destructive">
         {{- form_label(form) -}}
-        <twig:Field:Content>
+        <div data-slot="field-content" class="group/field-content flex flex-1 flex-col gap-1.5 leading-snug">
             {{- form_widget(form) -}}
             {{- form_help(form) -}}
             {{- form_errors(form) -}}
-        </twig:Field:Content>
-    </twig:Field>
+        </div>
+    </div>
 {% endblock %}
 
 {# ── Label ── #}
 {% block form_label %}
     {% if label is not same as(false) %}
-        <twig:Field:Label for="{{ id }}">
+        <label for="{{ id }}" data-slot="field-label"
+               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group/field-label peer/field-label w-fit leading-snug group-data-[disabled=true]/field:opacity-50">
             {{- label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
             {%- if required %} <span class="text-destructive">*</span>{% endif -%}
-        </twig:Field:Label>
+        </label>
     {% endif %}
 {% endblock %}
 
 {# ── Text-like inputs ── #}
 {% block form_widget_simple %}
-    <twig:Input type="{{ type }}" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}{% if attr.readonly is defined and attr.readonly %} readonly{% endif %} />
+    {% set type = type|default('text') %}
+    <input type="{{ type }}" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"
+           class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+           {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}{% if attr.readonly is defined and attr.readonly %} readonly{% endif %}>
 {% endblock %}
 
 {# ── Textarea ── #}
 {% block textarea_widget %}
-    <twig:Textarea id="{{ id }}" name="{{ full_name }}"{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}>{{ value }}</twig:Textarea>
+    <textarea id="{{ id }}" name="{{ full_name }}"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+              {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}>{{ value }}</textarea>
 {% endblock %}
 
 {# ── Select (choice as dropdown) ── #}
 {% block choice_widget_collapsed %}
-    <twig:Select id="{{ id }}" name="{{ full_name }}{% if multiple %}[]{% endif %}"{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if multiple %} multiple{% endif %}>
+    <select id="{{ id }}" name="{{ full_name }}{% if multiple %}[]{% endif %}"
+            class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
+            {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if multiple %} multiple{% endif %}>
         {% if placeholder is not none %}
             <option value="">{{ placeholder != '' ? (translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain)) : '' }}</option>
         {% endif %}
@@ -65,43 +74,61 @@
                 <option value="{{ choice.value }}"{% if choice.attr is defined %}{% for k, v in choice.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if choice is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans({}, choice_translation_domain) }}</option>
             {% endif %}
         {% endfor %}
-    </twig:Select>
+    </select>
 {% endblock %}
 
 {# ── Checkbox (single) ── #}
 {% block checkbox_widget %}
-    <twig:Checkbox id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}{% if required %} required{% endif %} />
+    <input type="checkbox" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"
+           class="peer size-4 inline-block align-middle accent-primary"
+           {% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}>
 {% endblock %}
 
 {# ── Checkbox row: horizontal layout ── #}
 {% block checkbox_row %}
-    <twig:Field orientation="horizontal"{% if not valid %} data-invalid="true"{% endif %}>
-        <twig:Field:Label for="{{ form.vars.id }}">
+    <div role="group" data-slot="field" data-orientation="horizontal"{% if not valid %} data-invalid="true"{% endif %}
+         class="group/field flex w-full gap-3 flex-row items-center data-[invalid=true]:text-destructive">
+        <label for="{{ form.vars.id }}" data-slot="field-label"
+               class="flex items-center gap-2 text-sm leading-none font-medium select-none group/field-label peer/field-label w-fit leading-snug flex-auto">
             {{- form_widget(form) -}}
             {{- label is not same as(false) ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
-        </twig:Field:Label>
-        <twig:Field:Content>
+        </label>
+        <div data-slot="field-content" class="group/field-content flex flex-1 flex-col gap-1.5 leading-snug">
             {{- form_help(form) -}}
             {{- form_errors(form) -}}
-        </twig:Field:Content>
-    </twig:Field>
+        </div>
+    </div>
 {% endblock %}
 
 {# ── Errors ── #}
 {% block form_errors %}
     {% if errors|length > 0 %}
-        <twig:Field:Error :errors="errors" />
+        <div role="alert" data-slot="field-error" class="text-destructive text-sm font-normal">
+            {% if errors|length == 1 %}
+                {{ errors|first.message }}
+            {% else %}
+                <ul class="ml-4 flex list-disc flex-col gap-1">
+                    {% for error in errors %}
+                        <li>{{ error.message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
     {% endif %}
 {% endblock %}
 
 {# ── Help text ── #}
 {% block form_help %}
     {% if help is not empty %}
-        <twig:Field:Description>{{ translation_domain is same as(false) ? help : help|trans({}, translation_domain) }}</twig:Field:Description>
+        <p data-slot="field-description" class="text-muted-foreground text-sm leading-normal font-normal">{{ translation_domain is same as(false) ? help : help|trans({}, translation_domain) }}</p>
     {% endif %}
 {% endblock %}
 
 {# ── Button ── #}
 {% block button_widget %}
-    <twig:Button type="{{ type|default('submit') }}"{% if disabled %} disabled{% endif %}>{{ label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize }}</twig:Button>
+    <button type="{{ type|default('submit') }}"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3"
+            {% if disabled %} disabled{% endif %}>
+        {{- label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
+    </button>
 {% endblock %}
