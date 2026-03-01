@@ -1,6 +1,6 @@
 # Contacts Sync
 
-A Symfony web application that syncs contacts between configurable source and destination providers. Out of the box, it supports Planning Center as a source and Google Groups as a destination, but the provider architecture is extensible to support additional integrations.
+A Symfony web application that syncs contacts between configurable source and destination providers. Out of the box, it supports Planning Center as a source, Google Groups as a destination, and Mailchimp as both source and destination. The provider architecture is extensible to support additional integrations.
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ composer install
 All configuration (provider credentials, sync lists, in-memory contacts) is managed through the web UI after running the setup wizard.
 
 1. Run `bin/console app:setup` to configure the database, encryption key, and create the first admin user.
-2. Log in to the web interface and navigate to **Credentials** to add provider credentials (e.g. Planning Center API keys, Google Groups OAuth).
+2. Log in to the web interface and navigate to **Credentials** to add provider credentials (e.g. Planning Center API keys, Google Groups OAuth, Mailchimp API keys).
 3. Create sync lists and in-memory contacts through the web UI.
 
 If you are migrating from the legacy CLI version, pass `--legacy-config` to the setup wizard to import your old `parameters.yml`:

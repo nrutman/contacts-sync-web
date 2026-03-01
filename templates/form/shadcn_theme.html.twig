@@ -1,5 +1,11 @@
 {% use 'form_div_layout.html.twig' %}
 
+{# ── CSRF token: add data-controller so csrf_protection_controller.js can set up
+      the double-submit cookie required by SameOriginCsrfTokenManager ── #}
+{% block hidden_widget %}
+    <input type="hidden" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if name == '_token' %} data-controller="csrf-protection"{% endif %}>
+{% endblock %}
+
 {# ── Row wrapper ── #}
 {% block form_row %}
     <div role="group" data-slot="field" data-orientation="vertical"{% if not valid %} data-invalid="true"{% endif %}

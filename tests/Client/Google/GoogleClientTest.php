@@ -9,8 +9,11 @@ use App\Contact\Contact;
 use App\File\FileProvider;
 use Google\Client;
 use Google\Service\Directory;
+use Google\Service\Directory\Group;
+use Google\Service\Directory\Groups;
 use Google\Service\Directory\Member;
 use Google\Service\Directory\Members;
+use Google\Service\Directory\Resource\Groups as ResourceGroups;
 use Google\Service\Directory\Resource\Members as ResourceMembers;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
@@ -158,6 +161,53 @@ class GoogleClientTest extends MockeryTestCase
         $this->expectException(FileNotFoundException::class);
 
         $this->target->initialize();
+    }
+
+    public function testGetAvailableGroups(): void
+    {
+        $group1 = new Group();
+        $group1->setEmail('group1@domain');
+        $group1->setName('Group One');
+
+        $group2 = new Group();
+        $group2->setEmail('group2@domain');
+        $group2->setName('Group Two');
+
+        $this->service->groups = m::mock(ResourceGroups::class);
+        $this->service->groups
+            ->shouldReceive('listGroups')
+            ->with(['domain' => self::DOMAIN])
+            ->andReturn(
+                m::mock(Groups::class, [
+                    'getGroups' => [$group1, $group2],
+                    'getNextPageToken' => null,
+                ]),
+            );
+
+        $result = $this->target->getAvailableGroups();
+
+        self::assertEquals(
+            ['group1@domain' => 'Group One', 'group2@domain' => 'Group Two'],
+            $result,
+        );
+    }
+
+    public function testGetAvailableGroupsEmpty(): void
+    {
+        $this->service->groups = m::mock(ResourceGroups::class);
+        $this->service->groups
+            ->shouldReceive('listGroups')
+            ->with(['domain' => self::DOMAIN])
+            ->andReturn(
+                m::mock(Groups::class, [
+                    'getGroups' => null,
+                    'getNextPageToken' => null,
+                ]),
+            );
+
+        $result = $this->target->getAvailableGroups();
+
+        self::assertSame([], $result);
     }
 
     public function testGetContacts(): void

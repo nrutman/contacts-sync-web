@@ -140,6 +140,34 @@ class GoogleClient implements
         $this->saveToken();
     }
 
+    /**
+     * Returns available groups as an [email => name] map.
+     *
+     * @return array<string, string>
+     */
+    public function getAvailableGroups(): array
+    {
+        $groups = [];
+        $pageToken = null;
+
+        do {
+            $params = ['domain' => $this->domain];
+            if ($pageToken !== null) {
+                $params['pageToken'] = $pageToken;
+            }
+
+            $result = $this->service->groups->listGroups($params);
+
+            foreach ((array) $result->getGroups() as $group) {
+                $groups[$group->getEmail()] = $group->getName();
+            }
+
+            $pageToken = $result->getNextPageToken();
+        } while ($pageToken !== null);
+
+        return $groups;
+    }
+
     public function getContacts(string $listName): array
     {
         return array_map(

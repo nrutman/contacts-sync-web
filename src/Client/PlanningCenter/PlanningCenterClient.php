@@ -65,6 +65,49 @@ class PlanningCenterClient implements ReadableListClientInterface
     }
 
     /**
+     * Returns available lists as a [name => name] map.
+     *
+     * Planning Center uses list names as identifiers, so key and value are the same.
+     *
+     * @return array<string, string>
+     *
+     * @throws GuzzleException
+     */
+    public function getAvailableLists(): array
+    {
+        $lists = [];
+        $url = '/people/v2/lists';
+        $query = ['per_page' => 100];
+
+        while (true) {
+            $response = $this->webClient->request('GET', $url, [
+                'query' => $query,
+            ]);
+
+            $data = json_decode(
+                $response->getBody()->getContents(),
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            foreach ($data['data'] as $list) {
+                $name = $list['attributes']['name'];
+                $lists[$name] = $name;
+            }
+
+            if (isset($data['links']['next'])) {
+                $url = $data['links']['next'];
+                $query = [];
+            } else {
+                break;
+            }
+        }
+
+        return $lists;
+    }
+
+    /**
      * Refreshes a list so it contains the most up-to-date contacts.
      *
      * @throws GuzzleException

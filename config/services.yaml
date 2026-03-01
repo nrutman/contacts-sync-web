@@ -28,3 +28,7 @@ services:
     App\Client\Google\GoogleClient:
         autowire: false
         autoconfigure: false
+
+    App\Client\Mailchimp\MailchimpClient:
+        autowire: false
+        autoconfigure: false

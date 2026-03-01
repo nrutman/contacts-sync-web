@@ -216,6 +216,68 @@ class SyncRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * Deletes sync runs (and their contacts) older than the given cutoff for the organization.
+     *
+     * Always preserves the most recent SyncRun per SyncList, even if it's beyond the retention window.
+     * Never deletes pending or running runs.
+     *
+     * @return int the number of deleted SyncRuns
+     */
+    public function deleteOlderThan(Organization $organization, \DateTimeImmutable $cutoff): int
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        // Find the latest SyncRun ID per SyncList (to preserve).
+        // Wrapped in a derived table so MySQL allows DELETE from the same table.
+        $latestPerListSql = <<<'SQL'
+            SELECT latest_id FROM (
+                SELECT MAX(sr2.id) AS latest_id
+                FROM sync_run sr2
+                INNER JOIN sync_list sl2 ON sr2.sync_list_id = sl2.id
+                WHERE sl2.organization_id = :org
+                GROUP BY sr2.sync_list_id
+            ) AS latest_runs
+            SQL;
+
+        // Delete SyncRunContacts belonging to expired SyncRuns
+        $deleteContactsSql = <<<SQL
+            DELETE src FROM sync_run_contact src
+            INNER JOIN sync_run sr ON src.sync_run_id = sr.id
+            INNER JOIN sync_list sl ON sr.sync_list_id = sl.id
+            WHERE sl.organization_id = :org
+              AND sr.completed_at < :cutoff
+              AND sr.status IN ('success', 'failed')
+              AND sr.id NOT IN ({$latestPerListSql})
+            SQL;
+
+        $conn->executeStatement($deleteContactsSql, [
+            'org' => $organization->getId(),
+            'cutoff' => $cutoff,
+        ], [
+            'org' => UuidType::NAME,
+            'cutoff' => 'datetime_immutable',
+        ]);
+
+        // Delete expired SyncRuns
+        $deleteRunsSql = <<<SQL
+            DELETE sr FROM sync_run sr
+            INNER JOIN sync_list sl ON sr.sync_list_id = sl.id
+            WHERE sl.organization_id = :org
+              AND sr.completed_at < :cutoff
+              AND sr.status IN ('success', 'failed')
+              AND sr.id NOT IN ({$latestPerListSql})
+            SQL;
+
+        return $conn->executeStatement($deleteRunsSql, [
+            'org' => $organization->getId(),
+            'cutoff' => $cutoff,
+        ], [
+            'org' => UuidType::NAME,
+            'cutoff' => 'datetime_immutable',
+        ]);
+    }
+
+    /**
      * Returns the total count of sync runs for the given organization with optional filters.
      */
     public function countByOrganization(

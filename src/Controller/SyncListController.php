@@ -236,27 +236,29 @@ class SyncListController extends AbstractController
             ]);
         }
 
-        // Rate-limit: 1 sync per list per minute
-        $limiter = $this->syncTriggerLimiter->create(
-            (string) $syncList->getId(),
-        );
-        $limit = $limiter->consume();
-
-        if (!$limit->isAccepted()) {
-            $this->addFlash(
-                'warning',
-                sprintf(
-                    'Please wait before syncing "%s" again. Try again in a moment.',
-                    $syncList->getName(),
-                ),
-            );
-
-            return $this->redirectToRoute('app_sync_list_history', [
-                'id' => $syncList->getId(),
-            ]);
-        }
-
         $dryRun = $request->query->getBoolean('dry_run', false);
+
+        // Rate-limit real syncs: 1 per list per minute (dry runs are exempt)
+        if (!$dryRun) {
+            $limiter = $this->syncTriggerLimiter->create(
+                (string) $syncList->getId(),
+            );
+            $limit = $limiter->consume();
+
+            if (!$limit->isAccepted()) {
+                $this->addFlash(
+                    'warning',
+                    sprintf(
+                        'Please wait before syncing "%s" again. Try again in a moment.',
+                        $syncList->getName(),
+                    ),
+                );
+
+                return $this->redirectToRoute('app_sync_list_history', [
+                    'id' => $syncList->getId(),
+                ]);
+            }
+        }
 
         /** @var \App\Entity\User $user */
         $user = $this->getUser();

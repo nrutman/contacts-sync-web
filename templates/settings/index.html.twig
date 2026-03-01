@@ -32,6 +32,34 @@
 
                 {{ form_row(form.name) }}
 
+                {% if is_edit %}
+                <twig:Separator />
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="text-base font-semibold text-foreground">Retention Policy</h3>
+                        <p class="mt-1 text-sm text-muted-foreground">Automatically delete sync history older than the configured period after each sync completes.</p>
+                    </div>
+
+                    <div data-controller="retention-picker">
+                        <twig:Field>
+                            <twig:Field:Label>Keep history for</twig:Field:Label>
+                            <twig:Field:Content>
+                                <twig:Select data-retention-picker-target="preset" data-action="retention-picker#presetChanged">
+                                    <option value="">Forever</option>
+                                    <option value="30">30 days</option>
+                                    <option value="365">1 year</option>
+                                    <option value="custom">Custom</option>
+                                </twig:Select>
+                            </twig:Field:Content>
+                        </twig:Field>
+
+                        <div data-retention-picker-target="customField" class="mt-3">
+                            {{ form_row(form.retentionDays) }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <twig:Separator />
                 <div class="flex items-center justify-end gap-x-4">
                     {% if is_edit %}

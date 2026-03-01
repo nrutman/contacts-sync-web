@@ -33,6 +33,7 @@ Syncs can be triggered three ways: manually from the web UI, on a cron schedule 
 | `App\Client` | API client interfaces and implementations for reading/writing contact lists | [Client README](Client/README.md) |
 | `App\Client\Provider` | Provider abstraction layer (registry, interfaces, capability enum) | [Provider README](Client/Provider/README.md) |
 | `App\Client\Google` | Google Workspace Directory API integration (OAuth, token management, group membership) | [Google README](Client/Google/README.md) |
+| `App\Client\Mailchimp` | Mailchimp Marketing API integration (audience read/write, list discovery) | [Mailchimp README](Client/Mailchimp/README.md) |
 | `App\Client\PlanningCenter` | Planning Center People API integration (list lookup, pagination, email resolution) | [PlanningCenter README](Client/PlanningCenter/README.md) |
 | `App\Command` | Symfony console commands (sync, setup wizard, user management, config migration, key rotation) | [Command README](Command/README.md) |
 | `App\Contact` | Contact domain model, list diffing, and manual contact management | [Contact README](Contact/README.md) |
@@ -148,6 +149,7 @@ src/
 ├── Client/              # API clients and provider framework
 │   ├── Provider/        # Provider abstraction (registry, interfaces)
 │   ├── Google/          # Google Groups provider
+│   ├── Mailchimp/       # Mailchimp provider
 │   └── PlanningCenter/  # Planning Center provider
 ├── Command/             # CLI commands
 ├── Contact/             # Contact DTO and diff algorithm

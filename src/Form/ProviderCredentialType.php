@@ -56,12 +56,21 @@ class ProviderCredentialType extends AbstractType
         }
 
         // Dynamically add credential fields based on the submitted provider name
+        // (only needed when provider_name was not known at build time)
         $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) use ($isEdit) {
             $data = $event->getData();
             $form = $event->getForm();
             $pName = $data['providerName'] ?? null;
 
-            if ($pName !== null && !$form->has('credential_app_id') && !$form->has('credential_oauth_credentials')) {
+            $hasCredentialFields = false;
+            foreach ($form as $child) {
+                if (str_starts_with($child->getName(), 'credential_')) {
+                    $hasCredentialFields = true;
+                    break;
+                }
+            }
+
+            if ($pName !== null && !$hasCredentialFields) {
                 $this->addCredentialFields($form, $pName, $isEdit);
             }
         });

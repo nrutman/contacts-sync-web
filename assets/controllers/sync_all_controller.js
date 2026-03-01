@@ -6,7 +6,7 @@ export default class extends Controller {
         csrfToken: String,
     };
 
-    static targets = ["modal", "listStatus", "closeButton"];
+    static targets = ["modal", "listStatus", "closeButton", "cancelButton"];
 
     submit(event) {
         event.preventDefault();
@@ -17,6 +17,8 @@ export default class extends Controller {
             return;
         }
 
+        this.cancelled = false;
+        this.abortController = null;
         this.showModal();
         this.runSyncs();
     }
@@ -34,6 +36,13 @@ export default class extends Controller {
         window.location.reload();
     }
 
+    cancel() {
+        this.cancelled = true;
+        if (this.abortController) {
+            this.abortController.abort();
+        }
+    }
+
     preventCloseWhileRunning(event) {
         if (this.hasCloseButtonTarget && this.closeButtonTarget.disabled) {
             event.preventDefault();
@@ -46,9 +55,18 @@ export default class extends Controller {
         if (this.hasCloseButtonTarget) {
             this.closeButtonTarget.disabled = true;
         }
+        if (this.hasCancelButtonTarget && lists.length > 1) {
+            this.cancelButtonTarget.classList.remove("hidden");
+        }
 
         for (const list of lists) {
+            if (this.cancelled) {
+                this.updateStatus(list.id, "skipped");
+                continue;
+            }
+
             this.updateStatus(list.id, "syncing");
+            this.abortController = new AbortController();
 
             try {
                 const response = await fetch(`/api/sync-lists/${list.id}/sync`, {
@@ -57,6 +75,7 @@ export default class extends Controller {
                         "X-CSRF-Token": this.csrfTokenValue,
                         "Content-Type": "application/json",
                     },
+                    signal: this.abortController.signal,
                 });
 
                 const data = await response.json();
@@ -75,14 +94,21 @@ export default class extends Controller {
                     );
                 }
             } catch (error) {
-                this.updateStatus(
-                    list.id,
-                    "failed",
-                    error.message || "Network error",
-                );
+                if (this.cancelled) {
+                    this.updateStatus(list.id, "skipped", "Cancelled");
+                } else {
+                    this.updateStatus(
+                        list.id,
+                        "failed",
+                        error.message || "Network error",
+                    );
+                }
             }
         }
 
+        if (this.hasCancelButtonTarget) {
+            this.cancelButtonTarget.classList.add("hidden");
+        }
         if (this.hasCloseButtonTarget) {
             this.closeButtonTarget.disabled = false;
         }
@@ -99,7 +125,7 @@ export default class extends Controller {
         const detailEl = row.querySelector("[data-role='detail']");
 
         // Toggle status icons
-        const icons = ["waiting", "syncing", "done", "failed"];
+        const icons = ["waiting", "syncing", "done", "failed", "skipped"];
         for (const icon of icons) {
             const el = row.querySelector(`[data-role='icon-${icon}']`);
             if (el) {
@@ -113,6 +139,7 @@ export default class extends Controller {
                 syncing: "Syncing\u2026",
                 done: "Done",
                 failed: "Failed",
+                skipped: "Skipped",
             };
 
             const colors = {
@@ -120,6 +147,7 @@ export default class extends Controller {
                 syncing: "text-primary",
                 done: "text-green-600",
                 failed: "text-destructive",
+                skipped: "text-muted-foreground",
             };
 
             statusEl.textContent = labels[status] || status;

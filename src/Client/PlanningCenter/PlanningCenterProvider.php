@@ -3,6 +3,7 @@
 namespace App\Client\PlanningCenter;
 
 use App\Client\Provider\CredentialFieldDefinition;
+use App\Client\Provider\ListDiscoverableInterface;
 use App\Client\Provider\ProviderCapability;
 use App\Client\Provider\ProviderInterface;
 use App\Client\ReadableListClientInterface;
@@ -11,7 +12,7 @@ use App\Entity\ProviderCredential;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
 #[AutoconfigureTag('app.provider')]
-class PlanningCenterProvider implements ProviderInterface
+class PlanningCenterProvider implements ProviderInterface, ListDiscoverableInterface
 {
     public function __construct(
         private readonly WebClientFactoryInterface $webClientFactory,
@@ -64,6 +65,14 @@ class PlanningCenterProvider implements ProviderInterface
             $creds['app_secret'],
             $this->webClientFactory,
         );
+    }
+
+    public function getAvailableLists(ProviderCredential $credential): array
+    {
+        /** @var PlanningCenterClient $client */
+        $client = $this->createClient($credential);
+
+        return $client->getAvailableLists();
     }
 
     /**

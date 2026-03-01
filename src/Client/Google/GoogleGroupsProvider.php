@@ -3,6 +3,7 @@
 namespace App\Client\Google;
 
 use App\Client\Provider\CredentialFieldDefinition;
+use App\Client\Provider\ListDiscoverableInterface;
 use App\Client\Provider\OAuthProviderInterface;
 use App\Client\Provider\ProviderCapability;
 use App\Client\Provider\ProviderInterface;
@@ -13,7 +14,7 @@ use Google\Client;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
 #[AutoconfigureTag('app.provider')]
-class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface
+class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface, ListDiscoverableInterface
 {
     public function __construct(
         private readonly FileProvider $fileProvider,
@@ -95,6 +96,14 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface
         }
 
         return $googleClient;
+    }
+
+    public function getAvailableLists(ProviderCredential $credential): array
+    {
+        /** @var GoogleClient $client */
+        $client = $this->createClient($credential);
+
+        return $client->getAvailableGroups();
     }
 
     public function getOAuthStartUrl(ProviderCredential $credential, string $callbackUrl): string

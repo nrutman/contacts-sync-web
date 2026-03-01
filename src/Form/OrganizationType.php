@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\Organization;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -17,6 +18,13 @@ class OrganizationType extends AbstractType
                 'label' => 'Organization Name',
                 'attr' => [
                     'placeholder' => 'e.g. My Church',
+                ],
+            ])
+            ->add('retentionDays', IntegerType::class, [
+                'required' => false,
+                'label' => 'Days to retain',
+                'attr' => [
+                    'placeholder' => 'e.g. 90',
                 ],
             ]);
     }

@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Tests\Client\PlanningCenter;
+namespace App\Tests\Client\Mailchimp;
 
-use App\Client\PlanningCenter\PlanningCenterClient;
-use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Mailchimp\MailchimpClient;
+use App\Client\Mailchimp\MailchimpProvider;
 use App\Client\Provider\ListDiscoverableInterface;
 use App\Client\Provider\ProviderCapability;
 use App\Client\WebClientFactoryInterface;
@@ -13,10 +13,10 @@ use GuzzleHttp\ClientInterface;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 
-class PlanningCenterProviderTest extends MockeryTestCase
+class MailchimpProviderTest extends MockeryTestCase
 {
     private WebClientFactoryInterface|m\LegacyMockInterface $webClientFactory;
-    private PlanningCenterProvider $provider;
+    private MailchimpProvider $provider;
 
     protected function setUp(): void
     {
@@ -26,53 +26,50 @@ class PlanningCenterProviderTest extends MockeryTestCase
             ->with(m::type('array'))
             ->andReturn(m::mock(ClientInterface::class));
 
-        $this->provider = new PlanningCenterProvider($this->webClientFactory);
+        $this->provider = new MailchimpProvider($this->webClientFactory);
     }
 
     public function testGetName(): void
     {
-        self::assertEquals('planning_center', $this->provider->getName());
+        self::assertEquals('mailchimp', $this->provider->getName());
     }
 
     public function testGetDisplayName(): void
     {
-        self::assertEquals('Planning Center', $this->provider->getDisplayName());
+        self::assertEquals('Mailchimp', $this->provider->getDisplayName());
     }
 
     public function testGetCapabilities(): void
     {
         $capabilities = $this->provider->getCapabilities();
 
-        self::assertCount(1, $capabilities);
+        self::assertCount(2, $capabilities);
         self::assertContains(ProviderCapability::Source, $capabilities);
-        self::assertNotContains(ProviderCapability::Destination, $capabilities);
+        self::assertContains(ProviderCapability::Destination, $capabilities);
     }
 
     public function testGetCredentialFields(): void
     {
         $fields = $this->provider->getCredentialFields();
 
-        self::assertCount(2, $fields);
-        self::assertEquals('app_id', $fields[0]->name);
-        self::assertEquals('app_secret', $fields[1]->name);
-        self::assertTrue($fields[1]->sensitive);
+        self::assertCount(1, $fields);
+        self::assertEquals('api_key', $fields[0]->name);
+        self::assertTrue($fields[0]->sensitive);
+        self::assertEquals('password', $fields[0]->type);
+    }
+
+    public function testCreateClientReturnsMailchimpClient(): void
+    {
+        $credential = $this->makeCredential(['api_key' => 'abc123-us21']);
+
+        $client = $this->provider->createClient($credential);
+
+        self::assertInstanceOf(MailchimpClient::class, $client);
     }
 
     public function testImplementsListDiscoverableInterface(): void
     {
         self::assertInstanceOf(ListDiscoverableInterface::class, $this->provider);
-    }
-
-    public function testCreateClientReturnsPlanningCenterClient(): void
-    {
-        $credential = $this->makeCredential([
-            'app_id' => 'test-id',
-            'app_secret' => 'test-secret',
-        ]);
-
-        $client = $this->provider->createClient($credential);
-
-        self::assertInstanceOf(PlanningCenterClient::class, $client);
     }
 
     private function makeCredential(array $data): ProviderCredential
@@ -82,7 +79,7 @@ class PlanningCenterProviderTest extends MockeryTestCase
 
         $credential = new ProviderCredential();
         $credential->setOrganization($org);
-        $credential->setProviderName('planning_center');
+        $credential->setProviderName('mailchimp');
         $credential->setCredentialsArray($data);
 
         return $credential;

@@ -337,6 +337,108 @@ class PlanningCenterClientTest extends MockeryTestCase
         $this->target->getContacts(self::LIST_NAME);
     }
 
+    public function testGetAvailableLists(): void
+    {
+        $this->webHandler->append(
+            new Response(
+                200,
+                [],
+                json_encode(
+                    [
+                        'data' => [
+                            [
+                                'id' => 1,
+                                'attributes' => ['name' => 'Church Members'],
+                            ],
+                            [
+                                'id' => 2,
+                                'attributes' => ['name' => 'Volunteers'],
+                            ],
+                        ],
+                    ],
+                    JSON_THROW_ON_ERROR,
+                ),
+            ),
+        );
+
+        $result = $this->target->getAvailableLists();
+
+        self::assertEquals(
+            ['Church Members' => 'Church Members', 'Volunteers' => 'Volunteers'],
+            $result,
+        );
+        self::assertCount(1, $this->webHistory);
+    }
+
+    public function testGetAvailableListsEmpty(): void
+    {
+        $this->webHandler->append(
+            new Response(
+                200,
+                [],
+                json_encode(
+                    ['data' => []],
+                    JSON_THROW_ON_ERROR,
+                ),
+            ),
+        );
+
+        $result = $this->target->getAvailableLists();
+
+        self::assertSame([], $result);
+    }
+
+    public function testGetAvailableListsWithPagination(): void
+    {
+        // First page with a "next" link
+        $this->webHandler->append(
+            new Response(
+                200,
+                [],
+                json_encode(
+                    [
+                        'data' => [
+                            [
+                                'id' => 1,
+                                'attributes' => ['name' => 'List A'],
+                            ],
+                        ],
+                        'links' => [
+                            'next' => 'https://api.planningcenteronline.com/people/v2/lists?offset=100&per_page=100',
+                        ],
+                    ],
+                    JSON_THROW_ON_ERROR,
+                ),
+            ),
+        );
+        // Second page with no "next" link
+        $this->webHandler->append(
+            new Response(
+                200,
+                [],
+                json_encode(
+                    [
+                        'data' => [
+                            [
+                                'id' => 2,
+                                'attributes' => ['name' => 'List B'],
+                            ],
+                        ],
+                    ],
+                    JSON_THROW_ON_ERROR,
+                ),
+            ),
+        );
+
+        $result = $this->target->getAvailableLists();
+
+        self::assertEquals(
+            ['List A' => 'List A', 'List B' => 'List B'],
+            $result,
+        );
+        self::assertCount(2, $this->webHistory);
+    }
+
     public function testRefreshListListNotFound(): void
     {
         $this->webHandler->append(

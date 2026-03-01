@@ -51,6 +51,10 @@ class Organization
     ),]
     private Collection $providerCredentials;
 
+    #[ORM\Column(nullable: true)]
+    #[Assert\PositiveOrZero]
+    private ?int $retentionDays = null;
+
     /**
      * @var Collection<int, ManualContact>
      */
@@ -85,6 +89,18 @@ class Organization
     public function setName(string $name): static
     {
         $this->name = $name;
+
+        return $this;
+    }
+
+    public function getRetentionDays(): ?int
+    {
+        return $this->retentionDays;
+    }
+
+    public function setRetentionDays(?int $retentionDays): static
+    {
+        $this->retentionDays = $retentionDays;
 
         return $this;
     }

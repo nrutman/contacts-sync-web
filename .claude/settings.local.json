@@ -15,7 +15,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:packagist.org)",
       "WebFetch(domain:lucide.dev)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git:*)"
     ]
   }
 }

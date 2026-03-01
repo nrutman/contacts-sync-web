@@ -47,6 +47,11 @@
                         <twig:ux:icon name="lucide:circle-x" class="size-5 text-destructive" />
                     </span>
 
+                    {# Skipped icon — gray slash circle #}
+                    <span data-role="icon-skipped" class="hidden flex-shrink-0">
+                        <twig:ux:icon name="lucide:circle-slash" class="size-5 text-muted-foreground" />
+                    </span>
+
                     <span class="text-sm font-medium text-muted-foreground truncate">{{ list.name }}</span>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0 ml-4">
@@ -57,7 +62,12 @@
         {% endfor %}
     </ul>
 
-    <div class="flex justify-end border-t border-border bg-muted px-6 py-4 rounded-b-xl">
+    <div class="flex justify-end gap-2 border-t border-border bg-muted px-6 py-4 rounded-b-xl">
+        <twig:Button data-sync-all-target="cancelButton"
+                     data-action="click->sync-all#cancel"
+                     variant="outline">
+            Cancel
+        </twig:Button>
         <twig:Button data-sync-all-target="closeButton"
                      data-action="click->sync-all#close"
                      disabled>

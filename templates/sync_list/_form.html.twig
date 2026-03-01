@@ -1,4 +1,4 @@
-{{ form_start(form, { attr: { class: 'space-y-6' } }) }}
+{{ form_start(form, { attr: { class: 'space-y-6', 'data-controller': 'list-picker', 'data-list-picker-api-base-value': '/api/credentials' } }) }}
     {{ form_row(form.name) }}
 
     {# Source Configuration #}
@@ -8,8 +8,12 @@
             <h3 class="text-base font-semibold text-foreground">Source</h3>
             <p class="mt-1 text-sm text-muted-foreground">Where contacts are read from.</p>
         </div>
-        {{ form_row(form.sourceCredential) }}
-        {{ form_row(form.sourceListIdentifier) }}
+        <div data-list-picker-target="sourceCredentialWrapper" data-action="change->list-picker#sourceCredentialChanged">
+            {{ form_row(form.sourceCredential) }}
+        </div>
+        <div data-list-picker-target="sourceListWrapper">
+            {{ form_row(form.sourceListIdentifier) }}
+        </div>
     </div>
 
     {# Destination Configuration #}
@@ -19,8 +23,12 @@
             <h3 class="text-base font-semibold text-foreground">Destination</h3>
             <p class="mt-1 text-sm text-muted-foreground">Where contacts are synced to.</p>
         </div>
-        {{ form_row(form.destinationCredential) }}
-        {{ form_row(form.destinationListIdentifier) }}
+        <div data-list-picker-target="destinationCredentialWrapper" data-action="change->list-picker#destinationCredentialChanged">
+            {{ form_row(form.destinationCredential) }}
+        </div>
+        <div data-list-picker-target="destinationListWrapper">
+            {{ form_row(form.destinationListIdentifier) }}
+        </div>
     </div>
 
     {# Schedule & Status #}

@@ -64,6 +64,14 @@ class GoogleGroupsProviderTest extends MockeryTestCase
         self::assertEquals('domain', $fields[1]->name);
     }
 
+    public function testImplementsListDiscoverableInterface(): void
+    {
+        self::assertInstanceOf(
+            \App\Client\Provider\ListDiscoverableInterface::class,
+            $this->provider,
+        );
+    }
+
     public function testImplementsOAuthProviderInterface(): void
     {
         self::assertInstanceOf(

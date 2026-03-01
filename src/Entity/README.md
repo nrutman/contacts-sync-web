@@ -3,7 +3,7 @@
 ## Overview
 
 ### Organization
-The top-level tenant. All sync configuration — lists, credentials, and manual contacts — is scoped to an Organization. Deleting an Organization cascade-removes all of its owned entities.
+The top-level tenant. All sync configuration — lists, credentials, and manual contacts — is scoped to an Organization. Deleting an Organization cascade-removes all of its owned entities. An optional `retentionDays` setting configures automatic cleanup of old sync history after each sync completes (`null` = keep forever).
 
 ### User
 An authenticated application user. Users log in via email/password, have role-based access (`roles` JSON column), and configure per-user notification preferences that control which sync outcomes (success, failure, no changes) trigger email alerts. Users are independent of Organization — they are not scoped to a single tenant.
@@ -40,6 +40,7 @@ erDiagram
     Organization {
         uuid id PK
         string name
+        int retentionDays "nullable"
         datetime createdAt
         datetime updatedAt
     }
