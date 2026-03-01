@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\SyncRunRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -56,10 +58,22 @@ class SyncRun
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
+    /**
+     * @var Collection<int, SyncRunContact>
+     */
+    #[ORM\OneToMany(
+        targetEntity: SyncRunContact::class,
+        mappedBy: 'syncRun',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true,
+    )]
+    private Collection $syncRunContacts;
+
     public function __construct()
     {
         $this->id = Uuid::v7();
         $this->createdAt = new \DateTimeImmutable();
+        $this->syncRunContacts = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -227,5 +241,23 @@ class SyncRun
 
         return (float) $this->completedAt->format('U.u') -
             (float) $this->startedAt->format('U.u');
+    }
+
+    /**
+     * @return Collection<int, SyncRunContact>
+     */
+    public function getSyncRunContacts(): Collection
+    {
+        return $this->syncRunContacts;
+    }
+
+    public function addSyncRunContact(SyncRunContact $contact): static
+    {
+        if (!$this->syncRunContacts->contains($contact)) {
+            $this->syncRunContacts->add($contact);
+            $contact->setSyncRun($this);
+        }
+
+        return $this;
     }
 }

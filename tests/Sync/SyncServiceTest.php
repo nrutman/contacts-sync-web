@@ -15,6 +15,7 @@ use App\Entity\SyncRun;
 use App\Entity\User;
 use App\Event\SyncCompletedEvent;
 use App\Repository\ManualContactRepository;
+use App\Repository\SyncRunContactRepository;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
@@ -30,6 +31,7 @@ class SyncServiceTest extends MockeryTestCase
 
     private ProviderRegistry|m\LegacyMockInterface $providerRegistry;
     private ManualContactRepository|m\LegacyMockInterface $manualContactRepository;
+    private SyncRunContactRepository|m\LegacyMockInterface $syncRunContactRepository;
     private EntityManagerInterface|m\LegacyMockInterface $entityManager;
     private EventDispatcherInterface|m\LegacyMockInterface $eventDispatcher;
     private LoggerInterface|m\LegacyMockInterface $logger;
@@ -50,6 +52,13 @@ class SyncServiceTest extends MockeryTestCase
         $this->manualContactRepository = m::mock(
             ManualContactRepository::class,
         );
+        $this->syncRunContactRepository = m::mock(
+            SyncRunContactRepository::class,
+        );
+        $this->syncRunContactRepository
+            ->shouldReceive('findByLatestSuccessfulRun')
+            ->andReturn([])
+            ->byDefault();
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->eventDispatcher = m::mock(EventDispatcherInterface::class);
         $this->logger = m::mock(LoggerInterface::class);
@@ -88,6 +97,7 @@ class SyncServiceTest extends MockeryTestCase
         $this->syncService = new SyncService(
             $this->providerRegistry,
             $this->manualContactRepository,
+            $this->syncRunContactRepository,
             $this->entityManager,
             $this->eventDispatcher,
             $this->logger,
@@ -454,6 +464,109 @@ class SyncServiceTest extends MockeryTestCase
         self::assertEquals(3, $result->destinationCount);
         self::assertEquals(2, $result->addedCount);
         self::assertEquals(2, $result->removedCount);
+    }
+
+    public function testExecuteSyncPersistsSourceContacts(): void
+    {
+        $source1 = $this->makeContact('alice@test.com', 'Alice', 'Smith');
+        $source2 = $this->makeContact('bob@test.com', 'Bob', 'Jones');
+
+        $persistedSyncRun = null;
+
+        $this->entityManager
+            ->shouldReceive('persist')
+            ->once()
+            ->with(m::on(function (SyncRun $syncRun) use (&$persistedSyncRun) {
+                $persistedSyncRun = $syncRun;
+
+                return true;
+            }));
+
+        $this->entityManager->shouldReceive('flush')->atLeast()->once();
+
+        $this->eventDispatcher
+            ->shouldReceive('dispatch')
+            ->once()
+            ->with(m::type(SyncCompletedEvent::class));
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($this->sourceProvider);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
+
+        $this->sourceProvider
+            ->shouldReceive('createClient')
+            ->with($this->sourceCredential)
+            ->andReturn($this->planningCenterClient);
+
+        $this->destProvider
+            ->shouldReceive('createClient')
+            ->with($this->destCredential)
+            ->andReturn($this->googleClient);
+
+        $this->planningCenterClient
+            ->shouldReceive('getContacts')
+            ->with(self::SOURCE_LIST_ID)
+            ->andReturn([$source1, $source2]);
+
+        $this->manualContactRepository
+            ->shouldReceive('findBySyncList')
+            ->with($this->syncList)
+            ->andReturn([]);
+
+        $this->googleClient
+            ->shouldReceive('getContacts')
+            ->with(self::DEST_LIST_ID)
+            ->andReturn([$source1, $source2]);
+
+        $this->googleClient->shouldNotReceive('addContact');
+        $this->googleClient->shouldNotReceive('removeContact');
+
+        $result = $this->syncService->executeSync($this->syncList);
+
+        self::assertTrue($result->success);
+        self::assertNotNull($persistedSyncRun);
+        self::assertCount(2, $persistedSyncRun->getSyncRunContacts());
+
+        $contacts = $persistedSyncRun->getSyncRunContacts()->toArray();
+        $names = array_map(fn ($c) => $c->getName(), $contacts);
+        sort($names);
+        self::assertEquals(['Alice Smith', 'Bob Jones'], $names);
+    }
+
+    public function testExecuteSyncCleansUpOldSourceContacts(): void
+    {
+        $sourceContact = $this->makeContact('new@test.com', 'New', 'Contact');
+
+        $oldContact = new \App\Entity\SyncRunContact();
+        $oldContact->setName('Old Contact');
+        $oldContact->setEmail('old@test.com');
+
+        $this->syncRunContactRepository
+            ->shouldReceive('findByLatestSuccessfulRun')
+            ->with($this->syncList)
+            ->andReturn([$oldContact]);
+
+        $this->entityManager
+            ->shouldReceive('remove')
+            ->once()
+            ->with($oldContact);
+
+        $this->setupDefaultExpectations(
+            sourceContacts: [$sourceContact],
+            destContacts: [],
+        );
+
+        $this->googleClient->shouldReceive('addContact')->once();
+
+        $result = $this->syncService->executeSync($this->syncList);
+
+        self::assertTrue($result->success);
     }
 
     /**

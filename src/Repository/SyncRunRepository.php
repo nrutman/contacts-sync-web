@@ -8,6 +8,7 @@ use App\Entity\SyncRun;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<SyncRun>
@@ -144,15 +145,74 @@ class SyncRunRepository extends ServiceEntityRepository
             SQL;
 
         $results = $conn->fetchAllAssociative($sql, [
-            'org' => (string) $organization->getId(),
+            'org' => $organization->getId(),
+        ], [
+            'org' => UuidType::NAME,
         ]);
 
         $counts = [];
         foreach ($results as $row) {
-            $counts[$row['list_id']] = (int) $row['destination_count'];
+            $counts[self::normalizeUuid($row['list_id'])] = (int) $row['destination_count'];
         }
 
         return $counts;
+    }
+
+    /**
+     * Returns a map of sync list ID → source contact count from the latest successful run per list.
+     *
+     * @return array<string, int>
+     */
+    public function findSourceCountsByOrganization(Organization $organization): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = <<<'SQL'
+            SELECT sr.sync_list_id AS list_id,
+                   COALESCE(
+                       NULLIF((SELECT COUNT(*) FROM sync_run_contact src WHERE src.sync_run_id = sr.id), 0),
+                       sr.source_count
+                   ) AS source_count
+            FROM sync_run sr
+            INNER JOIN sync_list sl ON sr.sync_list_id = sl.id
+            INNER JOIN (
+                SELECT sync_list_id, MAX(completed_at) AS max_completed
+                FROM sync_run
+                WHERE status = 'success'
+                GROUP BY sync_list_id
+            ) latest ON sr.sync_list_id = latest.sync_list_id AND sr.completed_at = latest.max_completed
+            WHERE sl.organization_id = :org
+              AND sr.status = 'success'
+            SQL;
+
+        $results = $conn->fetchAllAssociative($sql, [
+            'org' => $organization->getId(),
+        ], [
+            'org' => UuidType::NAME,
+        ]);
+
+        $counts = [];
+        foreach ($results as $row) {
+            $counts[self::normalizeUuid($row['list_id'])] = (int) $row['source_count'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Converts a raw UUID value from a DBAL result to its RFC 4122 string representation.
+     *
+     * Raw SQL via DBAL bypasses Doctrine's type system, so BINARY(16) UUID columns
+     * come back as 16-byte binary strings instead of formatted UUIDs. This normalizes
+     * them so they can be used as array keys matched against Uuid::__toString().
+     */
+    private static function normalizeUuid(string $value): string
+    {
+        if (strlen($value) === 16) {
+            return (string) Uuid::fromBinary($value);
+        }
+
+        return $value;
     }
 
     /**

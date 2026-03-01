@@ -4,8 +4,10 @@ namespace App\Controller;
 
 use App\Entity\SyncList;
 use App\Form\SyncListType;
+use App\Repository\ManualContactRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\SyncListRepository;
+use App\Repository\SyncRunContactRepository;
 use App\Repository\SyncRunRepository;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +25,8 @@ class SyncListController extends AbstractController
         private readonly OrganizationRepository $organizationRepository,
         private readonly SyncListRepository $syncListRepository,
         private readonly SyncRunRepository $syncRunRepository,
+        private readonly SyncRunContactRepository $syncRunContactRepository,
+        private readonly ManualContactRepository $manualContactRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly SyncService $syncService,
         private readonly RateLimiterFactory $syncTriggerLimiter,
@@ -50,7 +54,7 @@ class SyncListController extends AbstractController
             $organization,
         );
 
-        $contactCounts = $this->syncRunRepository->findDestinationCountsByOrganization(
+        $contactCounts = $this->syncRunRepository->findSourceCountsByOrganization(
             $organization,
         );
 
@@ -200,6 +204,19 @@ class SyncListController extends AbstractController
             'sync_runs' => $syncRuns,
             'page' => $page,
             'has_more' => count($syncRuns) === $limit,
+        ]);
+    }
+
+    #[Route('/{id}/contacts', name: 'app_sync_list_contacts', methods: ['GET'])]
+    public function contacts(SyncList $syncList): Response
+    {
+        $sourceContacts = $this->syncRunContactRepository->findByLatestSuccessfulRun($syncList);
+        $manualContacts = $this->manualContactRepository->findBySyncList($syncList);
+
+        return $this->render('sync_list/contacts.html.twig', [
+            'sync_list' => $syncList,
+            'source_contacts' => $sourceContacts,
+            'manual_contacts' => $manualContacts,
         ]);
     }
 

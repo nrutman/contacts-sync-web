@@ -69,3 +69,12 @@ If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-
 - Sync and refresh operations from the web UI are dispatched via Symfony Messenger (async transport). The worker (`messenger:consume async scheduler_sync`) must be running to process them.
 - Symfony Scheduler reads cron expressions from `SyncList` entities via `SyncScheduleProvider`. The `ScheduleCacheInvalidator` listener clears the scheduler cache when lists change.
 - `var/` contains runtime artifacts and is not committed to version control.
+
+## Database & UUID Pitfall
+
+UUID columns are stored as `BINARY(16)` in MySQL. **Raw SQL queries via DBAL (`fetchAllAssociative`, etc.) bypass Doctrine's type system**, which causes two problems:
+
+1. **Parameters:** Passing `(string) $entity->getId()` as a query parameter won't match a `BINARY(16)` column. Always pass the `Uuid` object and declare the type: `$conn->fetchAllAssociative($sql, ['id' => $entity->getId()], ['id' => UuidType::NAME])`.
+2. **Results:** UUID columns come back as 16-byte binary strings, not the RFC 4122 hex format (`019ca770-05e6-...`) that `Uuid::__toString()` produces. If you use a raw UUID result as an array key and then look it up in Twig with `entity.id`, the keys won't match. Normalize with `Uuid::fromBinary()` — see `SyncRunRepository::normalizeUuid()`.
+
+**Prefer Doctrine QueryBuilder/DQL over raw SQL when possible**, as it handles UUID conversion automatically via `UuidType::NAME`.

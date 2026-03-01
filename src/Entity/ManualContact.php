@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Contact\ContactInterface;
 use App\Repository\ManualContactRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -11,7 +12,7 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ManualContactRepository::class)]
-class ManualContact
+class ManualContact implements ContactInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]

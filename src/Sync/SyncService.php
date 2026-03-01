@@ -9,9 +9,11 @@ use App\Contact\Contact;
 use App\Contact\ContactListAnalyzer;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
+use App\Entity\SyncRunContact;
 use App\Entity\User;
 use App\Event\SyncCompletedEvent;
 use App\Repository\ManualContactRepository;
+use App\Repository\SyncRunContactRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -22,6 +24,7 @@ class SyncService
     public function __construct(
         private readonly ProviderRegistry $providerRegistry,
         private readonly ManualContactRepository $manualContactRepository,
+        private readonly SyncRunContactRepository $syncRunContactRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly EventDispatcherInterface $eventDispatcher,
         #[Autowire(service: 'monolog.logger.sync'),]
@@ -103,6 +106,9 @@ class SyncService
                 sprintf('  Found %d source contacts', count($sourceContacts)),
             );
             $log .= $this->formatContactList($sourceContacts);
+
+            // Persist source contacts on the sync run
+            $this->persistSourceContacts($syncRun, $sourceContacts);
 
             // Merge with manual contacts
             $manualContacts = $this->getManualContactDtos($syncList);
@@ -319,6 +325,35 @@ class SyncService
         }
 
         return $lines;
+    }
+
+    /**
+     * Persists source contacts on the SyncRun and cleans up contacts from previous runs.
+     *
+     * @param Contact[] $sourceContacts
+     */
+    private function persistSourceContacts(SyncRun $syncRun, array $sourceContacts): void
+    {
+        // Delete contacts from previous successful runs for this list
+        $this->cleanUpOldSourceContacts($syncRun->getSyncList());
+
+        foreach ($sourceContacts as $contact) {
+            $name = trim(($contact->firstName ?? '').' '.($contact->lastName ?? ''));
+
+            $syncRunContact = new SyncRunContact();
+            $syncRunContact->setName($name !== '' ? $name : ($contact->email ?? ''));
+            $syncRunContact->setEmail($contact->email);
+            $syncRun->addSyncRunContact($syncRunContact);
+        }
+    }
+
+    private function cleanUpOldSourceContacts(SyncList $syncList): void
+    {
+        $oldContacts = $this->syncRunContactRepository->findByLatestSuccessfulRun($syncList);
+
+        foreach ($oldContacts as $contact) {
+            $this->entityManager->remove($contact);
+        }
     }
 
     private function logLine(string $message): string

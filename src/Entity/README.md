@@ -17,6 +17,9 @@ Defines a single sync job: pull contacts from a source and push them to a destin
 ### SyncRun
 An immutable record of a single sync execution for a SyncList. Tracks status (`pending`, `running`, `completed`, `failed`), contact counts (source, destination, added, removed), timing (startedAt/completedAt), and any error message or log output. Optionally references the User who triggered the run.
 
+### SyncRunContact
+A snapshot of a source contact persisted during a sync run. Each record stores a name and email from the external provider at the time of sync. Only contacts from the latest successful run are retained per list; older records are cleaned up automatically. Used to display source contacts on the web UI without re-fetching from the provider.
+
 ### ManualContact
 A manually-entered contact stored in the database, not sourced from an external provider. Belongs to an Organization and is associated with SyncLists via a many-to-many join table (`manual_contact_sync_list`), allowing the same contact to participate in multiple sync jobs as a source.
 
@@ -32,6 +35,7 @@ erDiagram
     SyncList ||--o{ SyncRun : "has many"
     SyncList }o--o{ ManualContact : "many-to-many"
     SyncRun }o--o| User : "triggeredByUser"
+    SyncRun ||--o{ SyncRunContact : "has many"
 
     Organization {
         uuid id PK
@@ -95,6 +99,13 @@ erDiagram
         datetime startedAt "nullable"
         datetime completedAt "nullable"
         datetime createdAt
+    }
+
+    SyncRunContact {
+        uuid id PK
+        uuid syncRun_id FK
+        string name
+        string email "nullable"
     }
 
     ManualContact {
