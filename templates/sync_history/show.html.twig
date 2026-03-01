@@ -43,7 +43,8 @@
         <twig:Card:Content class="pt-6">
             <p class="text-sm font-medium text-muted-foreground">Status</p>
             <div class="mt-1">
-                <twig:Badge variant="{% if sync_run.status == 'success' %}default{% elseif sync_run.status == 'failed' %}destructive{% elseif sync_run.status == 'running' %}secondary{% else %}outline{% endif %}" class="text-sm px-3 py-1">
+                {% set status_variant = sync_run.status == 'success' ? 'default' : (sync_run.status == 'failed' ? 'destructive' : (sync_run.status == 'running' ? 'secondary' : 'outline')) %}
+                <twig:Badge variant="{{ status_variant }}" class="text-sm px-3 py-1">
                     {% if sync_run.status == 'success' %}
                         <twig:ux:icon name="lucide:circle-check" class="mr-1 size-4" />
                     {% elseif sync_run.status == 'failed' %}
@@ -62,7 +63,8 @@
         <twig:Card:Content class="pt-6">
             <p class="text-sm font-medium text-muted-foreground">Triggered By</p>
             <div class="mt-1">
-                <twig:Badge variant="{% if sync_run.triggeredBy == 'manual' %}default{% elseif sync_run.triggeredBy == 'schedule' %}secondary{% else %}outline{% endif %}">
+                {% set trigger_variant = sync_run.triggeredBy == 'manual' ? 'default' : (sync_run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                <twig:Badge variant="{{ trigger_variant }}">
                     {{ sync_run.triggeredBy|capitalize }}
                 </twig:Badge>
                 {% if sync_run.triggeredByUser %}

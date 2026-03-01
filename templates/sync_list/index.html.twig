@@ -3,12 +3,56 @@
 {% block title %}Sync Lists — Contacts Sync{% endblock %}
 
 {% block body %}
+<div {% if sync_lists|length > 0 %}
+     data-controller="bulk-actions"
+     data-bulk-actions-csrf-token-value="{{ csrf_token('bulk-actions') }}"
+     data-bulk-actions-sync-csrf-token-value="{{ csrf_token('sync-run-all') }}"
+{% endif %}>
+
 <div class="sm:flex sm:items-center sm:justify-between mb-8">
     <div>
         <h1 class="text-2xl font-bold text-foreground">Sync Lists</h1>
         <p class="mt-1 text-sm text-muted-foreground">Manage sync configurations between source and destination providers.</p>
     </div>
     <div class="mt-4 sm:mt-0 flex items-center gap-4">
+        {% if sync_lists|length > 0 and is_granted('ROLE_ADMIN') %}
+            <div data-bulk-actions-target="toolbar" class="hidden flex items-center gap-3">
+                <span data-bulk-actions-target="selectedCount" class="text-sm text-muted-foreground whitespace-nowrap"></span>
+                <div class="relative">
+                    <twig:ButtonGroup>
+                        <twig:Button data-action="click->bulk-actions#syncSelected">
+                            <twig:ux:icon name="lucide:play" class="size-4" />
+                            Sync Selected
+                        </twig:Button>
+                        <twig:ButtonGroup:Separator />
+                        <twig:Button size="icon" data-action="click->bulk-actions#toggleDropdown" aria-label="More bulk actions">
+                            <twig:ux:icon name="lucide:chevron-down" class="size-4" />
+                        </twig:Button>
+                    </twig:ButtonGroup>
+                    <div data-bulk-actions-target="dropdown"
+                         class="hidden absolute right-0 top-full mt-1.5 w-52 rounded-lg border border-border bg-popover p-1.5 shadow-lg z-50">
+                        <button type="button"
+                                data-action="click->bulk-actions#activate"
+                                class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                            <twig:ux:icon name="lucide:circle-play" class="size-4 text-muted-foreground" />
+                            Activate
+                        </button>
+                        <button type="button"
+                                data-action="click->bulk-actions#deactivate"
+                                class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                            <twig:ux:icon name="lucide:circle-pause" class="size-4 text-muted-foreground" />
+                            Deactivate
+                        </button>
+                        <button type="button"
+                                data-action="click->bulk-actions#openSchedule"
+                                class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                            <twig:ux:icon name="lucide:calendar" class="size-4 text-muted-foreground" />
+                            Set Schedule
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
         {% if enabledSyncLists|length > 0 %}
             <div data-controller="sync-all"
                  data-sync-all-lists-value="{{ enabledSyncLists|map(l => { id: l.id, name: l.name })|json_encode|e('html_attr') }}"
@@ -38,6 +82,14 @@
         <twig:Table>
             <twig:Table:Header>
                 <twig:Table:Row>
+                    {% if is_granted('ROLE_ADMIN') %}
+                        <twig:Table:Head class="w-10">
+                            <input type="checkbox"
+                                   data-bulk-actions-target="selectAll"
+                                   data-action="change->bulk-actions#toggleAll"
+                                   class="rounded border-input" />
+                        </twig:Table:Head>
+                    {% endif %}
                     <twig:Table:Head>Name</twig:Table:Head>
                     <twig:Table:Head>Status</twig:Table:Head>
                     <twig:Table:Head>Schedule</twig:Table:Head>
@@ -49,6 +101,16 @@
             <twig:Table:Body>
                 {% for list in sync_lists %}
                     <twig:Table:Row>
+                        {% if is_granted('ROLE_ADMIN') %}
+                            <twig:Table:Cell>
+                                <input type="checkbox"
+                                       value="{{ list.id }}"
+                                       data-list-name="{{ list.name }}"
+                                       data-bulk-actions-target="rowCheckbox"
+                                       data-action="change->bulk-actions#toggleRow"
+                                       class="rounded border-input" />
+                            </twig:Table:Cell>
+                        {% endif %}
                         <twig:Table:Cell class="font-medium">
                             <a href="{{ path('app_sync_list_history', { id: list.id }) }}" class="text-primary hover:underline">
                                 {{ list.name }}
@@ -56,9 +118,9 @@
                         </twig:Table:Cell>
                         <twig:Table:Cell>
                             {% if list.isEnabled %}
-                                <twig:Badge variant="default">Enabled</twig:Badge>
+                                <twig:Badge variant="success">Enabled</twig:Badge>
                             {% else %}
-                                <twig:Badge variant="secondary">Disabled</twig:Badge>
+                                <twig:Badge variant="destructive">Disabled</twig:Badge>
                             {% endif %}
                         </twig:Table:Cell>
                         <twig:Table:Cell>
@@ -79,7 +141,7 @@
                         <twig:Table:Cell>
                             {% if list.syncRuns|length > 0 %}
                                 {% set lastRun = list.syncRuns|first %}
-                                <twig:Badge variant="{% if lastRun.status == 'success' %}default{% elseif lastRun.status == 'failed' %}destructive{% elseif lastRun.status == 'running' %}secondary{% else %}outline{% endif %}">
+                                <twig:Badge variant="{{ lastRun.status == 'success' ? 'success-outline' : (lastRun.status == 'failed' ? 'destructive-outline' : (lastRun.status == 'running' ? 'secondary' : 'outline')) }}">
                                     {{ lastRun.status|capitalize }}
                                 </twig:Badge>
                                 <span class="ml-1 text-xs text-muted-foreground"
@@ -153,6 +215,11 @@
             </twig:Table:Body>
         </twig:Table>
     </twig:Card>
+
+    {% if is_granted('ROLE_ADMIN') %}
+        {% include 'sync_list/_bulk_schedule_dialog.html.twig' %}
+        {% include 'sync_list/_bulk_sync_dialog.html.twig' %}
+    {% endif %}
 {% else %}
     <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
         <twig:ux:icon name="lucide:list" class="mx-auto h-12 w-12 text-muted-foreground" />
@@ -168,4 +235,6 @@
         {% endif %}
     </div>
 {% endif %}
+
+</div>
 {% endblock %}

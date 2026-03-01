@@ -23,7 +23,8 @@
                     {% for message in app.flashes(type) %}
                         {% set alert_variant = type == 'danger' ? 'destructive' : 'default' %}
                         <div class="mb-4">
-                            <twig:Alert variant="{{ alert_variant }}" class="{% if type == 'success' %}border-green-500/50{% elseif type == 'info' %}border-blue-500/50{% elseif type == 'warning' %}border-yellow-500/50{% endif %}">
+                            {% set alert_border = type == 'success' ? 'border-green-500/50' : (type == 'info' ? 'border-blue-500/50' : (type == 'warning' ? 'border-yellow-500/50' : '')) %}
+                            <twig:Alert variant="{{ alert_variant }}" class="{{ alert_border }}">
                                 <twig:Alert:Description>{{ message }}</twig:Alert:Description>
                             </twig:Alert>
                         </div>

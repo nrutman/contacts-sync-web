@@ -91,7 +91,8 @@
                             </a>
                         </twig:Table:Cell>
                         <twig:Table:Cell>
-                            <twig:Badge variant="{% if run.triggeredBy == 'manual' %}default{% elseif run.triggeredBy == 'schedule' %}secondary{% else %}outline{% endif %}">
+                            {% set trigger_variant = run.triggeredBy == 'manual' ? 'default' : (run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                            <twig:Badge variant="{{ trigger_variant }}">
                                 {{ run.triggeredBy|capitalize }}
                             </twig:Badge>
                             {% if run.triggeredByUser %}
@@ -99,7 +100,8 @@
                             {% endif %}
                         </twig:Table:Cell>
                         <twig:Table:Cell>
-                            <twig:Badge variant="{% if run.status == 'success' %}default{% elseif run.status == 'failed' %}destructive{% elseif run.status == 'running' %}secondary{% else %}outline{% endif %}">
+                            {% set status_variant = run.status == 'success' ? 'default' : (run.status == 'failed' ? 'destructive' : (run.status == 'running' ? 'secondary' : 'outline')) %}
+                            <twig:Badge variant="{{ status_variant }}">
                                 {{ run.status|capitalize }}
                             </twig:Badge>
                         </twig:Table:Cell>

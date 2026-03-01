@@ -102,6 +102,7 @@ class SyncService
             $log .= $this->logLine(
                 sprintf('  Found %d source contacts', count($sourceContacts)),
             );
+            $log .= $this->formatContactList($sourceContacts);
 
             // Merge with manual contacts
             $manualContacts = $this->getManualContactDtos($syncList);
@@ -136,6 +137,7 @@ class SyncService
                     count($destContacts),
                 ),
             );
+            $log .= $this->formatContactList($destContacts);
 
             // Compute diff
             $diff = new ContactListAnalyzer(
@@ -298,6 +300,25 @@ class SyncService
         }
 
         return array_values($uniqueContacts);
+    }
+
+    /**
+     * @param Contact[] $contacts
+     */
+    private function formatContactList(array $contacts): string
+    {
+        $lines = '';
+
+        foreach ($contacts as $contact) {
+            $name = trim(($contact->firstName ?? '').' '.($contact->lastName ?? ''));
+            if ($name !== '') {
+                $lines .= sprintf("           %s <%s>\n", $name, $contact->email);
+            } else {
+                $lines .= sprintf("           %s\n", $contact->email);
+            }
+        }
+
+        return $lines;
     }
 
     private function logLine(string $message): string

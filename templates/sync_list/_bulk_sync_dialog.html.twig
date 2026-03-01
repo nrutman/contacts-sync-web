@@ -1,0 +1,34 @@
+{#
+    Bulk sync progress dialog — rows are built dynamically by JS since
+    the selected lists aren't known at render time.
+
+    Must be placed inside an element with data-controller="bulk-actions".
+#}
+<dialog data-bulk-actions-target="syncDialog"
+        data-action="cancel->bulk-actions#preventSyncCloseWhileRunning"
+        class="w-full max-w-lg rounded-xl bg-card p-0 shadow-2xl ring-1 ring-border">
+    <div class="px-6 pt-5 pb-4">
+        <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <twig:ux:icon name="lucide:refresh-cw" class="size-5 text-primary" />
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-foreground">Syncing Selected Lists</h3>
+                <p class="text-sm text-muted-foreground">Running sync for each selected list.</p>
+            </div>
+        </div>
+    </div>
+
+    <ul data-bulk-actions-target="syncList"
+        class="divide-y divide-border border-t border-border">
+        {# Rows inserted dynamically by bulk_actions_controller.js #}
+    </ul>
+
+    <div class="flex justify-end border-t border-border bg-muted px-6 py-4 rounded-b-xl">
+        <twig:Button data-bulk-actions-target="syncCloseButton"
+                     data-action="click->bulk-actions#closeSyncDialog"
+                     disabled>
+            Close
+        </twig:Button>
+    </div>
+</dialog>

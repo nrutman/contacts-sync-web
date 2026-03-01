@@ -39,3 +39,23 @@ Sends invitation emails to newly created users. It uses `symfonycasts/verify-ema
 4. The controller validates the signature, shows a "set password" form, hashes the password, sets `isVerified = true`, and the account is active.
 
 CLI-created users (via `app:create-user` or `app:setup`) bypass this flow entirely — they are auto-verified with a password set at the command line.
+
+## Roles & Permissions
+
+Every user is assigned `ROLE_USER` automatically. Admins additionally receive `ROLE_ADMIN`, which can be granted via the `--admin` flag on `app:create-user`, the setup wizard (`app:setup`), or the user edit form in the web UI.
+
+All authenticated routes require `ROLE_USER` (configured in `security.yaml`). Admin restrictions are enforced at the controller level with `#[IsGranted('ROLE_ADMIN')]` and in Twig templates with `is_granted('ROLE_ADMIN')`.
+
+| Capability                          | User | Admin |
+|-------------------------------------|------|-------|
+| View dashboard                      | Yes  | Yes   |
+| View sync lists and sync history    | Yes  | Yes   |
+| Trigger manual syncs                | Yes  | Yes   |
+| Personal notification preferences   | Yes  | Yes   |
+| Create, edit, delete sync lists     | No   | Yes   |
+| Enable/disable sync lists           | No   | Yes   |
+| View manual contacts                | Yes  | Yes   |
+| Create, edit, delete manual contacts| No   | Yes   |
+| Manage provider credentials & OAuth | No   | Yes   |
+| Organization settings               | No   | Yes   |
+| Manage users & send invitations     | No   | Yes   |

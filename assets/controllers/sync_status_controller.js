@@ -122,8 +122,8 @@ export default class extends Controller {
 
     renderStatusBadge(status) {
         const styles = {
-            success: "border-transparent bg-primary text-primary-foreground",
-            failed: "border-transparent bg-destructive text-destructive-foreground",
+            success: "border-success text-success",
+            failed: "border-destructive text-destructive",
             running: "border-transparent bg-secondary text-secondary-foreground",
             pending: "border-transparent bg-secondary text-secondary-foreground",
         };

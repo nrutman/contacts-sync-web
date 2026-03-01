@@ -80,7 +80,7 @@
             </twig:Card:Header>
             <twig:Card:Content>
                 {% if lastSyncRun %}
-                    <twig:Badge variant="{{ lastSyncRun.status == 'success' ? 'default' : (lastSyncRun.status == 'failed' ? 'destructive' : 'secondary') }}">
+                    <twig:Badge variant="{{ lastSyncRun.status == 'success' ? 'success-outline' : (lastSyncRun.status == 'failed' ? 'destructive-outline' : 'secondary') }}">
                         {{ lastSyncRun.status|capitalize }}
                     </twig:Badge>
                     <span class="block mt-1 text-xs text-muted-foreground"
@@ -187,12 +187,13 @@
                                     </twig:Table:Cell>
                                     <twig:Table:Cell>{{ run.syncList.name }}</twig:Table:Cell>
                                     <twig:Table:Cell>
-                                        <twig:Badge variant="{% if run.triggeredBy == 'manual' %}default{% elseif run.triggeredBy == 'schedule' %}secondary{% else %}outline{% endif %}">
+                                        {% set trigger_variant = run.triggeredBy == 'manual' ? 'default' : (run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                                        <twig:Badge variant="{{ trigger_variant }}">
                                             {{ run.triggeredBy|capitalize }}
                                         </twig:Badge>
                                     </twig:Table:Cell>
                                     <twig:Table:Cell>
-                                        <twig:Badge variant="{% if run.status == 'success' %}default{% elseif run.status == 'failed' %}destructive{% else %}secondary{% endif %}">
+                                        <twig:Badge variant="{{ run.status == 'success' ? 'success-outline' : (run.status == 'failed' ? 'destructive-outline' : 'secondary') }}">
                                             {{ run.status|capitalize }}
                                         </twig:Badge>
                                     </twig:Table:Cell>
@@ -215,7 +216,7 @@
                                         {% endif %}
                                     </twig:Table:Cell>
                                     <twig:Table:Cell class="text-right">
-                                        <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
+                                        <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm" data-turbo-frame="_top">View</twig:Button>
                                     </twig:Table:Cell>
                                 </twig:Table:Row>
                             {% endfor %}

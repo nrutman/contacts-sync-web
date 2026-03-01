@@ -1,0 +1,104 @@
+{#
+    Bulk schedule dialog — allows setting a cron schedule on multiple selected lists.
+
+    Must be placed inside an element with data-controller="bulk-actions".
+    Embeds the schedule-picker Stimulus controller for frequency/time/day/custom fields.
+#}
+<dialog data-bulk-actions-target="scheduleDialog"
+        class="w-full max-w-lg rounded-xl bg-card p-0 shadow-2xl ring-1 ring-border">
+    <div class="px-6 pt-5 pb-4">
+        <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <twig:ux:icon name="lucide:calendar" class="size-5 text-primary" />
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-foreground">Set Schedule</h3>
+                <p class="text-sm text-muted-foreground">Apply a sync schedule to all selected lists.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="border-t border-border px-6 py-4 space-y-4"
+         data-controller="schedule-picker"
+         data-schedule-picker-cron-value="">
+        <input type="hidden"
+               data-schedule-picker-target="cronInput"
+               data-bulk-actions-target="scheduleOutput" />
+
+        <twig:Field>
+            <twig:Field:Label>Frequency</twig:Field:Label>
+            <twig:Field:Content>
+                <twig:Select data-schedule-picker-target="frequency" data-action="schedule-picker#frequencyChanged">
+                    <option value="manual">Manual (no schedule)</option>
+                    <option value="every30">Every 30 minutes</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="custom">Custom</option>
+                </twig:Select>
+            </twig:Field:Content>
+        </twig:Field>
+
+        <div data-schedule-picker-target="timeFields" class="hidden">
+            <twig:Field>
+                <twig:Field:Label>Time</twig:Field:Label>
+                <twig:Field:Content>
+                    <div class="flex items-center gap-2">
+                        <twig:Select data-schedule-picker-target="hourSelect" data-action="schedule-picker#updateCron" class="w-auto">
+                            {% for h in 0..23 %}
+                                <option value="{{ h }}">{{ h < 10 ? '0' ~ h : h }}</option>
+                            {% endfor %}
+                        </twig:Select>
+                        <span class="text-muted-foreground font-medium">:</span>
+                        <twig:Select data-schedule-picker-target="minuteSelect" data-action="schedule-picker#updateCron" class="w-auto">
+                            {% for m in range(0, 55, 5) %}
+                                <option value="{{ m }}">{{ m < 10 ? '0' ~ m : m }}</option>
+                            {% endfor %}
+                        </twig:Select>
+                    </div>
+                </twig:Field:Content>
+            </twig:Field>
+        </div>
+
+        <div data-schedule-picker-target="dayField" class="hidden">
+            <twig:Field>
+                <twig:Field:Label>Day of week</twig:Field:Label>
+                <twig:Field:Content>
+                    <twig:Select data-schedule-picker-target="daySelect" data-action="schedule-picker#updateCron">
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </twig:Select>
+                </twig:Field:Content>
+            </twig:Field>
+        </div>
+
+        <div data-schedule-picker-target="customField" class="hidden">
+            <twig:Field>
+                <twig:Field:Label>Cron expression</twig:Field:Label>
+                <twig:Field:Content>
+                    <twig:Input type="text"
+                           data-schedule-picker-target="customInput"
+                           data-action="input->schedule-picker#updateCron"
+                           placeholder="e.g. */15 * * * *"
+                           class="font-mono" />
+                </twig:Field:Content>
+            </twig:Field>
+        </div>
+
+        <p data-schedule-picker-target="preview" class="text-sm text-muted-foreground"></p>
+    </div>
+
+    <div class="flex justify-end gap-2 border-t border-border bg-muted px-6 py-4 rounded-b-xl">
+        <twig:Button variant="outline" data-action="click->bulk-actions#closeSchedule">
+            Cancel
+        </twig:Button>
+        <twig:Button data-action="click->bulk-actions#applySchedule">
+            Apply Schedule
+        </twig:Button>
+    </div>
+</dialog>

@@ -51,6 +51,28 @@ class SyncListRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns sync lists matching the given IDs, scoped to the organization.
+     *
+     * @param string[] $ids
+     *
+     * @return SyncList[]
+     */
+    public function findByOrganizationAndIds(Organization $organization, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('sl')
+            ->where('sl.organization = :org')
+            ->andWhere('sl.id IN (:ids)')
+            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Returns the count of all sync lists for the given organization.
      */
     public function countByOrganization(Organization $organization): int

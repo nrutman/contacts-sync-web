@@ -104,7 +104,7 @@
             <twig:Table:Body>
                 {% for run in sync_runs %}
                     {% set is_in_progress = run.status in ['pending', 'running'] %}
-                    <twig:Table:Row
+                    <tr class="border-b transition-colors hover:bg-muted/50"
                         {% if is_in_progress %}
                             data-controller="sync-status"
                             data-sync-status-url-value="{{ path('api_sync_run_status', { id: run.id }) }}"
@@ -118,7 +118,8 @@
                             </span>
                         </twig:Table:Cell>
                         <twig:Table:Cell>
-                            <twig:Badge variant="{% if run.triggeredBy == 'manual' %}default{% elseif run.triggeredBy == 'schedule' %}secondary{% else %}outline{% endif %}">
+                            {% set trigger_variant = run.triggeredBy == 'manual' ? 'default' : (run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                            <twig:Badge variant="{{ trigger_variant }}">
                                 {{ run.triggeredBy|capitalize }}
                             </twig:Badge>
                             {% if run.triggeredByUser %}
@@ -126,7 +127,7 @@
                             {% endif %}
                         </twig:Table:Cell>
                         <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="status"{% endif %}>
-                            {% set status_variant = run.status == 'success' ? 'default' : (run.status == 'failed' ? 'destructive' : 'secondary') %}
+                            {% set status_variant = run.status == 'success' ? 'success-outline' : (run.status == 'failed' ? 'destructive-outline' : 'secondary') %}
                             <twig:Badge variant="{{ status_variant }}">
                                 {{ run.status|capitalize }}
                                 {% if is_in_progress %}
@@ -168,7 +169,7 @@
                         <twig:Table:Cell class="text-right">
                             <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
                         </twig:Table:Cell>
-                    </twig:Table:Row>
+                    </tr>
                 {% endfor %}
             </twig:Table:Body>
         </twig:Table>
