@@ -106,13 +106,11 @@ php bin/console app:setup
 #    APP_ENV=prod
 #    APP_DEBUG=0
 
-# 4. Clear and warm the production cache
-php bin/console cache:clear --env=prod
-
-# 5. Compile frontend assets
-php bin/console tailwind:build --minify
-php bin/console asset-map:compile
+# 4. Build for production (clears cache, compiles & minifies assets)
+composer run-script build
 ```
+
+For local development, use `composer run-script dev` instead — it clears the cache without `--env=prod`, builds unminified Tailwind CSS, installs importmap dependencies, compiles the asset map, and runs database migrations.
 
 ### Sync Execution
 

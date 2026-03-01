@@ -102,6 +102,11 @@
             "@auto-scripts"
         ],
         "build": [
+            "@php bin/console cache:clear --env=prod",
+            "@php bin/console tailwind:build --minify",
+            "@php bin/console asset-map:compile"
+        ],
+        "dev": [
             "@php bin/console cache:clear",
             "@php bin/console tailwind:build",
             "@php bin/console importmap:install",
