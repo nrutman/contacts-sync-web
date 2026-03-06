@@ -1,0 +1,21 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "lint": "eslint assets/",
+        "format:check": "prettier --check 'assets/**/*.js' 'assets/**/*.css'",
+        "format": "prettier --write 'assets/**/*.js' 'assets/**/*.css'"
+    },
+    "prettier": {
+        "tabWidth": 4,
+        "singleQuote": true,
+        "trailingComma": "all"
+    },
+    "packageManager": "pnpm@10.30.3",
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.0.2",
+        "globals": "^17.4.0",
+        "prettier": "^3.8.1"
+    }
+}

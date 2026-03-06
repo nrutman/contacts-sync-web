@@ -37,16 +37,26 @@ jobs:
               with:
                   php-version: "8.5"
 
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
                   node-version: "22"
+                  cache: "pnpm"
 
-            - name: Install dependencies
+            - name: Install Composer dependencies
               run: composer install --prefer-dist --no-progress --no-scripts
+
+            - name: Install Node dependencies
+              run: pnpm install --frozen-lockfile
 
             - name: Check PHP code style
               run: composer run-script cs
 
             - name: Check JS/CSS formatting
-              run: npx prettier --check "assets/**/*.js" "assets/**/*.css"
+              run: pnpm format:check
+
+            - name: Lint JS
+              run: pnpm lint

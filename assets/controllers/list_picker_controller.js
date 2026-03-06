@@ -37,9 +37,6 @@ export default class extends Controller {
         if (!credentialSelect) return;
 
         const credentialId = credentialSelect.value;
-        const textInput = listWrapper.querySelector(
-            'input[type="text"], input[type="hidden"][data-list-picker-original]',
-        );
 
         if (!credentialId) {
             this.restoreTextInput(listWrapper);
