@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-background">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Contacts Sync{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236366f1%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607%22/><path d=%22M7 11v4h4%22/><path d=%22M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15%22/></svg>">
+        {% block stylesheets %}{% endblock %}
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+    </head>
+    <body class="h-full">
+        <div class="min-h-full flex flex-col items-center justify-center px-4 py-12">
+            <div class="w-full max-w-md">
+                <div class="text-center mb-8">
+                    <twig:ux:icon name="lucide:cloud-backup" class="mx-auto size-10 text-primary" />
+                    <h1 class="mt-2 text-2xl font-bold text-foreground">Contacts Sync</h1>
+                </div>
+
+                {# Flash messages #}
+                {% for type in ['success', 'info', 'warning', 'danger'] %}
+                    {% for message in app.flashes(type) %}
+                        {% set alert_variant = type == 'danger' ? 'destructive' : 'default' %}
+                        <div class="mb-4">
+                            {% set alert_border = type == 'success' ? 'border-green-500/50' : (type == 'info' ? 'border-blue-500/50' : (type == 'warning' ? 'border-yellow-500/50' : '')) %}
+                            <twig:Alert variant="{{ alert_variant }}" class="{{ alert_border }}">
+                                <twig:Alert:Description>{{ message }}</twig:Alert:Description>
+                            </twig:Alert>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+
+                {% block body %}{% endblock %}
+            </div>
+        </div>
+    </body>
+</html>

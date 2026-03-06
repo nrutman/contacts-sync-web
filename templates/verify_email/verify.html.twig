@@ -1,0 +1,36 @@
+{% extends 'base_public.html.twig' %}
+
+{% block title %}Set Your Password — Contacts Sync{% endblock %}
+
+{% block body %}
+<twig:Card class="p-8">
+    <h2 class="text-xl font-bold text-center text-foreground mb-2">Set Your Password</h2>
+    <p class="text-sm text-center text-muted-foreground mb-6">
+        Welcome, <strong>{{ user.firstName }}</strong>! Choose a password to complete your account setup.
+    </p>
+
+    <div class="mb-6 rounded-md bg-muted p-3">
+        <div class="flex items-center gap-x-2">
+            <twig:ux:icon name="lucide:mail" class="size-5 text-muted-foreground" />
+            <span class="text-sm text-muted-foreground">{{ user.email }}</span>
+        </div>
+    </div>
+
+    {{ form_start(form, { action: path('app_verify_email_complete'), attr: { class: 'space-y-4' } }) }}
+        {{ form_errors(form) }}
+
+        {{ form_row(form.plainPassword.first) }}
+        {{ form_row(form.plainPassword.second) }}
+
+        {{ form_widget(form.token) }}
+
+        <div class="pt-2">
+            <twig:Button type="submit" class="w-full">
+                Set Password &amp; Activate Account
+            </twig:Button>
+        </div>
+    {{ form_end(form) }}
+
+    <p class="mt-4 text-xs text-center text-muted-foreground">Your password must be at least 8 characters long.</p>
+</twig:Card>
+{% endblock %}

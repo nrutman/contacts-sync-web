@@ -1,0 +1,33 @@
+framework:
+    messenger:
+        # Send failed messages to this transport for later handling
+        failure_transport: failed
+
+        transports:
+            async:
+                dsn: "doctrine://default"
+                options:
+                    table_name: "messenger_messages"
+                    auto_setup: true
+                retry_strategy:
+                    max_retries: 2
+                    delay: 5000
+                    multiplier: 2
+
+            failed:
+                dsn: "doctrine://default?queue_name=failed"
+                options:
+                    table_name: "messenger_messages"
+                    auto_setup: true
+
+            sync: "sync://"
+
+        routing:
+            'App\Message\SyncMessage': async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: "in-memory://"
+                failed: "in-memory://"

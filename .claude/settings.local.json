@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer run-script:*)",
+      "Bash(wc:*)",
+      "Bash(composer show:*)",
+      "Bash(php:*)",
+      "Bash(find:*)",
+      "Bash(composer require:*)",
+      "Bash(curl:*)",
+      "Bash(composer remove:*)",
+      "WebSearch",
+      "WebFetch(domain:ux.symfony.com)",
+      "Bash(ls:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:packagist.org)",
+      "WebFetch(domain:lucide.dev)",
+      "Bash(grep:*)",
+      "Bash(git:*)"
+    ]
+  }
+}

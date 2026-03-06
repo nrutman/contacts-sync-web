@@ -1,0 +1,109 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Manual Contacts — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-foreground">Manual Contacts</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Manage contacts that are added to sync lists in addition to synced contacts.</p>
+    </div>
+    {% if is_granted('ROLE_ADMIN') %}
+        <div class="mt-4 sm:mt-0">
+            <twig:Button as="a" href="{{ path('app_contact_new') }}">
+                <twig:ux:icon name="lucide:plus" class="size-4" />
+                New Contact
+            </twig:Button>
+        </div>
+    {% endif %}
+</div>
+
+{% if contacts|length > 0 %}
+    <twig:Card>
+        <twig:Table>
+            <twig:Table:Header>
+                <twig:Table:Row>
+                    <twig:Table:Head>Name</twig:Table:Head>
+                    <twig:Table:Head>Email</twig:Table:Head>
+                    <twig:Table:Head>Sync Lists</twig:Table:Head>
+                    <twig:Table:Head>Created</twig:Table:Head>
+                    <twig:Table:Head class="text-right"><span class="sr-only">Actions</span></twig:Table:Head>
+                </twig:Table:Row>
+            </twig:Table:Header>
+            <twig:Table:Body>
+                {% for contact in contacts %}
+                    <twig:Table:Row>
+                        <twig:Table:Cell class="font-medium">{{ contact.name }}</twig:Table:Cell>
+                        <twig:Table:Cell>{{ contact.email }}</twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if contact.syncLists|length > 0 %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for list in contact.syncLists %}
+                                        <twig:Badge variant="secondary">{{ list.name }}</twig:Badge>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted-foreground italic">None</span>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <span data-controller="timezone"
+                                  data-timezone-datetime-value="{{ contact.createdAt|date('c') }}"
+                                  data-timezone-format-value="date"
+                                  title="{{ contact.createdAt|date('Y-m-d H:i:s T') }}">
+                                {{ contact.createdAt|date('M j, Y') }}
+                            </span>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell class="text-right">
+                            {% if is_granted('ROLE_ADMIN') %}
+                                <div class="flex items-center justify-end gap-x-1">
+                                    <twig:Button as="a" href="{{ path('app_contact_edit', { id: contact.id }) }}" variant="ghost" size="icon-sm" title="Edit">
+                                        <twig:ux:icon name="lucide:pencil" class="size-4" />
+                                    </twig:Button>
+                                    <twig:AlertDialog id="delete-contact-{{ contact.id }}">
+                                        <twig:AlertDialog:Trigger>
+                                            <twig:Button variant="ghost" size="icon-sm" title="Delete" class="text-destructive hover:text-destructive" {{ ...trigger_attrs }}>
+                                                <twig:ux:icon name="lucide:trash-2" class="size-4" />
+                                            </twig:Button>
+                                        </twig:AlertDialog:Trigger>
+                                        <twig:AlertDialog:Content>
+                                            <twig:AlertDialog:Header>
+                                                <twig:AlertDialog:Title>Delete contact</twig:AlertDialog:Title>
+                                                <twig:AlertDialog:Description>
+                                                    Are you sure you want to delete "{{ contact.name }}"?
+                                                </twig:AlertDialog:Description>
+                                            </twig:AlertDialog:Header>
+                                            <twig:AlertDialog:Footer>
+                                                <twig:AlertDialog:Cancel>Cancel</twig:AlertDialog:Cancel>
+                                                <form action="{{ path('app_contact_delete', { id: contact.id }) }}" method="post" class="inline">
+                                                    <input type="hidden" name="_method" value="DELETE">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('delete-contact-' ~ contact.id) }}">
+                                                    <twig:AlertDialog:Action variant="destructive" type="submit">Delete</twig:AlertDialog:Action>
+                                                </form>
+                                            </twig:AlertDialog:Footer>
+                                        </twig:AlertDialog:Content>
+                                    </twig:AlertDialog>
+                                </div>
+                            {% endif %}
+                        </twig:Table:Cell>
+                    </twig:Table:Row>
+                {% endfor %}
+            </twig:Table:Body>
+        </twig:Table>
+    </twig:Card>
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+        <twig:ux:icon name="lucide:users" class="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 class="mt-2 text-sm font-semibold text-foreground">No manual contacts</h3>
+        <p class="mt-1 text-sm text-muted-foreground">Manual contacts are additional contacts that get merged into sync lists alongside synced contacts.</p>
+        {% if is_granted('ROLE_ADMIN') %}
+            <div class="mt-6">
+                <twig:Button as="a" href="{{ path('app_contact_new') }}">
+                    <twig:ux:icon name="lucide:plus" class="size-4" />
+                    New Contact
+                </twig:Button>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

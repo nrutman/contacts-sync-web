@@ -1,0 +1,44 @@
+{% extends 'base_public.html.twig' %}
+
+{% block title %}Log In — Contacts Sync{% endblock %}
+
+{% block body %}
+<twig:Card class="p-8">
+    <h2 class="text-xl font-bold text-center text-foreground mb-6">Log In</h2>
+
+    {% if rate_limit_exceeded|default(false) %}
+        <twig:Alert variant="warning" class="mb-4">
+            <twig:ux:icon name="lucide:triangle-alert" class="size-4" />
+            <twig:Alert:Description>Too many login attempts. Please wait a moment before trying again.</twig:Alert:Description>
+        </twig:Alert>
+    {% elseif error %}
+        <twig:Alert variant="destructive" class="mb-4">
+            <twig:ux:icon name="lucide:circle-x" class="size-4" />
+            <twig:Alert:Description>{{ error.messageKey|trans(error.messageData, 'security') }}</twig:Alert:Description>
+        </twig:Alert>
+    {% endif %}
+
+    <form method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+        <div class="mb-4">
+            <twig:Label for="input-email" class="mb-1">Email</twig:Label>
+            <twig:Input type="email" id="input-email" name="_username" value="{{ last_username }}" required autofocus placeholder="you@example.com" />
+        </div>
+
+        <div class="mb-4">
+            <twig:Label for="input-password" class="mb-1">Password</twig:Label>
+            <twig:Input type="password" id="input-password" name="_password" required />
+        </div>
+
+        <div class="mb-6 flex items-center gap-2">
+            <twig:Checkbox id="input-remember-me" name="_remember_me" />
+            <twig:Label for="input-remember-me">Remember me</twig:Label>
+        </div>
+
+        <twig:Button type="submit" class="w-full">
+            Log in
+        </twig:Button>
+    </form>
+</twig:Card>
+{% endblock %}

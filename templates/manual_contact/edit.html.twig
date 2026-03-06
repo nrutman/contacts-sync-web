@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit {{ contact.name }} — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_contact_index') }}">Manual Contacts</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>Edit</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <h1 class="mt-4 text-2xl font-bold text-foreground">Edit Contact</h1>
+    <p class="mt-1 text-sm text-muted-foreground">Update details for <strong>{{ contact.name }}</strong> ({{ contact.email }}).</p>
+</div>
+
+<div class="max-w-2xl">
+    <twig:Card class="p-6">
+        {% include 'manual_contact/_form.html.twig' with { button_label: 'Update Contact' } %}
+    </twig:Card>
+</div>
+{% endblock %}

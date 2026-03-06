@@ -1,0 +1,21 @@
+{{ form_start(form, { attr: { class: 'space-y-6' } }) }}
+    {{ form_errors(form) }}
+
+    {% for child in form %}
+        {% if child.vars.name starts with 'credential_' %}
+            {{ form_row(child) }}
+        {% elseif child.vars.name == 'label' %}
+            {{ form_row(child) }}
+        {% elseif child.vars.name != '_token' and child.vars.name != 'providerName' %}
+            {{ form_row(child) }}
+        {% endif %}
+    {% endfor %}
+
+    {{ form_widget(form.providerName) }}
+
+    <twig:Separator />
+    <div class="flex items-center justify-end gap-x-4">
+        <twig:Button as="a" href="{{ path('app_credentials_index') }}" variant="outline">Cancel</twig:Button>
+        <twig:Button type="submit">{{ button_label|default('Save') }}</twig:Button>
+    </div>
+{{ form_end(form) }}

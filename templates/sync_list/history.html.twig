@@ -1,0 +1,204 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}History: {{ sync_list.name }} — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_sync_list_index') }}">Sync Lists</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_sync_list_history', { id: sync_list.id }) }}">{{ sync_list.name }}</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>History</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <div class="mt-4 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-foreground">Sync History</h1>
+            <p class="mt-1 text-sm text-muted-foreground">
+                Sync runs for <strong>{{ sync_list.name }}</strong>
+                —
+                {% if sync_list.isEnabled %}
+                    <twig:Badge variant="default">Enabled</twig:Badge>
+                {% else %}
+                    <twig:Badge variant="secondary">Disabled</twig:Badge>
+                {% endif %}
+                {% if sync_list.cronExpression %}
+                    — Schedule: <code class="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{{ sync_list.cronExpression }}</code>
+                {% endif %}
+            </p>
+        </div>
+        <div class="mt-4 sm:mt-0 flex flex-wrap gap-x-3 gap-y-2">
+            {# Refresh PC List #}
+            <form action="{{ path('app_sync_list_refresh', { id: sync_list.id }) }}" method="post" class="inline"
+                  data-controller="sync-button">
+                <input type="hidden" name="_token" value="{{ csrf_token('refresh-sync-list-' ~ sync_list.id) }}">
+                <twig:Button type="submit" variant="outline"
+                        data-sync-button-target="button"
+                        data-action="click->sync-button#submit">
+                    <twig:ux:icon data-sync-button-target="label" name="lucide:refresh-cw" class="size-4" />
+                    <span data-sync-button-target="label">Refresh Source</span>
+                    <twig:Spinner data-sync-button-target="spinner" class="hidden size-4" />
+                </twig:Button>
+            </form>
+
+            {# Dry Run #}
+            <form action="{{ path('app_sync_list_run', { id: sync_list.id }) }}?dry_run=1" method="post" class="inline"
+                  data-controller="sync-button">
+                <input type="hidden" name="_token" value="{{ csrf_token('sync-list-' ~ sync_list.id) }}">
+                <twig:Button type="submit" variant="outline"
+                        data-sync-button-target="button"
+                        data-action="click->sync-button#submit">
+                    <twig:ux:icon data-sync-button-target="label" name="lucide:eye" class="size-4" />
+                    <span data-sync-button-target="label">Dry Run</span>
+                    <twig:Spinner data-sync-button-target="spinner" class="hidden size-4" />
+                </twig:Button>
+            </form>
+
+            {# Sync Now #}
+            <form action="{{ path('app_sync_list_run', { id: sync_list.id }) }}" method="post" class="inline"
+                  data-controller="sync-button">
+                <input type="hidden" name="_token" value="{{ csrf_token('sync-list-' ~ sync_list.id) }}">
+                <twig:Button type="submit"
+                        data-sync-button-target="button"
+                        data-action="click->sync-button#submit">
+                    <twig:ux:icon data-sync-button-target="label" name="lucide:play" class="size-4" />
+                    <span data-sync-button-target="label">Sync Now</span>
+                    <twig:Spinner data-sync-button-target="spinner" class="hidden size-4" />
+                </twig:Button>
+            </form>
+
+            {% if is_granted('ROLE_ADMIN') %}
+                <twig:Button as="a" href="{{ path('app_sync_list_edit', { id: sync_list.id }) }}" variant="outline">
+                    <twig:ux:icon name="lucide:pencil" class="size-4" />
+                    Edit List
+                </twig:Button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if sync_runs|length > 0 %}
+    <twig:Card>
+        <twig:Table>
+            <twig:Table:Header>
+                <twig:Table:Row>
+                    <twig:Table:Head>Date</twig:Table:Head>
+                    <twig:Table:Head>Trigger</twig:Table:Head>
+                    <twig:Table:Head>Status</twig:Table:Head>
+                    <twig:Table:Head>Source</twig:Table:Head>
+                    <twig:Table:Head>Destination</twig:Table:Head>
+                    <twig:Table:Head>Added</twig:Table:Head>
+                    <twig:Table:Head>Removed</twig:Table:Head>
+                    <twig:Table:Head>Duration</twig:Table:Head>
+                    <twig:Table:Head class="text-right"><span class="sr-only">View</span></twig:Table:Head>
+                </twig:Table:Row>
+            </twig:Table:Header>
+            <twig:Table:Body>
+                {% for run in sync_runs %}
+                    {% set is_in_progress = run.status in ['pending', 'running'] %}
+                    <tr class="border-b transition-colors hover:bg-muted/50"
+                        {% if is_in_progress %}
+                            data-controller="sync-status"
+                            data-sync-status-url-value="{{ path('api_sync_run_status', { id: run.id }) }}"
+                            data-sync-status-interval-value="2000"
+                        {% endif %}>
+                        <twig:Table:Cell class="font-medium">
+                            <span data-controller="timezone"
+                                  data-timezone-datetime-value="{{ run.createdAt|date('c') }}"
+                                  title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
+                                {{ run.createdAt|date('M j, Y g:ia') }}
+                            </span>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% set trigger_variant = run.triggeredBy == 'manual' ? 'default' : (run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                            <twig:Badge variant="{{ trigger_variant }}">
+                                {{ run.triggeredBy|capitalize }}
+                            </twig:Badge>
+                            {% if run.triggeredByUser %}
+                                <span class="ml-1 text-xs text-muted-foreground">by {{ run.triggeredByUser.fullName }}</span>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="status"{% endif %}>
+                            {% set status_variant = run.status == 'success' ? 'success-outline' : (run.status == 'failed' ? 'destructive-outline' : 'secondary') %}
+                            <twig:Badge variant="{{ status_variant }}">
+                                {{ run.status|capitalize }}
+                                {% if is_in_progress %}
+                                    <twig:Spinner class="ml-1 size-3" />
+                                {% endif %}
+                            </twig:Badge>
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="source"{% endif %}>
+                            {{ run.sourceCount ?? '—' }}
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="destination"{% endif %}>
+                            {{ run.destinationCount ?? '—' }}
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="added"{% endif %}>
+                            {% if run.addedCount is not null %}
+                                <span class="{% if run.addedCount > 0 %}text-green-600 font-medium{% else %}text-muted-foreground{% endif %}">
+                                    +{{ run.addedCount }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted-foreground">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="removed"{% endif %}>
+                            {% if run.removedCount is not null %}
+                                <span class="{% if run.removedCount > 0 %}text-red-600 font-medium{% else %}text-muted-foreground{% endif %}">
+                                    -{{ run.removedCount }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted-foreground">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 align-middle"{% if is_in_progress %} data-sync-status-target="duration"{% endif %}>
+                            {% if run.durationSeconds is not null %}
+                                {{ run.durationSeconds|number_format(1) }}s
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <twig:Table:Cell class="text-right">
+                            <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
+                        </twig:Table:Cell>
+                    </tr>
+                {% endfor %}
+            </twig:Table:Body>
+        </twig:Table>
+    </twig:Card>
+
+    {# Pagination #}
+    {% if page > 1 or has_more %}
+        <nav class="mt-6 flex items-center justify-between" aria-label="Pagination">
+            <div class="flex flex-1 justify-between sm:justify-end gap-x-3">
+                {% if page > 1 %}
+                    <twig:Button as="a" href="{{ path('app_sync_list_history', { id: sync_list.id, page: page - 1 }) }}" variant="outline">
+                        <twig:ux:icon name="lucide:chevron-left" class="size-4" />
+                        Previous
+                    </twig:Button>
+                {% endif %}
+                {% if has_more %}
+                    <twig:Button as="a" href="{{ path('app_sync_list_history', { id: sync_list.id, page: page + 1 }) }}" variant="outline">
+                        Next
+                        <twig:ux:icon name="lucide:chevron-right" class="size-4" />
+                    </twig:Button>
+                {% endif %}
+            </div>
+        </nav>
+    {% endif %}
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+        <twig:ux:icon name="lucide:clock" class="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 class="mt-2 text-sm font-semibold text-foreground">No sync history</h3>
+        <p class="mt-1 text-sm text-muted-foreground">This list has not been synced yet. Sync runs will appear here after a sync is triggered.</p>
+    </div>
+{% endif %}
+{% endblock %}

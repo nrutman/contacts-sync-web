@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Invite User — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_user_index') }}">Users</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>Invite</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <h1 class="mt-4 text-2xl font-bold text-foreground">Invite User</h1>
+    <p class="mt-1 text-sm text-muted-foreground">Send an invitation email to a new user. They will set their own password after verifying their email address.</p>
+</div>
+
+<div class="max-w-2xl">
+    <twig:Card class="p-6">
+        {% include 'user/_form.html.twig' with { button_label: 'Send Invitation', is_edit: false } %}
+    </twig:Card>
+</div>
+{% endblock %}

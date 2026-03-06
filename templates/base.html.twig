@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-background">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Contacts Sync{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236366f1%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607%22/><path d=%22M7 11v4h4%22/><path d=%22M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15%22/></svg>">
+        {% block stylesheets %}{% endblock %}
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+    </head>
+    <body class="h-full" data-controller="mobile-menu">
+        <div class="min-h-full">
+            {# Mobile menu overlay #}
+            <div class="relative z-50 lg:hidden hidden" data-mobile-menu-target="overlay">
+                <div class="fixed inset-0 bg-gray-900/80" data-action="click->mobile-menu#close"></div>
+                <div class="fixed inset-0 flex">
+                    <div class="relative mr-16 flex w-full max-w-xs flex-1">
+                        <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
+                            <button type="button" class="-m-2.5 p-2.5" data-action="click->mobile-menu#close">
+                                <span class="sr-only">Close sidebar</span>
+                                <twig:ux:icon name="lucide:x" class="h-6 w-6 text-white" />
+                            </button>
+                        </div>
+                        {# Mobile sidebar #}
+                        <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-sidebar px-6 pb-4 border-r border-border">
+                            <div class="flex h-16 shrink-0 items-center">
+                                <span class="flex items-center gap-2 text-xl font-bold text-foreground">
+                                    <twig:ux:icon name="lucide:cloud-backup" class="size-6 text-primary" />
+                                    Contacts Sync
+                                </span>
+                            </div>
+                            <nav class="flex flex-1 flex-col">
+                                <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                                    <li>
+                                        <ul role="list" class="-mx-2 space-y-1">
+                                            {{ _self.nav_item('Dashboard', 'app_dashboard', 'lucide:house') }}
+                                            {{ _self.nav_item('Sync Lists', 'app_sync_list_index', 'lucide:list') }}
+                                            {{ _self.nav_item('Manual Contacts', 'app_contact_index', 'lucide:users') }}
+                                            {{ _self.nav_item('Sync History', 'app_history_index', 'lucide:clock') }}
+                                            {% if is_granted('ROLE_ADMIN') %}
+                                                {{ _self.nav_item('Settings', 'app_settings', 'lucide:settings') }}
+                                                {{ _self.nav_item('Users', 'app_user_index', 'lucide:users-round') }}
+                                            {% endif %}
+                                        </ul>
+                                    </li>
+                                    <li class="mt-auto">
+                                        <a href="{{ path('app_notification_preferences') }}" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                                            <twig:ux:icon name="lucide:bell" class="h-6 w-6 shrink-0" />
+                                            Notifications
+                                        </a>
+                                        <a href="{{ path('app_logout') }}" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                                            <twig:ux:icon name="lucide:log-out" class="h-6 w-6 shrink-0" />
+                                            Log out
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Desktop sidebar #}
+            <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
+                <div class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-sidebar px-6 pb-4">
+                    <div class="flex h-16 shrink-0 items-center">
+                        <span class="flex items-center gap-2 text-xl font-bold text-foreground">
+                            <twig:ux:icon name="lucide:cloud-backup" class="size-6 text-primary" />
+                            Contacts Sync
+                        </span>
+                    </div>
+                    <nav class="flex flex-1 flex-col">
+                        <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                            <li>
+                                <ul role="list" class="-mx-2 space-y-1">
+                                    {{ _self.nav_item('Dashboard', 'app_dashboard', 'lucide:house') }}
+                                    {{ _self.nav_item('Sync Lists', 'app_sync_list_index', 'lucide:list') }}
+                                    {{ _self.nav_item('Manual Contacts', 'app_contact_index', 'lucide:users') }}
+                                    {{ _self.nav_item('Sync History', 'app_history_index', 'lucide:clock') }}
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        {{ _self.nav_item('Settings', 'app_settings', 'lucide:settings') }}
+                                        {{ _self.nav_item('Users', 'app_user_index', 'lucide:users-round') }}
+                                    {% endif %}
+                                </ul>
+                            </li>
+                            <li class="mt-auto">
+                                <div class="mb-2 border-t border-border pt-3">
+                                    <p class="truncate text-xs text-foreground">{{ app.user.fullName }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">{{ app.user.email }}</p>
+                                </div>
+                                <a href="{{ path('app_notification_preferences') }}" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                                    <twig:ux:icon name="lucide:bell" class="h-6 w-6 shrink-0" />
+                                    Notifications
+                                </a>
+                                <a href="{{ path('app_logout') }}" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                                    <twig:ux:icon name="lucide:log-out" class="h-6 w-6 shrink-0" />
+                                    Log out
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            {# Main content area #}
+            <div class="lg:pl-64">
+                {# Top bar with mobile hamburger #}
+                <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+                    <button type="button" class="-m-2.5 p-2.5 text-muted-foreground lg:hidden" data-action="click->mobile-menu#open">
+                        <span class="sr-only">Open sidebar</span>
+                        <twig:ux:icon name="lucide:menu" class="h-6 w-6" />
+                    </button>
+
+                    <div class="h-6 w-px bg-border lg:hidden"></div>
+
+                    <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+                        <div class="flex flex-1 items-center">
+                            <h1 class="text-lg font-semibold text-foreground lg:hidden">Contacts Sync</h1>
+                        </div>
+                        <div class="flex items-center gap-x-4 lg:gap-x-6">
+                            <span class="hidden sm:flex sm:items-center">
+                                <span class="text-sm text-muted-foreground">{{ app.user.fullName }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <main class="py-8">
+                    <div class="px-4 sm:px-6 lg:px-8">
+                        {# Flash messages #}
+                        {% for type in ['success', 'info', 'warning', 'danger'] %}
+                            {% for message in app.flashes(type) %}
+                                {% set alert_variant = type == 'danger' ? 'destructive' : 'default' %}
+                                {% set icon_html = _self.flash_icon(type) %}
+                                {% set title_text = _self.flash_title(type) %}
+                                <div class="mb-4" data-controller="flash" data-flash-target="container">
+                                    <twig:Alert variant="{{ alert_variant }}" class="{{ _self.flash_border_class(type) }}">
+                                        {{ icon_html|raw }}
+                                        <twig:Alert:Title>{{ title_text }}</twig:Alert:Title>
+                                        <twig:Alert:Description>
+                                            <div class="flex items-center justify-between">
+                                                <span>{{ message }}</span>
+                                                <button type="button" class="ml-3 inline-flex rounded-md p-1.5 opacity-70 hover:opacity-100 focus:outline-none" data-action="click->flash#dismiss">
+                                                    <span class="sr-only">Dismiss</span>
+                                                    <twig:ux:icon name="lucide:x" class="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </twig:Alert:Description>
+                                    </twig:Alert>
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+
+                        {% block body %}{% endblock %}
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        {# --- Twig macros for navigation and flash messages --- #}
+
+        {% macro nav_item(label, route, icon) %}
+            {% set current = app.request.attributes.get('_route') starts with route %}
+            <li>
+                <a href="{{ path(route) }}"
+                   class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold {{ current ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground' }}">
+                    <twig:ux:icon name="{{ icon }}" class="h-6 w-6 shrink-0" />
+                    {{ label }}
+                </a>
+            </li>
+        {% endmacro %}
+
+        {% macro flash_border_class(type) %}
+            {%- if type == 'success' -%}border-green-500/50
+            {%- elseif type == 'info' -%}border-blue-500/50
+            {%- elseif type == 'warning' -%}border-yellow-500/50
+            {%- elseif type == 'danger' -%}
+            {%- endif -%}
+        {% endmacro %}
+
+        {% macro flash_title(type) %}
+            {%- if type == 'success' -%}Success
+            {%- elseif type == 'info' -%}Info
+            {%- elseif type == 'warning' -%}Warning
+            {%- elseif type == 'danger' -%}Error
+            {%- endif -%}
+        {% endmacro %}
+
+        {% macro flash_icon(type) %}
+            {% if type == 'success' %}
+                <twig:ux:icon name="lucide:circle-check" class="h-4 w-4 text-green-600" />
+            {% elseif type == 'info' %}
+                <twig:ux:icon name="lucide:info" class="h-4 w-4 text-blue-600" />
+            {% elseif type == 'warning' %}
+                <twig:ux:icon name="lucide:triangle-alert" class="h-4 w-4 text-yellow-600" />
+            {% elseif type == 'danger' %}
+                <twig:ux:icon name="lucide:circle-x" class="h-4 w-4" />
+            {% endif %}
+        {% endmacro %}
+    </body>
+</html>

@@ -1,0 +1,179 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sync History — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-foreground">Sync History</h1>
+        <p class="mt-1 text-sm text-muted-foreground">
+            {% if total_count == 1 %}
+                1 sync run
+            {% else %}
+                {{ total_count }} sync runs
+            {% endif %}
+            {% if current_list %} for <strong>{{ current_list.name }}</strong>{% endif %}
+            {% if current_status %} with status <strong>{{ current_status|capitalize }}</strong>{% endif %}
+        </p>
+    </div>
+</div>
+
+{# Filters #}
+<twig:Card class="mb-6 p-4">
+    <form method="get" action="{{ path('app_history_index') }}" class="flex flex-wrap items-end gap-4">
+        <twig:Field>
+            <twig:Field:Label for="filter-list">Sync List</twig:Field:Label>
+            <twig:Field:Content>
+                <twig:Select id="filter-list" name="list">
+                    <option value="">All Lists</option>
+                    {% for list in all_lists %}
+                        <option value="{{ list.id }}" {% if current_list and current_list.id == list.id %}selected{% endif %}>
+                            {{ list.name }}
+                        </option>
+                    {% endfor %}
+                </twig:Select>
+            </twig:Field:Content>
+        </twig:Field>
+
+        <twig:Field>
+            <twig:Field:Label for="filter-status">Status</twig:Field:Label>
+            <twig:Field:Content>
+                <twig:Select id="filter-status" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="success" {% if current_status == 'success' %}selected{% endif %}>Success</option>
+                    <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="running" {% if current_status == 'running' %}selected{% endif %}>Running</option>
+                    <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                </twig:Select>
+            </twig:Field:Content>
+        </twig:Field>
+
+        <div class="flex items-end gap-x-2">
+            <twig:Button type="submit">
+                <twig:ux:icon name="lucide:filter" class="size-4" />
+                Filter
+            </twig:Button>
+            {% if current_list or current_status %}
+                <twig:Button as="a" href="{{ path('app_history_index') }}" variant="outline">Clear</twig:Button>
+            {% endif %}
+        </div>
+    </form>
+</twig:Card>
+
+{% if sync_runs|length > 0 %}
+    <twig:Card>
+        <twig:Table>
+            <twig:Table:Header>
+                <twig:Table:Row>
+                    <twig:Table:Head>Date</twig:Table:Head>
+                    <twig:Table:Head>List</twig:Table:Head>
+                    <twig:Table:Head>Trigger</twig:Table:Head>
+                    <twig:Table:Head>Status</twig:Table:Head>
+                    <twig:Table:Head>Added</twig:Table:Head>
+                    <twig:Table:Head>Removed</twig:Table:Head>
+                    <twig:Table:Head>Duration</twig:Table:Head>
+                    <twig:Table:Head class="text-right"><span class="sr-only">View</span></twig:Table:Head>
+                </twig:Table:Row>
+            </twig:Table:Header>
+            <twig:Table:Body>
+                {% for run in sync_runs %}
+                    <twig:Table:Row>
+                        <twig:Table:Cell class="font-medium">
+                            <span data-controller="timezone"
+                                  data-timezone-datetime-value="{{ run.createdAt|date('c') }}"
+                                  title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
+                                {{ run.createdAt|date('M j, Y g:ia') }}
+                            </span>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <a href="{{ path('app_sync_list_history', { id: run.syncList.id }) }}" class="text-primary hover:underline">
+                                {{ run.syncList.name }}
+                            </a>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% set trigger_variant = run.triggeredBy == 'manual' ? 'default' : (run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                            <twig:Badge variant="{{ trigger_variant }}">
+                                {{ run.triggeredBy|capitalize }}
+                            </twig:Badge>
+                            {% if run.triggeredByUser %}
+                                <span class="ml-1 text-xs text-muted-foreground">by {{ run.triggeredByUser.fullName }}</span>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% set status_variant = run.status == 'success' ? 'default' : (run.status == 'failed' ? 'destructive' : (run.status == 'running' ? 'secondary' : 'outline')) %}
+                            <twig:Badge variant="{{ status_variant }}">
+                                {{ run.status|capitalize }}
+                            </twig:Badge>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if run.addedCount is not null %}
+                                <span class="{% if run.addedCount > 0 %}text-green-600 font-medium{% else %}text-muted-foreground{% endif %}">
+                                    +{{ run.addedCount }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted-foreground">—</span>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if run.removedCount is not null %}
+                                <span class="{% if run.removedCount > 0 %}text-red-600 font-medium{% else %}text-muted-foreground{% endif %}">
+                                    -{{ run.removedCount }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted-foreground">—</span>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if run.durationSeconds is not null %}
+                                {{ run.durationSeconds|number_format(1) }}s
+                            {% else %}
+                                —
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell class="text-right">
+                            <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm">View</twig:Button>
+                        </twig:Table:Cell>
+                    </twig:Table:Row>
+                {% endfor %}
+            </twig:Table:Body>
+        </twig:Table>
+    </twig:Card>
+
+    {# Pagination #}
+    {% if total_pages > 1 %}
+        <nav class="mt-6 flex items-center justify-between" aria-label="Pagination">
+            <div class="hidden sm:block">
+                <p class="text-sm text-muted-foreground">
+                    Page <span class="font-medium">{{ page }}</span> of <span class="font-medium">{{ total_pages }}</span>
+                </p>
+            </div>
+            <div class="flex flex-1 justify-between sm:justify-end gap-x-3">
+                {% if page > 1 %}
+                    <twig:Button as="a" href="{{ path('app_history_index', { page: page - 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}" variant="outline">
+                        <twig:ux:icon name="lucide:chevron-left" class="size-4" />
+                        Previous
+                    </twig:Button>
+                {% endif %}
+                {% if page < total_pages %}
+                    <twig:Button as="a" href="{{ path('app_history_index', { page: page + 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}" variant="outline">
+                        Next
+                        <twig:ux:icon name="lucide:chevron-right" class="size-4" />
+                    </twig:Button>
+                {% endif %}
+            </div>
+        </nav>
+    {% endif %}
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+        <twig:ux:icon name="lucide:clock" class="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 class="mt-2 text-sm font-semibold text-foreground">No sync runs found</h3>
+        <p class="mt-1 text-sm text-muted-foreground">
+            {% if current_list or current_status %}
+                No sync runs match the current filters. Try adjusting or <a href="{{ path('app_history_index') }}" class="text-primary underline">clearing the filters</a>.
+            {% else %}
+                Sync history will appear here after a sync is triggered.
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+{% endblock %}

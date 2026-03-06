@@ -1,0 +1,44 @@
+# Application files and folders
+/tmp
+
+# Composer dependencies
+/vendor
+
+# Editor settings
+/.idea
+
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+# Symfony Flex auto-generated files
+/config/reference.php
+/config/preload.php
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+.phpunit.result.cache
+###< phpunit/phpunit ###
+
+###> friendsofphp/php-cs-fixer ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###< friendsofphp/php-cs-fixer ###
+
+###> symfony/runtime ###
+/.env.local
+###< symfony/runtime ###
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
+
+# Node dependencies
+/node_modules/

@@ -1,0 +1,26 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit {{ credential.displayLabel }} — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_credentials_index') }}">Credentials</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>Edit {{ credential.displayLabel }}</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <h1 class="mt-4 text-2xl font-bold text-foreground">Edit {{ provider.displayName }}: {{ credential.displayLabel }}</h1>
+</div>
+
+<div class="max-w-3xl">
+    <twig:Card class="p-6">
+        {% include 'provider_credential/_form.html.twig' with { button_label: 'Update Credential' } %}
+    </twig:Card>
+</div>
+{% endblock %}

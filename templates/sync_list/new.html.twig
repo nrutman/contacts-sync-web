@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New Sync List — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_sync_list_index') }}">Sync Lists</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>New</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <h1 class="mt-4 text-2xl font-bold text-foreground">New Sync List</h1>
+    <p class="mt-1 text-sm text-muted-foreground">Create a new sync list.</p>
+</div>
+
+<div class="max-w-2xl">
+    <twig:Card class="p-6">
+        {% include 'sync_list/_form.html.twig' with { button_label: 'Create Sync List' } %}
+    </twig:Card>
+</div>
+{% endblock %}

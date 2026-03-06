@@ -1,0 +1,28 @@
+{% extends 'base_public.html.twig' %}
+
+{% block title %}Link Expired — Contacts Sync{% endblock %}
+
+{% block body %}
+<twig:Card class="p-8 text-center">
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-4">
+        <twig:ux:icon name="lucide:triangle-alert" class="size-6 text-destructive" />
+    </div>
+
+    <h2 class="text-xl font-bold text-foreground mb-2">Verification Link Invalid</h2>
+
+    <p class="text-sm text-muted-foreground mb-6">
+        {{ message|default('This verification link has expired or is invalid. Please ask your administrator to resend the invitation.') }}
+    </p>
+
+    <twig:Separator class="mb-6" />
+
+    <twig:Button as="a" href="{{ path('app_login') }}">
+        <twig:ux:icon name="lucide:log-in" class="size-4" />
+        Go to Login
+    </twig:Button>
+
+    <p class="mt-6 text-xs text-muted-foreground">
+        If you continue to have trouble, please contact your administrator to receive a new invitation.
+    </p>
+</twig:Card>
+{% endblock %}

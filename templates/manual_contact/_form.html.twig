@@ -1,0 +1,25 @@
+{{ form_start(form, { attr: { class: 'space-y-6' } }) }}
+    {{ form_row(form.name) }}
+    {{ form_row(form.email) }}
+
+    <div class="space-y-2">
+        <twig:Label>Sync Lists</twig:Label>
+        {% for child in form.syncLists %}
+            <twig:Field orientation="horizontal">
+                <twig:Field:Label for="{{ child.vars.id }}">
+                    {{ form_widget(child) }}
+                    {{ child.vars.label }}
+                </twig:Field:Label>
+            </twig:Field>
+        {% else %}
+            <p class="text-sm text-muted-foreground italic">No sync lists have been created yet.</p>
+        {% endfor %}
+        {{ form_errors(form.syncLists) }}
+    </div>
+
+    <twig:Separator />
+    <div class="flex items-center justify-end gap-x-4">
+        <twig:Button as="a" href="{{ path('app_contact_index') }}" variant="outline">Cancel</twig:Button>
+        <twig:Button type="submit">{{ button_label|default('Save') }}</twig:Button>
+    </div>
+{{ form_end(form) }}

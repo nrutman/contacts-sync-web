@@ -1,0 +1,242 @@
+<?php
+
+namespace App\Client\PlanningCenter;
+
+use App\Client\ReadableListClientInterface;
+use App\Client\WebClientFactoryInterface;
+use App\Contact\Contact;
+use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Psr7\Query;
+use Symfony\Component\HttpFoundation\Request;
+
+class PlanningCenterClient implements ReadableListClientInterface
+{
+    protected ClientInterface $webClient;
+
+    public function __construct(
+        string $planningCenterAppId,
+        string $planningCenterAppSecret,
+        WebClientFactoryInterface $webClientFactory,
+    ) {
+        $this->webClient = $webClientFactory->create([
+            'auth' => [$planningCenterAppId, $planningCenterAppSecret],
+            'base_uri' => 'https://api.planningcenteronline.com',
+        ]);
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws \Exception
+     */
+    public function getContacts(string $listName): array
+    {
+        $response = $this->webClient->request('GET', '/people/v2/lists', [
+            'query' => [
+                'where[name]' => $listName,
+            ],
+        ]);
+
+        $lists = json_decode(
+            $response->getBody()->getContents(),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $list = array_filter($lists['data'], static function ($list) use (
+            $listName,
+        ) {
+            return preg_match(
+                sprintf('/^%s$/i', $listName),
+                $list['attributes']['name'],
+            );
+        });
+
+        if (empty($list)) {
+            throw new \Exception(sprintf('The list `%s` could not be found.', $listName));
+        }
+
+        return $this->queryPeopleApi(
+            [
+                'include' => 'emails',
+            ],
+            sprintf('/people/v2/lists/%d/people', array_shift($list)['id']),
+        );
+    }
+
+    /**
+     * Returns available lists as a [name => name] map.
+     *
+     * Planning Center uses list names as identifiers, so key and value are the same.
+     *
+     * @return array<string, string>
+     *
+     * @throws GuzzleException
+     */
+    public function getAvailableLists(): array
+    {
+        $lists = [];
+        $url = '/people/v2/lists';
+        $query = ['per_page' => 100];
+
+        while (true) {
+            $response = $this->webClient->request('GET', $url, [
+                'query' => $query,
+            ]);
+
+            $data = json_decode(
+                $response->getBody()->getContents(),
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            foreach ($data['data'] as $list) {
+                $name = $list['attributes']['name'];
+                $lists[$name] = $name;
+            }
+
+            if (isset($data['links']['next'])) {
+                $url = $data['links']['next'];
+                $query = [];
+            } else {
+                break;
+            }
+        }
+
+        return $lists;
+    }
+
+    /**
+     * Refreshes a list so it contains the most up-to-date contacts.
+     *
+     * @throws GuzzleException
+     * @throws \Exception
+     */
+    public function refreshList(string $listName): void
+    {
+        $listResponse = $this->webClient->request(
+            Request::METHOD_GET,
+            '/people/v2/lists',
+            [
+                'query' => ['where[name]' => $listName],
+            ],
+        );
+
+        $body = json_decode(
+            $listResponse->getBody()->getContents(),
+            false,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+
+        if (empty($body->data)) {
+            throw new \Exception(sprintf('The list `%s` could not be found.', $listName));
+        }
+
+        $listId = $body->data[0]->id;
+
+        $this->webClient->request(
+            Request::METHOD_POST,
+            sprintf('/people/v2/lists/%d/run', $listId),
+        );
+    }
+
+    /**
+     * Returns a mapping of email IDs to email addresses.
+     */
+    private static function createEmailMap(array $emails): array
+    {
+        $map = [];
+
+        foreach ($emails as $email) {
+            if ($email['type'] === 'Email') {
+                $map[$email['id']] = $email['attributes']['address'];
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Returns an email from a Person array via API response.
+     */
+    private static function getEmailFromPerson(
+        array $person,
+        array $emailMap,
+    ): ?string {
+        $list = $person['relationships']['emails'];
+
+        if (!isset($list['data']) || count($list['data']) === 0) {
+            return null;
+        }
+
+        $emailId = $list['data'][0]['id'];
+
+        return $emailMap[$emailId];
+    }
+
+    /**
+     * Queries the Planning Center People API based on the query provided.
+     *
+     * @see https://developer.planning.center/docs/#/apps/people/2019-01-14/vertices/person
+     *
+     * @return Contact[]
+     *
+     * @throws GuzzleException
+     */
+    private function queryPeopleApi(
+        array $query,
+        string $url = '/people/v2/people',
+    ): array {
+        $contacts = [];
+
+        do {
+            $response = $this->webClient->request('GET', $url, [
+                'query' => $query,
+            ]);
+
+            $data = json_decode(
+                $response->getBody()->getContents(),
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            $emailMap = self::createEmailMap($data['included']);
+
+            array_walk($data['data'], static function ($person) use (
+                $emailMap,
+                &$contacts,
+            ) {
+                $email = self::getEmailFromPerson($person, $emailMap);
+
+                if (!$email) {
+                    return;
+                }
+
+                $contact = new Contact();
+                $contact->firstName = $person['attributes']['first_name'];
+                $contact->lastName = $person['attributes']['last_name'];
+                $contact->email = $email;
+                $contacts[] = $contact;
+            });
+        } while (
+            // if a NEXT link exists, we want to parse the next query from it...otherwise we assign a blank array and
+            // then check against that blank array to exit the loop (to maintain the array type of $query)
+            ($query = isset($data['links']['next'])
+                ? self::getQueryFromUrl($data['links']['next'])
+                : []) !== []
+        );
+
+        return $contacts;
+    }
+
+    /**
+     * Extracts a querystring array from a url string.
+     */
+    private static function getQueryFromUrl(string $url): array
+    {
+        return Query::parse(parse_url($url, PHP_URL_QUERY));
+    }
+}

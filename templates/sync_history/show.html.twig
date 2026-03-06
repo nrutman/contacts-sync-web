@@ -1,0 +1,226 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sync Run Detail — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <twig:Breadcrumb>
+        <twig:Breadcrumb:List>
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Link href="{{ path('app_history_index') }}">Sync History</twig:Breadcrumb:Link>
+            </twig:Breadcrumb:Item>
+            <twig:Breadcrumb:Separator />
+            <twig:Breadcrumb:Item>
+                <twig:Breadcrumb:Page>Run Detail</twig:Breadcrumb:Page>
+            </twig:Breadcrumb:Item>
+        </twig:Breadcrumb:List>
+    </twig:Breadcrumb>
+    <div class="mt-4 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-foreground">Sync Run Detail</h1>
+            <p class="mt-1 text-sm text-muted-foreground">
+                {{ sync_run.syncList.name }} —
+                <span data-controller="timezone"
+                      data-timezone-datetime-value="{{ sync_run.createdAt|date('c') }}"
+                      title="{{ sync_run.createdAt|date('Y-m-d H:i:s T') }}">
+                    {{ sync_run.createdAt|date('M j, Y g:ia') }}
+                </span>
+            </p>
+        </div>
+        <div class="mt-4 sm:mt-0 flex gap-x-3">
+            <twig:Button as="a" href="{{ path('app_sync_list_history', { id: sync_run.syncList.id }) }}" variant="outline">
+                <twig:ux:icon name="lucide:list" class="size-4" />
+                List History
+            </twig:Button>
+        </div>
+    </div>
+</div>
+
+{# Status and metadata cards #}
+<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    {# Status #}
+    <twig:Card>
+        <twig:Card:Content class="pt-6">
+            <p class="text-sm font-medium text-muted-foreground">Status</p>
+            <div class="mt-1">
+                {% set status_variant = sync_run.status == 'success' ? 'default' : (sync_run.status == 'failed' ? 'destructive' : (sync_run.status == 'running' ? 'secondary' : 'outline')) %}
+                <twig:Badge variant="{{ status_variant }}" class="text-sm px-3 py-1">
+                    {% if sync_run.status == 'success' %}
+                        <twig:ux:icon name="lucide:circle-check" class="mr-1 size-4" />
+                    {% elseif sync_run.status == 'failed' %}
+                        <twig:ux:icon name="lucide:circle-x" class="mr-1 size-4" />
+                    {% elseif sync_run.status == 'running' %}
+                        <twig:Spinner class="mr-1 size-4" />
+                    {% endif %}
+                    {{ sync_run.status|capitalize }}
+                </twig:Badge>
+            </div>
+        </twig:Card:Content>
+    </twig:Card>
+
+    {# Trigger #}
+    <twig:Card>
+        <twig:Card:Content class="pt-6">
+            <p class="text-sm font-medium text-muted-foreground">Triggered By</p>
+            <div class="mt-1">
+                {% set trigger_variant = sync_run.triggeredBy == 'manual' ? 'default' : (sync_run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                <twig:Badge variant="{{ trigger_variant }}">
+                    {{ sync_run.triggeredBy|capitalize }}
+                </twig:Badge>
+                {% if sync_run.triggeredByUser %}
+                    <span class="ml-1 text-sm text-muted-foreground">{{ sync_run.triggeredByUser.fullName }}</span>
+                {% endif %}
+            </div>
+        </twig:Card:Content>
+    </twig:Card>
+
+    {# Changes #}
+    <twig:Card>
+        <twig:Card:Content class="pt-6">
+            <p class="text-sm font-medium text-muted-foreground">Changes</p>
+            <p class="mt-1 text-lg font-semibold">
+                {% if sync_run.addedCount is not null or sync_run.removedCount is not null %}
+                    <span class="text-green-600">+{{ sync_run.addedCount ?? 0 }}</span>
+                    <span class="text-muted-foreground mx-1">/</span>
+                    <span class="text-red-600">-{{ sync_run.removedCount ?? 0 }}</span>
+                {% else %}
+                    <span class="text-sm font-normal text-muted-foreground">—</span>
+                {% endif %}
+            </p>
+        </twig:Card:Content>
+    </twig:Card>
+
+    {# Duration #}
+    <twig:Card>
+        <twig:Card:Content class="pt-6">
+            <p class="text-sm font-medium text-muted-foreground">Duration</p>
+            <p class="mt-1 text-lg font-semibold text-foreground">
+                {% if sync_run.durationSeconds is not null %}
+                    {{ sync_run.durationSeconds|number_format(2) }}s
+                {% else %}
+                    <span class="text-sm font-normal text-muted-foreground">—</span>
+                {% endif %}
+            </p>
+        </twig:Card:Content>
+    </twig:Card>
+</div>
+
+{# Detailed Info #}
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-8">
+    <div class="lg:col-span-1">
+        <twig:Card>
+            <twig:Card:Content class="pt-6">
+                <h3 class="text-base font-semibold text-foreground mb-4">Details</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-muted-foreground">Sync List</dt>
+                        <dd class="mt-1 text-sm text-foreground">
+                            <a href="{{ path('app_sync_list_history', { id: sync_run.syncList.id }) }}" class="text-primary hover:underline">
+                                {{ sync_run.syncList.name }}
+                            </a>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-muted-foreground">Created</dt>
+                        <dd class="mt-1 text-sm text-foreground"
+                            data-controller="timezone"
+                            data-timezone-datetime-value="{{ sync_run.createdAt|date('c') }}"
+                            data-timezone-format-value="long"
+                            title="{{ sync_run.createdAt|date('Y-m-d H:i:s T') }}">
+                            {{ sync_run.createdAt|date('M j, Y g:i:sa T') }}
+                        </dd>
+                    </div>
+                    {% if sync_run.startedAt %}
+                        <div>
+                            <dt class="text-sm font-medium text-muted-foreground">Started</dt>
+                            <dd class="mt-1 text-sm text-foreground"
+                                data-controller="timezone"
+                                data-timezone-datetime-value="{{ sync_run.startedAt|date('c') }}"
+                                data-timezone-format-value="long"
+                                title="{{ sync_run.startedAt|date('Y-m-d H:i:s T') }}">
+                                {{ sync_run.startedAt|date('M j, Y g:i:sa T') }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.completedAt %}
+                        <div>
+                            <dt class="text-sm font-medium text-muted-foreground">Completed</dt>
+                            <dd class="mt-1 text-sm text-foreground"
+                                data-controller="timezone"
+                                data-timezone-datetime-value="{{ sync_run.completedAt|date('c') }}"
+                                data-timezone-format-value="long"
+                                title="{{ sync_run.completedAt|date('Y-m-d H:i:s T') }}">
+                                {{ sync_run.completedAt|date('M j, Y g:i:sa T') }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.sourceCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-muted-foreground">Source Contacts</dt>
+                            <dd class="mt-1 text-sm text-foreground">{{ sync_run.sourceCount }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.destinationCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-muted-foreground">Destination Contacts</dt>
+                            <dd class="mt-1 text-sm text-foreground">{{ sync_run.destinationCount }}</dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.addedCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-muted-foreground">Contacts Added</dt>
+                            <dd class="mt-1 text-sm font-medium {{ sync_run.addedCount > 0 ? 'text-green-600' : 'text-foreground' }}">
+                                {{ sync_run.addedCount }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                    {% if sync_run.removedCount is not null %}
+                        <div>
+                            <dt class="text-sm font-medium text-muted-foreground">Contacts Removed</dt>
+                            <dd class="mt-1 text-sm font-medium {{ sync_run.removedCount > 0 ? 'text-red-600' : 'text-foreground' }}">
+                                {{ sync_run.removedCount }}
+                            </dd>
+                        </div>
+                    {% endif %}
+                </dl>
+            </twig:Card:Content>
+        </twig:Card>
+    </div>
+
+    <div class="lg:col-span-2">
+        {# Error Message #}
+        {% if sync_run.errorMessage %}
+            <twig:Alert variant="destructive" class="mb-6">
+                <twig:ux:icon name="lucide:circle-x" class="h-4 w-4" />
+                <twig:Alert:Title>Error</twig:Alert:Title>
+                <twig:Alert:Description>{{ sync_run.errorMessage }}</twig:Alert:Description>
+            </twig:Alert>
+        {% endif %}
+
+        {# Log Output #}
+        <twig:Card>
+            <twig:Card:Content class="pt-6">
+                <h3 class="text-base font-semibold text-foreground mb-4">Log Output</h3>
+                {% if sync_run.log %}
+                    <div class="rounded-md bg-gray-900 p-4 overflow-x-auto">
+                        <pre class="text-sm text-gray-100 font-mono whitespace-pre-wrap break-words leading-relaxed">{{ sync_run.log }}</pre>
+                    </div>
+                {% else %}
+                    <div class="rounded-lg border-2 border-dashed border-border p-8 text-center">
+                        <twig:ux:icon name="lucide:file-text" class="mx-auto h-8 w-8 text-muted-foreground" />
+                        <p class="mt-2 text-sm text-muted-foreground">No log output available for this sync run.</p>
+                    </div>
+                {% endif %}
+            </twig:Card:Content>
+        </twig:Card>
+    </div>
+</div>
+
+{# Back navigation #}
+<div class="flex items-center gap-x-4">
+    <twig:Button as="a" href="{{ path('app_history_index') }}" variant="ghost">
+        <twig:ux:icon name="lucide:arrow-left" class="size-4" />
+        Back to Sync History
+    </twig:Button>
+</div>
+{% endblock %}

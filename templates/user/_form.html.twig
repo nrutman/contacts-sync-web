@@ -1,0 +1,39 @@
+{{ form_start(form, { attr: { class: 'space-y-6' } }) }}
+    {% if form.email is defined %}
+        {{ form_row(form.email) }}
+    {% endif %}
+
+    {% if is_edit is defined and is_edit and user is defined %}
+        <twig:Field>
+            <twig:Field:Label>Email Address</twig:Field:Label>
+            <twig:Field:Content>
+                <twig:Input type="email" value="{{ user.email }}" disabled readonly />
+                <twig:Field:Description>Email cannot be changed after creation.</twig:Field:Description>
+            </twig:Field:Content>
+        </twig:Field>
+    {% endif %}
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        {{ form_row(form.firstName) }}
+        {{ form_row(form.lastName) }}
+    </div>
+
+    <div class="space-y-2">
+        <twig:Label>Roles</twig:Label>
+        {% for child in form.roles %}
+            <twig:Field orientation="horizontal">
+                <twig:Field:Label for="{{ child.vars.id }}">
+                    {{ form_widget(child) }}
+                    {{ child.vars.label }}
+                </twig:Field:Label>
+            </twig:Field>
+        {% endfor %}
+        {{ form_errors(form.roles) }}
+    </div>
+
+    <twig:Separator />
+    <div class="flex items-center justify-end gap-x-4">
+        <twig:Button as="a" href="{{ path('app_user_index') }}" variant="outline">Cancel</twig:Button>
+        <twig:Button type="submit">{{ button_label|default('Save') }}</twig:Button>
+    </div>
+{{ form_end(form) }}

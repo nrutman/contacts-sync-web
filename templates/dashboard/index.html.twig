@@ -1,0 +1,236 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dashboard — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Overview of your contact sync status.</p>
+    </div>
+    {% if organization is not null %}
+        <div class="mt-4 sm:mt-0"
+             data-controller="sync-all"
+             data-sync-all-lists-value="{{ enabledSyncLists|map(l => { id: l.id, name: l.name })|json_encode|e('html_attr') }}"
+             data-sync-all-csrf-token-value="{{ csrf_token('sync-run-all') }}">
+            <form action="{{ path('app_sync_run_all') }}" method="post" class="inline">
+                <input type="hidden" name="_token" value="{{ csrf_token('sync-run-all') }}">
+                <twig:Button type="submit" data-action="click->sync-all#submit">
+                    <twig:ux:icon name="lucide:play" class="size-4" />
+                    Sync All
+                </twig:Button>
+            </form>
+
+            {{ include('_sync_all_dialog.html.twig') }}
+        </div>
+    {% endif %}
+</div>
+
+{% if organization is null %}
+    <twig:Alert class="mb-6 border-yellow-500/50">
+        <twig:ux:icon name="lucide:triangle-alert" class="h-4 w-4 text-yellow-600" />
+        <twig:Alert:Title>Setup Required</twig:Alert:Title>
+        <twig:Alert:Description>
+            No organization has been configured yet.
+            {% if is_granted('ROLE_ADMIN') %}
+                <a href="{{ path('app_settings') }}" class="font-medium underline hover:text-foreground">Go to Settings</a> to get started.
+            {% else %}
+                Please ask an administrator to complete the setup.
+            {% endif %}
+        </twig:Alert:Description>
+    </twig:Alert>
+{% else %}
+    {# Stats cards #}
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        {# Total Lists #}
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    <twig:ux:icon name="lucide:list" class="h-5 w-5 text-muted-foreground" />
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Sync Lists</twig:Card:Title>
+                </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                <p class="text-2xl font-semibold text-foreground">
+                    {{ enabledLists }} <span class="text-sm font-normal text-muted-foreground">/ {{ totalLists }} enabled</span>
+                </p>
+            </twig:Card:Content>
+            <twig:Card:Footer class="pt-0">
+                <a href="{{ path('app_sync_list_index') }}" class="text-sm font-medium text-primary hover:underline">View all lists</a>
+            </twig:Card:Footer>
+        </twig:Card>
+
+        {# Last Sync Run #}
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    {% if lastSyncRun %}
+                        {% if lastSyncRun.status == 'success' %}
+                            <twig:ux:icon name="lucide:circle-check" class="h-5 w-5 text-green-500" />
+                        {% elseif lastSyncRun.status == 'failed' %}
+                            <twig:ux:icon name="lucide:circle-x" class="h-5 w-5 text-red-500" />
+                        {% else %}
+                            <twig:ux:icon name="lucide:clock" class="h-5 w-5 text-muted-foreground" />
+                        {% endif %}
+                    {% else %}
+                        <twig:ux:icon name="lucide:clock" class="h-5 w-5 text-muted-foreground" />
+                    {% endif %}
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Last Sync</twig:Card:Title>
+                </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                {% if lastSyncRun %}
+                    <twig:Badge variant="{{ lastSyncRun.status == 'success' ? 'success-outline' : (lastSyncRun.status == 'failed' ? 'destructive-outline' : 'secondary') }}">
+                        {{ lastSyncRun.status|capitalize }}
+                    </twig:Badge>
+                    <span class="block mt-1 text-xs text-muted-foreground"
+                          data-controller="timezone"
+                          data-timezone-datetime-value="{{ lastSyncRun.completedAt|date('c') }}"
+                          title="{{ lastSyncRun.completedAt|date('Y-m-d H:i:s T') }}">
+                        {{ lastSyncRun.completedAt|date('M j, g:ia') }}
+                    </span>
+                {% else %}
+                    <span class="text-sm text-muted-foreground">No syncs yet</span>
+                {% endif %}
+            </twig:Card:Content>
+            {% if lastSyncRun %}
+                <twig:Card:Footer class="pt-0">
+                    <a href="{{ path('app_history_show', { id: lastSyncRun.id }) }}" class="text-sm font-medium text-primary hover:underline">View details</a>
+                </twig:Card:Footer>
+            {% endif %}
+        </twig:Card>
+
+        {# Last Sync Stats #}
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    <twig:ux:icon name="lucide:arrow-up-down" class="h-5 w-5 text-muted-foreground" />
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Last Sync Changes</twig:Card:Title>
+                </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                {% if lastSyncRun and lastSyncRun.status == 'success' %}
+                    <p class="text-2xl font-semibold">
+                        <span class="text-green-600">+{{ lastSyncRun.addedCount ?? 0 }}</span>
+                        <span class="text-muted-foreground mx-1">/</span>
+                        <span class="text-red-600">-{{ lastSyncRun.removedCount ?? 0 }}</span>
+                    </p>
+                {% else %}
+                    <span class="text-sm text-muted-foreground">—</span>
+                {% endif %}
+            </twig:Card:Content>
+            {% if lastSyncRun and lastSyncRun.status == 'success' %}
+                <twig:Card:Footer class="pt-0">
+                    <span class="text-xs text-muted-foreground">{{ lastSyncRun.syncList.name }}</span>
+                </twig:Card:Footer>
+            {% endif %}
+        </twig:Card>
+
+        {# Next Scheduled Sync #}
+        <twig:Card>
+            <twig:Card:Header class="pb-2">
+                <div class="flex items-center gap-3">
+                    <twig:ux:icon name="lucide:calendar" class="h-5 w-5 text-muted-foreground" />
+                    <twig:Card:Title class="text-sm font-medium text-muted-foreground">Next Scheduled Sync</twig:Card:Title>
+                </div>
+            </twig:Card:Header>
+            <twig:Card:Content>
+                {% if nextScheduledSync %}
+                    <span class="text-sm font-semibold text-foreground"
+                          data-controller="timezone"
+                          data-timezone-datetime-value="{{ nextScheduledSync.time|date('c') }}"
+                          title="{{ nextScheduledSync.time|date('Y-m-d H:i:s T') }}">
+                        {{ nextScheduledSync.time|date('M j, g:ia') }}
+                    </span>
+                    <span class="block mt-1 text-xs text-muted-foreground">{{ nextScheduledSync.listName }}</span>
+                {% else %}
+                    <span class="text-sm text-muted-foreground">Not scheduled</span>
+                {% endif %}
+            </twig:Card:Content>
+            <twig:Card:Footer class="pt-0">
+                <a href="{{ path('app_sync_list_index') }}" class="text-sm font-medium text-primary hover:underline">Manage schedules</a>
+            </twig:Card:Footer>
+        </twig:Card>
+    </div>
+
+    {# Recent Sync Runs #}
+    <div class="mb-6">
+        <div class="sm:flex sm:items-center sm:justify-between mb-4">
+            <h2 class="text-lg font-semibold text-foreground">Recent Sync Runs</h2>
+            <a href="{{ path('app_history_index') }}" class="text-sm font-medium text-primary hover:underline">View all history &rarr;</a>
+        </div>
+
+        <turbo-frame id="recent-syncs">
+            {% if recentSyncRuns|length > 0 %}
+                <twig:Card>
+                    <twig:Table>
+                        <twig:Table:Header>
+                            <twig:Table:Row>
+                                <twig:Table:Head>Date</twig:Table:Head>
+                                <twig:Table:Head>List</twig:Table:Head>
+                                <twig:Table:Head>Trigger</twig:Table:Head>
+                                <twig:Table:Head>Status</twig:Table:Head>
+                                <twig:Table:Head>Changes</twig:Table:Head>
+                                <twig:Table:Head>Duration</twig:Table:Head>
+                                <twig:Table:Head class="text-right"><span class="sr-only">View</span></twig:Table:Head>
+                            </twig:Table:Row>
+                        </twig:Table:Header>
+                        <twig:Table:Body>
+                            {% for run in recentSyncRuns %}
+                                <twig:Table:Row>
+                                    <twig:Table:Cell class="font-medium">
+                                        <span data-controller="timezone"
+                                              data-timezone-datetime-value="{{ run.createdAt|date('c') }}"
+                                              title="{{ run.createdAt|date('Y-m-d H:i:s T') }}">
+                                            {{ run.createdAt|date('M j, g:ia') }}
+                                        </span>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>{{ run.syncList.name }}</twig:Table:Cell>
+                                    <twig:Table:Cell>
+                                        {% set trigger_variant = run.triggeredBy == 'manual' ? 'default' : (run.triggeredBy == 'schedule' ? 'secondary' : 'outline') %}
+                                        <twig:Badge variant="{{ trigger_variant }}">
+                                            {{ run.triggeredBy|capitalize }}
+                                        </twig:Badge>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>
+                                        <twig:Badge variant="{{ run.status == 'success' ? 'success-outline' : (run.status == 'failed' ? 'destructive-outline' : 'secondary') }}">
+                                            {{ run.status|capitalize }}
+                                        </twig:Badge>
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>
+                                        {% if run.status == 'success' %}
+                                            <span class="text-green-600">+{{ run.addedCount ?? 0 }}</span>
+                                            <span class="text-muted-foreground">/</span>
+                                            <span class="text-red-600">-{{ run.removedCount ?? 0 }}</span>
+                                        {% elseif run.status == 'failed' %}
+                                            <span class="text-red-500">Error</span>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell>
+                                        {% if run.durationSeconds is not null %}
+                                            {{ run.durationSeconds|number_format(1) }}s
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </twig:Table:Cell>
+                                    <twig:Table:Cell class="text-right">
+                                        <twig:Button as="a" href="{{ path('app_history_show', { id: run.id }) }}" variant="ghost" size="sm" data-turbo-frame="_top">View</twig:Button>
+                                    </twig:Table:Cell>
+                                </twig:Table:Row>
+                            {% endfor %}
+                        </twig:Table:Body>
+                    </twig:Table>
+                </twig:Card>
+            {% else %}
+                <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+                    <twig:ux:icon name="lucide:clock" class="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 class="mt-2 text-sm font-semibold text-foreground">No sync runs yet</h3>
+                    <p class="mt-1 text-sm text-muted-foreground">Sync runs will appear here after you trigger a sync or a scheduled sync runs.</p>
+                </div>
+            {% endif %}
+        </turbo-frame>
+    </div>
+{% endif %}
+{% endblock %}

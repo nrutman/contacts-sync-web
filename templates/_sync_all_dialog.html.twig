@@ -1,0 +1,77 @@
+{#
+    Sync All progress dialog.
+
+    Required variables:
+      - enabledSyncLists: array of SyncList entities (id, name)
+
+    Must be placed inside an element with data-controller="sync-all".
+#}
+<dialog data-sync-all-target="modal"
+        data-action="cancel->sync-all#preventCloseWhileRunning"
+        class="w-full max-w-lg rounded-xl bg-card p-0 shadow-2xl ring-1 ring-border">
+    <div class="px-6 pt-5 pb-4">
+        <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <twig:ux:icon name="lucide:refresh-cw" class="size-5 text-primary" />
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-foreground">Syncing All Lists</h3>
+                <p class="text-sm text-muted-foreground">Running sync for each enabled list.</p>
+            </div>
+        </div>
+    </div>
+
+    <ul class="divide-y divide-border border-t border-border">
+        {% for list in enabledSyncLists %}
+            <li class="flex items-center justify-between px-6 py-3"
+                data-sync-all-target="listStatus"
+                data-list-id="{{ list.id }}">
+                <div class="flex items-center gap-3 min-w-0">
+                    {# Waiting icon — gray dot #}
+                    <span data-role="icon-waiting" class="flex-shrink-0">
+                        <twig:ux:icon name="lucide:circle" class="size-5 text-muted-foreground/40" />
+                    </span>
+
+                    {# Syncing icon — spinner #}
+                    <span data-role="icon-syncing" class="hidden flex-shrink-0">
+                        <twig:Spinner class="size-5 text-primary" />
+                    </span>
+
+                    {# Done icon — green check circle #}
+                    <span data-role="icon-done" class="hidden flex-shrink-0">
+                        <twig:ux:icon name="lucide:circle-check" class="size-5 text-green-500" />
+                    </span>
+
+                    {# Failed icon — red X circle #}
+                    <span data-role="icon-failed" class="hidden flex-shrink-0">
+                        <twig:ux:icon name="lucide:circle-x" class="size-5 text-destructive" />
+                    </span>
+
+                    {# Skipped icon — gray slash circle #}
+                    <span data-role="icon-skipped" class="hidden flex-shrink-0">
+                        <twig:ux:icon name="lucide:circle-slash" class="size-5 text-muted-foreground" />
+                    </span>
+
+                    <span class="text-sm font-medium text-muted-foreground truncate">{{ list.name }}</span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+                    <span data-role="status" class="text-sm font-medium text-muted-foreground">Waiting</span>
+                    <span data-role="detail" class="text-xs text-muted-foreground"></span>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <div class="flex justify-end gap-2 border-t border-border bg-muted px-6 py-4 rounded-b-xl">
+        <twig:Button data-sync-all-target="cancelButton"
+                     data-action="click->sync-all#cancel"
+                     variant="outline">
+            Cancel
+        </twig:Button>
+        <twig:Button data-sync-all-target="closeButton"
+                     data-action="click->sync-all#close"
+                     disabled>
+            Close
+        </twig:Button>
+    </div>
+</dialog>

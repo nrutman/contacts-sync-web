@@ -1,0 +1,140 @@
+{% use 'form_div_layout.html.twig' %}
+
+{# ── CSRF token: add data-controller so csrf_protection_controller.js can set up
+      the double-submit cookie required by SameOriginCsrfTokenManager ── #}
+{% block hidden_widget %}
+    <input type="hidden" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if name == '_token' %} data-controller="csrf-protection"{% endif %}>
+{% endblock %}
+
+{# ── Row wrapper ── #}
+{% block form_row %}
+    <div role="group" data-slot="field" data-orientation="vertical"{% if not valid %} data-invalid="true"{% endif %}
+         class="group/field flex w-full gap-3 flex-col [&>*]:w-full [&>.sr-only]:w-auto data-[invalid=true]:text-destructive">
+        {{- form_label(form) -}}
+        <div data-slot="field-content" class="group/field-content flex flex-1 flex-col gap-1.5 leading-snug">
+            {{- form_widget(form) -}}
+            {{- form_help(form) -}}
+            {{- form_errors(form) -}}
+        </div>
+    </div>
+{% endblock %}
+
+{# ── Label ── #}
+{% block form_label %}
+    {% if label is not same as(false) %}
+        <label for="{{ id }}" data-slot="field-label"
+               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group/field-label peer/field-label w-fit leading-snug group-data-[disabled=true]/field:opacity-50">
+            {{- label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
+            {%- if required %} <span class="text-destructive">*</span>{% endif -%}
+        </label>
+    {% endif %}
+{% endblock %}
+
+{# ── Text-like inputs ── #}
+{% block form_widget_simple %}
+    {% set type = type|default('text') %}
+    <input type="{{ type }}" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"
+           class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+           {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}{% if attr.readonly is defined and attr.readonly %} readonly{% endif %}>
+{% endblock %}
+
+{# ── Textarea ── #}
+{% block textarea_widget %}
+    <textarea id="{{ id }}" name="{{ full_name }}"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+              {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}>{{ value }}</textarea>
+{% endblock %}
+
+{# ── Select (choice as dropdown) ── #}
+{% block choice_widget_collapsed %}
+    <select id="{{ id }}" name="{{ full_name }}{% if multiple %}[]{% endif %}"
+            class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
+            {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if multiple %} multiple{% endif %}>
+        {% if placeholder is not none %}
+            <option value="">{{ placeholder != '' ? (translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain)) : '' }}</option>
+        {% endif %}
+        {% if preferred_choices|length > 0 %}
+            {% set options = preferred_choices %}
+            {% for group_label, choice in options %}
+                {% if choice is iterable %}
+                    <optgroup label="{{ choice_translation_domain is same as(false) ? group_label : group_label|trans({}, choice_translation_domain) }}">
+                        {% for child in choice %}
+                            <option value="{{ child.value }}"{% if child.attr is defined %}{% for k, v in child.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if child is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? child.label : child.label|trans({}, choice_translation_domain) }}</option>
+                        {% endfor %}
+                    </optgroup>
+                {% else %}
+                    <option value="{{ choice.value }}"{% if choice.attr is defined %}{% for k, v in choice.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if choice is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans({}, choice_translation_domain) }}</option>
+                {% endif %}
+            {% endfor %}
+            <option disabled>---</option>
+        {% endif %}
+        {% set options = choices %}
+        {% for group_label, choice in options %}
+            {% if choice is iterable %}
+                <optgroup label="{{ choice_translation_domain is same as(false) ? group_label : group_label|trans({}, choice_translation_domain) }}">
+                    {% for child in choice %}
+                        <option value="{{ child.value }}"{% if child.attr is defined %}{% for k, v in child.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if child is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? child.label : child.label|trans({}, choice_translation_domain) }}</option>
+                    {% endfor %}
+                </optgroup>
+            {% else %}
+                <option value="{{ choice.value }}"{% if choice.attr is defined %}{% for k, v in choice.attr %} {{ k }}="{{ v }}"{% endfor %}{% endif %}{% if choice is selectedchoice(value) %} selected{% endif %}>{{ choice_translation_domain is same as(false) ? choice.label : choice.label|trans({}, choice_translation_domain) }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+{% endblock %}
+
+{# ── Checkbox (single) ── #}
+{% block checkbox_widget %}
+    <input type="checkbox" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"
+           class="peer size-4 inline-block align-middle accent-primary"
+           {% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}>
+{% endblock %}
+
+{# ── Checkbox row: horizontal layout ── #}
+{% block checkbox_row %}
+    <div role="group" data-slot="field" data-orientation="horizontal"{% if not valid %} data-invalid="true"{% endif %}
+         class="group/field flex w-full gap-3 flex-row items-center data-[invalid=true]:text-destructive">
+        <label for="{{ form.vars.id }}" data-slot="field-label"
+               class="flex items-center gap-2 text-sm leading-none font-medium select-none group/field-label peer/field-label w-fit leading-snug flex-auto">
+            {{- form_widget(form) -}}
+            {{- label is not same as(false) ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
+        </label>
+        <div data-slot="field-content" class="group/field-content flex flex-1 flex-col gap-1.5 leading-snug">
+            {{- form_help(form) -}}
+            {{- form_errors(form) -}}
+        </div>
+    </div>
+{% endblock %}
+
+{# ── Errors ── #}
+{% block form_errors %}
+    {% if errors|length > 0 %}
+        <div role="alert" data-slot="field-error" class="text-destructive text-sm font-normal">
+            {% if errors|length == 1 %}
+                {{ errors|first.message }}
+            {% else %}
+                <ul class="ml-4 flex list-disc flex-col gap-1">
+                    {% for error in errors %}
+                        <li>{{ error.message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}
+
+{# ── Help text ── #}
+{% block form_help %}
+    {% if help is not empty %}
+        <p data-slot="field-description" class="text-muted-foreground text-sm leading-normal font-normal">{{ translation_domain is same as(false) ? help : help|trans({}, translation_domain) }}</p>
+    {% endif %}
+{% endblock %}
+
+{# ── Button ── #}
+{% block button_widget %}
+    <button type="{{ type|default('submit') }}"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3"
+            {% if disabled %} disabled{% endif %}>
+        {{- label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
+    </button>
+{% endblock %}

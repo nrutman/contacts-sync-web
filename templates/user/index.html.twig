@@ -1,0 +1,128 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-foreground">Users</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Manage who has access to Contacts Sync.</p>
+    </div>
+    <div class="mt-4 sm:mt-0">
+        <twig:Button as="a" href="{{ path('app_user_new') }}">
+            <twig:ux:icon name="lucide:plus" class="size-4" />
+            Invite User
+        </twig:Button>
+    </div>
+</div>
+
+{% if users|length > 0 %}
+    <twig:Card>
+        <twig:Table>
+            <twig:Table:Header>
+                <twig:Table:Row>
+                    <twig:Table:Head>Name</twig:Table:Head>
+                    <twig:Table:Head>Email</twig:Table:Head>
+                    <twig:Table:Head>Role</twig:Table:Head>
+                    <twig:Table:Head>Status</twig:Table:Head>
+                    <twig:Table:Head>Joined</twig:Table:Head>
+                    <twig:Table:Head class="text-right"><span class="sr-only">Actions</span></twig:Table:Head>
+                </twig:Table:Row>
+            </twig:Table:Header>
+            <twig:Table:Body>
+                {% for user in users %}
+                    <twig:Table:Row>
+                        <twig:Table:Cell class="font-medium">
+                            <div class="flex items-center gap-x-3">
+                                <twig:Avatar class="h-8 w-8">
+                                    <twig:Avatar:Text>{{ user.firstName|first|upper }}{{ user.lastName|first|upper }}</twig:Avatar:Text>
+                                </twig:Avatar>
+                                <span>{{ user.fullName }}</span>
+                            </div>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>{{ user.email }}</twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if 'ROLE_ADMIN' in user.roles %}
+                                <twig:Badge variant="default">Admin</twig:Badge>
+                            {% else %}
+                                <twig:Badge variant="secondary">User</twig:Badge>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if user.isVerified %}
+                                <twig:Badge variant="default">
+                                    <twig:ux:icon name="lucide:circle-check" class="mr-1 size-3" />
+                                    Active
+                                </twig:Badge>
+                            {% else %}
+                                <twig:Badge variant="secondary">
+                                    <twig:ux:icon name="lucide:clock" class="mr-1 size-3" />
+                                    Pending Invitation
+                                </twig:Badge>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <span data-controller="timezone"
+                                  data-timezone-datetime-value="{{ user.createdAt|date('c') }}"
+                                  data-timezone-format-value="date"
+                                  title="{{ user.createdAt|date('Y-m-d H:i:s T') }}">
+                                {{ user.createdAt|date('M j, Y') }}
+                            </span>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell class="text-right">
+                            <div class="flex items-center justify-end gap-x-1">
+                                {% if not user.isVerified %}
+                                    <form action="{{ path('app_user_resend_invitation', { id: user.id }) }}" method="post" class="inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('resend-invitation-' ~ user.id) }}">
+                                        <twig:Button type="submit" variant="ghost" size="sm">Resend Invite</twig:Button>
+                                    </form>
+                                {% endif %}
+                                <twig:Button as="a" href="{{ path('app_user_edit', { id: user.id }) }}" variant="ghost" size="icon-sm" title="Edit">
+                                    <twig:ux:icon name="lucide:pencil" class="size-4" />
+                                </twig:Button>
+                                {% if app.user.id != user.id %}
+                                    <twig:AlertDialog id="delete-user-{{ user.id }}">
+                                        <twig:AlertDialog:Trigger>
+                                            <twig:Button variant="ghost" size="icon-sm" title="Delete" class="text-destructive hover:text-destructive" {{ ...trigger_attrs }}>
+                                                <twig:ux:icon name="lucide:trash-2" class="size-4" />
+                                            </twig:Button>
+                                        </twig:AlertDialog:Trigger>
+                                        <twig:AlertDialog:Content>
+                                            <twig:AlertDialog:Header>
+                                                <twig:AlertDialog:Title>Delete user</twig:AlertDialog:Title>
+                                                <twig:AlertDialog:Description>
+                                                    Are you sure you want to delete "{{ user.fullName }}"? This action cannot be undone.
+                                                </twig:AlertDialog:Description>
+                                            </twig:AlertDialog:Header>
+                                            <twig:AlertDialog:Footer>
+                                                <twig:AlertDialog:Cancel>Cancel</twig:AlertDialog:Cancel>
+                                                <form action="{{ path('app_user_delete', { id: user.id }) }}" method="post" class="inline">
+                                                    <input type="hidden" name="_method" value="DELETE">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('delete-user-' ~ user.id) }}">
+                                                    <twig:AlertDialog:Action variant="destructive" type="submit">Delete</twig:AlertDialog:Action>
+                                                </form>
+                                            </twig:AlertDialog:Footer>
+                                        </twig:AlertDialog:Content>
+                                    </twig:AlertDialog>
+                                {% endif %}
+                            </div>
+                        </twig:Table:Cell>
+                    </twig:Table:Row>
+                {% endfor %}
+            </twig:Table:Body>
+        </twig:Table>
+    </twig:Card>
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+        <twig:ux:icon name="lucide:users-round" class="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 class="mt-2 text-sm font-semibold text-foreground">No users</h3>
+        <p class="mt-1 text-sm text-muted-foreground">Get started by inviting your first user.</p>
+        <div class="mt-6">
+            <twig:Button as="a" href="{{ path('app_user_new') }}">
+                <twig:ux:icon name="lucide:plus" class="size-4" />
+                Invite User
+            </twig:Button>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Provider Credentials — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-foreground">Provider Credentials</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Manage API credentials for sync sources and destinations.</p>
+    </div>
+    <div class="mt-4 sm:mt-0 flex gap-x-2">
+        {% for name, provider in providers %}
+            <twig:Button as="a" href="{{ path('app_credentials_new', { providerName: name }) }}">
+                <twig:ux:icon name="lucide:plus" class="size-4" />
+                Add {{ provider.displayName }}
+            </twig:Button>
+        {% endfor %}
+    </div>
+</div>
+
+{% if credentials|length > 0 %}
+    <twig:Card>
+        <twig:Table>
+            <twig:Table:Header>
+                <twig:Table:Row>
+                    <twig:Table:Head>Label</twig:Table:Head>
+                    <twig:Table:Head>Provider</twig:Table:Head>
+                    <twig:Table:Head>Status</twig:Table:Head>
+                    <twig:Table:Head>Created</twig:Table:Head>
+                    <twig:Table:Head class="text-right"><span class="sr-only">Actions</span></twig:Table:Head>
+                </twig:Table:Row>
+            </twig:Table:Header>
+            <twig:Table:Body>
+                {% for credential in credentials %}
+                    {% set provider = providers[credential.providerName] ?? null %}
+                    {% set credArray = credential.credentialsArray %}
+                    {% set isOAuth = credential.providerName in oauth_providers %}
+                    {% set isConnected = credArray.token is defined and credArray.token is not null %}
+                    <twig:Table:Row>
+                        <twig:Table:Cell class="font-medium">{{ credential.displayLabel }}</twig:Table:Cell>
+                        <twig:Table:Cell>{{ provider ? provider.displayName : credential.providerName }}</twig:Table:Cell>
+                        <twig:Table:Cell>
+                            {% if isOAuth %}
+                                {% if isConnected %}
+                                    <twig:Badge variant="secondary" class="bg-green-100 text-green-800">Connected</twig:Badge>
+                                {% else %}
+                                    <twig:Badge variant="secondary" class="bg-yellow-100 text-yellow-800">Not Connected</twig:Badge>
+                                {% endif %}
+                            {% else %}
+                                <twig:Badge variant="secondary" class="bg-green-100 text-green-800">Configured</twig:Badge>
+                            {% endif %}
+                        </twig:Table:Cell>
+                        <twig:Table:Cell>
+                            <span data-controller="timezone"
+                                  data-timezone-datetime-value="{{ credential.createdAt|date('c') }}"
+                                  data-timezone-format-value="date"
+                                  title="{{ credential.createdAt|date('Y-m-d H:i:s T') }}">
+                                {{ credential.createdAt|date('M j, Y') }}
+                            </span>
+                        </twig:Table:Cell>
+                        <twig:Table:Cell class="text-right">
+                            <div class="flex items-center justify-end gap-x-1">
+                                {% if isOAuth %}
+                                    {% if isConnected %}
+                                        <twig:AlertDialog id="disconnect-credential-{{ credential.id }}">
+                                            <twig:AlertDialog:Trigger>
+                                                <twig:Button variant="ghost" size="sm" class="text-orange-600 hover:text-orange-700" {{ ...trigger_attrs }}>
+                                                    Disconnect
+                                                </twig:Button>
+                                            </twig:AlertDialog:Trigger>
+                                            <twig:AlertDialog:Content>
+                                                <twig:AlertDialog:Header>
+                                                    <twig:AlertDialog:Title>Disconnect OAuth</twig:AlertDialog:Title>
+                                                    <twig:AlertDialog:Description>
+                                                        Are you sure you want to disconnect? Syncing will stop working until you reconnect.
+                                                    </twig:AlertDialog:Description>
+                                                </twig:AlertDialog:Header>
+                                                <twig:AlertDialog:Footer>
+                                                    <twig:AlertDialog:Cancel>Cancel</twig:AlertDialog:Cancel>
+                                                    <form action="{{ path('app_credentials_oauth_disconnect', { id: credential.id }) }}" method="post" class="inline">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('oauth-disconnect-' ~ credential.id) }}">
+                                                        <twig:AlertDialog:Action variant="destructive" type="submit">Disconnect</twig:AlertDialog:Action>
+                                                    </form>
+                                                </twig:AlertDialog:Footer>
+                                            </twig:AlertDialog:Content>
+                                        </twig:AlertDialog>
+                                    {% else %}
+                                        <twig:Button as="a" href="{{ path('app_credentials_oauth_connect', { id: credential.id }) }}" variant="ghost" size="sm">
+                                            Connect
+                                        </twig:Button>
+                                    {% endif %}
+                                {% endif %}
+                                <twig:Button as="a" href="{{ path('app_credentials_edit', { id: credential.id }) }}" variant="ghost" size="icon-sm" title="Edit">
+                                    <twig:ux:icon name="lucide:pencil" class="size-4" />
+                                </twig:Button>
+                                <twig:AlertDialog id="delete-credential-{{ credential.id }}">
+                                    <twig:AlertDialog:Trigger>
+                                        <twig:Button variant="ghost" size="icon-sm" title="Delete" class="text-destructive hover:text-destructive" {{ ...trigger_attrs }}>
+                                            <twig:ux:icon name="lucide:trash-2" class="size-4" />
+                                        </twig:Button>
+                                    </twig:AlertDialog:Trigger>
+                                    <twig:AlertDialog:Content>
+                                        <twig:AlertDialog:Header>
+                                            <twig:AlertDialog:Title>Delete credential</twig:AlertDialog:Title>
+                                            <twig:AlertDialog:Description>
+                                                Are you sure you want to delete this credential? Sync lists using it will stop working.
+                                            </twig:AlertDialog:Description>
+                                        </twig:AlertDialog:Header>
+                                        <twig:AlertDialog:Footer>
+                                            <twig:AlertDialog:Cancel>Cancel</twig:AlertDialog:Cancel>
+                                            <form action="{{ path('app_credentials_delete', { id: credential.id }) }}" method="post" class="inline">
+                                                <input type="hidden" name="_method" value="DELETE">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('delete-credential-' ~ credential.id) }}">
+                                                <twig:AlertDialog:Action variant="destructive" type="submit">Delete</twig:AlertDialog:Action>
+                                            </form>
+                                        </twig:AlertDialog:Footer>
+                                    </twig:AlertDialog:Content>
+                                </twig:AlertDialog>
+                            </div>
+                        </twig:Table:Cell>
+                    </twig:Table:Row>
+                {% endfor %}
+            </twig:Table:Body>
+        </twig:Table>
+    </twig:Card>
+{% else %}
+    <div class="rounded-lg border-2 border-dashed border-border p-12 text-center">
+        <twig:ux:icon name="lucide:key-round" class="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 class="mt-2 text-sm font-semibold text-foreground">No credentials</h3>
+        <p class="mt-1 text-sm text-muted-foreground">Get started by adding a provider credential.</p>
+        <div class="mt-6 flex justify-center gap-x-2">
+            {% for name, provider in providers %}
+                <twig:Button as="a" href="{{ path('app_credentials_new', { providerName: name }) }}">
+                    <twig:ux:icon name="lucide:plus" class="size-4" />
+                    Add {{ provider.displayName }}
+                </twig:Button>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Notification Preferences — Contacts Sync{% endblock %}
+
+{% block body %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-foreground">Notification Preferences</h1>
+    <p class="mt-1 text-sm text-muted-foreground">Choose when you want to receive email notifications about sync runs.</p>
+</div>
+
+<div class="max-w-2xl">
+    <twig:Card class="p-6">
+        {{ form_start(form, { attr: { class: 'space-y-6' } }) }}
+
+        <fieldset>
+            <legend class="text-base font-semibold text-foreground">Email Notifications</legend>
+            <p class="mt-1 text-sm text-muted-foreground">Notifications are sent after each sync run completes, based on the preferences below.</p>
+
+            <div class="mt-6 space-y-5">
+                <twig:Field orientation="horizontal">
+                    <twig:Field:Label for="{{ form.notifyOnSuccess.vars.id }}">
+                        {{ form_widget(form.notifyOnSuccess) }}
+                        {{ form.notifyOnSuccess.vars.label }}
+                    </twig:Field:Label>
+                    {% if form.notifyOnSuccess.vars.help %}
+                        <twig:Field:Description>{{ form.notifyOnSuccess.vars.help }}</twig:Field:Description>
+                    {% endif %}
+                    {{ form_errors(form.notifyOnSuccess) }}
+                </twig:Field>
+
+                <twig:Field orientation="horizontal">
+                    <twig:Field:Label for="{{ form.notifyOnFailure.vars.id }}">
+                        {{ form_widget(form.notifyOnFailure) }}
+                        {{ form.notifyOnFailure.vars.label }}
+                    </twig:Field:Label>
+                    {% if form.notifyOnFailure.vars.help %}
+                        <twig:Field:Description>{{ form.notifyOnFailure.vars.help }}</twig:Field:Description>
+                    {% endif %}
+                    {{ form_errors(form.notifyOnFailure) }}
+                </twig:Field>
+
+                <twig:Field orientation="horizontal">
+                    <twig:Field:Label for="{{ form.notifyOnNoChanges.vars.id }}">
+                        {{ form_widget(form.notifyOnNoChanges) }}
+                        {{ form.notifyOnNoChanges.vars.label }}
+                    </twig:Field:Label>
+                    {% if form.notifyOnNoChanges.vars.help %}
+                        <twig:Field:Description>{{ form.notifyOnNoChanges.vars.help }}</twig:Field:Description>
+                    {% endif %}
+                    {{ form_errors(form.notifyOnNoChanges) }}
+                </twig:Field>
+            </div>
+        </fieldset>
+
+        <twig:Separator />
+        <div class="flex items-center justify-end gap-x-4">
+            <twig:Button as="a" href="{{ path('app_dashboard') }}" variant="outline">Cancel</twig:Button>
+            <twig:Button type="submit">Save Preferences</twig:Button>
+        </div>
+
+        {{ form_end(form) }}
+    </twig:Card>
+
+    <twig:Alert class="mt-6">
+        <twig:ux:icon name="lucide:info" class="size-4" />
+        <twig:Alert:Description>
+            Notifications are sent after each sync run — whether triggered manually, by schedule, or via CLI.
+            If all preferences are unchecked, you will not receive any sync notification emails.
+        </twig:Alert:Description>
+    </twig:Alert>
+</div>
+{% endblock %}
