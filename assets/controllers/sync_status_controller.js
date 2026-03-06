@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus";
+import { Controller } from '@hotwired/stimulus';
 
 /**
  * Polls the SyncRun status API for pending/running rows and updates
@@ -16,12 +16,12 @@ export default class extends Controller {
     };
 
     static targets = [
-        "status",
-        "source",
-        "destination",
-        "added",
-        "removed",
-        "duration",
+        'status',
+        'source',
+        'destination',
+        'added',
+        'removed',
+        'duration',
     ];
 
     connect() {
@@ -48,7 +48,7 @@ export default class extends Controller {
     async fetchStatus() {
         try {
             const response = await fetch(this.urlValue, {
-                headers: { Accept: "application/json" },
+                headers: { Accept: 'application/json' },
             });
 
             if (!response.ok) {
@@ -59,7 +59,7 @@ export default class extends Controller {
             this.updateRow(data);
 
             // Stop polling once the run is no longer in progress
-            if (data.status !== "pending" && data.status !== "running") {
+            if (data.status !== 'pending' && data.status !== 'running') {
                 this.stopPolling();
             }
         } catch {
@@ -74,22 +74,22 @@ export default class extends Controller {
 
         if (this.hasSourceTarget) {
             this.sourceTarget.textContent =
-                data.sourceCount !== null ? data.sourceCount : "\u2014";
+                data.sourceCount !== null ? data.sourceCount : '\u2014';
         }
 
         if (this.hasDestinationTarget) {
             this.destinationTarget.textContent =
                 data.destinationCount !== null
                     ? data.destinationCount
-                    : "\u2014";
+                    : '\u2014';
         }
 
         if (this.hasAddedTarget) {
             if (data.addedCount !== null) {
                 const cls =
                     data.addedCount > 0
-                        ? "text-green-600 font-medium"
-                        : "text-muted-foreground";
+                        ? 'text-green-600 font-medium'
+                        : 'text-muted-foreground';
                 this.addedTarget.innerHTML = `<span class="${cls}">+${data.addedCount}</span>`;
             } else {
                 this.addedTarget.innerHTML =
@@ -101,8 +101,8 @@ export default class extends Controller {
             if (data.removedCount !== null) {
                 const cls =
                     data.removedCount > 0
-                        ? "text-destructive font-medium"
-                        : "text-muted-foreground";
+                        ? 'text-destructive font-medium'
+                        : 'text-muted-foreground';
                 this.removedTarget.innerHTML = `<span class="${cls}">-${data.removedCount}</span>`;
             } else {
                 this.removedTarget.innerHTML =
@@ -113,26 +113,30 @@ export default class extends Controller {
         if (this.hasDurationTarget) {
             if (data.durationSeconds !== null) {
                 this.durationTarget.textContent =
-                    data.durationSeconds.toFixed(1) + "s";
+                    data.durationSeconds.toFixed(1) + 's';
             } else {
-                this.durationTarget.textContent = "\u2014";
+                this.durationTarget.textContent = '\u2014';
             }
         }
     }
 
     renderStatusBadge(status) {
         const styles = {
-            success: "border-success text-success",
-            failed: "border-destructive text-destructive",
-            running: "border-transparent bg-secondary text-secondary-foreground",
-            pending: "border-transparent bg-secondary text-secondary-foreground",
+            success: 'border-success text-success',
+            failed: 'border-destructive text-destructive',
+            running:
+                'border-transparent bg-secondary text-secondary-foreground',
+            pending:
+                'border-transparent bg-secondary text-secondary-foreground',
         };
 
-        const css = styles[status] || "border-transparent bg-secondary text-secondary-foreground";
+        const css =
+            styles[status] ||
+            'border-transparent bg-secondary text-secondary-foreground';
         const label = status.charAt(0).toUpperCase() + status.slice(1);
 
-        let extra = "";
-        if (status === "pending" || status === "running") {
+        let extra = '';
+        if (status === 'pending' || status === 'running') {
             extra =
                 '<svg class="ml-1 h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
         }

@@ -42,6 +42,10 @@ composer run-script test && composer run-script cs
 
 If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-run tests to confirm nothing broke.
 
+## PR CI Monitoring
+
+After pushing to a branch with an open PR, monitor the CI checks using `gh pr checks`. If any checks fail, investigate the failure, fix the issue, push the fix, and continue monitoring until all checks pass. Repeat this cycle as needed — do not consider the push complete until all CI checks are green.
+
 ## Testing Conventions
 
 - Tests live in `tests/` and mirror the `src/` directory structure (e.g. `src/Contact/ContactListAnalyzer.php` → `tests/Contact/ContactListAnalyzerTest.php`).

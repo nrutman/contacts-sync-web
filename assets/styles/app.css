@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @source "../../templates/**/*.html.twig";
 @source "../**/*.js";
@@ -93,9 +93,9 @@
     }
 
     button:not(:disabled),
-    [type="submit"]:not(:disabled),
-    [type="button"]:not(:disabled),
-    [role="button"]:not(:disabled) {
+    [type='submit']:not(:disabled),
+    [type='button']:not(:disabled),
+    [role='button']:not(:disabled) {
         cursor: pointer;
     }
 

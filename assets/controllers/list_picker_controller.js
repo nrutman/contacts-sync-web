@@ -1,12 +1,19 @@
 import { Controller } from '@hotwired/stimulus';
 
-const SELECT_CLASSES = 'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1';
+const SELECT_CLASSES =
+    'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1';
 
-const SPINNER_HTML = '<svg class="animate-spin h-4 w-4 text-muted-foreground inline-block ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+const SPINNER_HTML =
+    '<svg class="animate-spin h-4 w-4 text-muted-foreground inline-block ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
 
 export default class extends Controller {
     static values = { apiBase: String };
-    static targets = ['sourceCredentialWrapper', 'sourceListWrapper', 'destinationCredentialWrapper', 'destinationListWrapper'];
+    static targets = [
+        'sourceCredentialWrapper',
+        'sourceListWrapper',
+        'destinationCredentialWrapper',
+        'destinationListWrapper',
+    ];
 
     connect() {
         // If credentials are already selected (edit form), fetch lists for both sides
@@ -30,7 +37,9 @@ export default class extends Controller {
         if (!credentialSelect) return;
 
         const credentialId = credentialSelect.value;
-        const textInput = listWrapper.querySelector('input[type="text"], input[type="hidden"][data-list-picker-original]');
+        const textInput = listWrapper.querySelector(
+            'input[type="text"], input[type="hidden"][data-list-picker-original]',
+        );
 
         if (!credentialId) {
             this.restoreTextInput(listWrapper);
@@ -41,7 +50,9 @@ export default class extends Controller {
         const spinner = this.showSpinner(listWrapper);
 
         try {
-            const response = await fetch(`${this.apiBaseValue}/${credentialId}/lists`);
+            const response = await fetch(
+                `${this.apiBaseValue}/${credentialId}/lists`,
+            );
             const data = await response.json();
 
             this.removeSpinner(spinner);
@@ -66,11 +77,15 @@ export default class extends Controller {
 
     replaceWithSelect(listWrapper, lists) {
         // Find the original text input
-        const input = listWrapper.querySelector('input[type="text"], input[type="hidden"][data-list-picker-original]');
+        const input = listWrapper.querySelector(
+            'input[type="text"], input[type="hidden"][data-list-picker-original]',
+        );
         if (!input) return;
 
         // Remove any existing generated select
-        const existingSelect = listWrapper.querySelector('select[data-list-picker-select]');
+        const existingSelect = listWrapper.querySelector(
+            'select[data-list-picker-select]',
+        );
         if (existingSelect) existingSelect.remove();
 
         const currentValue = input.value;
@@ -120,18 +135,23 @@ export default class extends Controller {
         });
 
         // Insert select after the hidden input within the field-content div
-        const fieldContent = input.closest('[data-slot="field-content"]') || input.parentNode;
+        const fieldContent =
+            input.closest('[data-slot="field-content"]') || input.parentNode;
         fieldContent.insertBefore(select, fieldContent.firstChild);
     }
 
     restoreTextInput(listWrapper) {
-        const input = listWrapper.querySelector('input[data-list-picker-original]');
+        const input = listWrapper.querySelector(
+            'input[data-list-picker-original]',
+        );
         if (input) {
             input.type = 'text';
             input.removeAttribute('data-list-picker-original');
         }
 
-        const existingSelect = listWrapper.querySelector('select[data-list-picker-select]');
+        const existingSelect = listWrapper.querySelector(
+            'select[data-list-picker-select]',
+        );
         if (existingSelect) existingSelect.remove();
     }
 

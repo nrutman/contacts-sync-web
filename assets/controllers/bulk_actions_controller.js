@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus";
+import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
     static values = {
@@ -7,26 +7,26 @@ export default class extends Controller {
     };
 
     static targets = [
-        "selectAll",
-        "rowCheckbox",
-        "toolbar",
-        "selectedCount",
-        "dropdown",
-        "syncDialog",
-        "syncList",
-        "syncCloseButton",
-        "scheduleDialog",
-        "scheduleOutput",
+        'selectAll',
+        'rowCheckbox',
+        'toolbar',
+        'selectedCount',
+        'dropdown',
+        'syncDialog',
+        'syncList',
+        'syncCloseButton',
+        'scheduleDialog',
+        'scheduleOutput',
     ];
 
     connect() {
         this.updateToolbar();
         this.handleClickOutside = this.handleClickOutside.bind(this);
-        document.addEventListener("click", this.handleClickOutside);
+        document.addEventListener('click', this.handleClickOutside);
     }
 
     disconnect() {
-        document.removeEventListener("click", this.handleClickOutside);
+        document.removeEventListener('click', this.handleClickOutside);
     }
 
     // --- Selection ---
@@ -44,7 +44,9 @@ export default class extends Controller {
 
     updateSelectAll() {
         const total = this.rowCheckboxTargets.length;
-        const checked = this.rowCheckboxTargets.filter((cb) => cb.checked).length;
+        const checked = this.rowCheckboxTargets.filter(
+            (cb) => cb.checked,
+        ).length;
 
         this.selectAllTarget.checked = checked === total;
         this.selectAllTarget.indeterminate = checked > 0 && checked < total;
@@ -55,7 +57,7 @@ export default class extends Controller {
         const count = checked.length;
 
         if (this.hasToolbarTarget) {
-            this.toolbarTarget.classList.toggle("hidden", count === 0);
+            this.toolbarTarget.classList.toggle('hidden', count === 0);
         }
 
         if (count === 0) {
@@ -64,7 +66,7 @@ export default class extends Controller {
 
         if (this.hasSelectedCountTarget) {
             this.selectedCountTarget.textContent =
-                count === 1 ? "1 selected" : `${count} selected`;
+                count === 1 ? '1 selected' : `${count} selected`;
         }
     }
 
@@ -85,13 +87,13 @@ export default class extends Controller {
     toggleDropdown(event) {
         event.stopPropagation();
         if (this.hasDropdownTarget) {
-            this.dropdownTarget.classList.toggle("hidden");
+            this.dropdownTarget.classList.toggle('hidden');
         }
     }
 
     closeDropdown() {
         if (this.hasDropdownTarget) {
-            this.dropdownTarget.classList.add("hidden");
+            this.dropdownTarget.classList.add('hidden');
         }
     }
 
@@ -112,7 +114,7 @@ export default class extends Controller {
         const ids = this.selectedIds();
         if (ids.length === 0) return;
 
-        await this.bulkAction("/api/sync-lists/bulk/activate", { ids });
+        await this.bulkAction('/api/sync-lists/bulk/activate', { ids });
         window.location.reload();
     }
 
@@ -121,7 +123,7 @@ export default class extends Controller {
         const ids = this.selectedIds();
         if (ids.length === 0) return;
 
-        await this.bulkAction("/api/sync-lists/bulk/deactivate", { ids });
+        await this.bulkAction('/api/sync-lists/bulk/deactivate', { ids });
         window.location.reload();
     }
 
@@ -146,9 +148,9 @@ export default class extends Controller {
 
         const cronExpression = this.hasScheduleOutputTarget
             ? this.scheduleOutputTarget.value
-            : "";
+            : '';
 
-        await this.bulkAction("/api/sync-lists/bulk/schedule", {
+        await this.bulkAction('/api/sync-lists/bulk/schedule', {
             ids,
             cronExpression,
         });
@@ -169,40 +171,37 @@ export default class extends Controller {
         this.syncDialogTarget.showModal();
 
         for (let i = 0; i < ids.length; i++) {
-            this.updateSyncRow(ids[i], "syncing");
+            this.updateSyncRow(ids[i], 'syncing');
 
             try {
-                const response = await fetch(
-                    `/api/sync-lists/${ids[i]}/sync`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "X-CSRF-Token": this.syncCsrfTokenValue,
-                            "Content-Type": "application/json",
-                        },
+                const response = await fetch(`/api/sync-lists/${ids[i]}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': this.syncCsrfTokenValue,
+                        'Content-Type': 'application/json',
                     },
-                );
+                });
 
                 const data = await response.json();
 
                 if (data.success) {
                     this.updateSyncRow(
                         ids[i],
-                        "done",
+                        'done',
                         `+${data.addedCount} / -${data.removedCount}`,
                     );
                 } else {
                     this.updateSyncRow(
                         ids[i],
-                        "failed",
-                        data.errorMessage || "Unknown error",
+                        'failed',
+                        data.errorMessage || 'Unknown error',
                     );
                 }
             } catch (error) {
                 this.updateSyncRow(
                     ids[i],
-                    "failed",
-                    error.message || "Network error",
+                    'failed',
+                    error.message || 'Network error',
                 );
             }
         }
@@ -228,11 +227,11 @@ export default class extends Controller {
 
     buildSyncRows(ids, names) {
         const list = this.syncListTarget;
-        list.innerHTML = "";
+        list.innerHTML = '';
 
         for (let i = 0; i < ids.length; i++) {
-            const li = document.createElement("li");
-            li.className = "flex items-center justify-between px-6 py-3";
+            const li = document.createElement('li');
+            li.className = 'flex items-center justify-between px-6 py-3';
             li.dataset.syncRowId = ids[i];
             li.innerHTML = `
                 <div class="flex items-center gap-3 min-w-0">
@@ -259,34 +258,34 @@ export default class extends Controller {
         }
     }
 
-    updateSyncRow(id, status, detail = "") {
+    updateSyncRow(id, status, detail = '') {
         const row = this.syncListTarget.querySelector(
             `[data-sync-row-id="${id}"]`,
         );
         if (!row) return;
 
-        const icons = ["waiting", "syncing", "done", "failed"];
+        const icons = ['waiting', 'syncing', 'done', 'failed'];
         for (const icon of icons) {
             const el = row.querySelector(`[data-role='icon-${icon}']`);
-            if (el) el.classList.toggle("hidden", icon !== status);
+            if (el) el.classList.toggle('hidden', icon !== status);
         }
 
         const statusEl = row.querySelector("[data-role='status']");
         if (statusEl) {
             const labels = {
-                waiting: "Waiting",
-                syncing: "Syncing\u2026",
-                done: "Done",
-                failed: "Failed",
+                waiting: 'Waiting',
+                syncing: 'Syncing\u2026',
+                done: 'Done',
+                failed: 'Failed',
             };
             const colors = {
-                waiting: "text-muted-foreground",
-                syncing: "text-primary",
-                done: "text-green-600",
-                failed: "text-destructive",
+                waiting: 'text-muted-foreground',
+                syncing: 'text-primary',
+                done: 'text-green-600',
+                failed: 'text-destructive',
             };
             statusEl.textContent = labels[status] || status;
-            statusEl.className = `text-sm font-medium ${colors[status] || "text-muted-foreground"}`;
+            statusEl.className = `text-sm font-medium ${colors[status] || 'text-muted-foreground'}`;
         }
 
         const detailEl = row.querySelector("[data-role='detail']");
@@ -297,10 +296,10 @@ export default class extends Controller {
 
     async bulkAction(url, body) {
         const response = await fetch(url, {
-            method: "POST",
+            method: 'POST',
             headers: {
-                "X-CSRF-Token": this.csrfTokenValue,
-                "Content-Type": "application/json",
+                'X-CSRF-Token': this.csrfTokenValue,
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
         });
@@ -309,7 +308,7 @@ export default class extends Controller {
     }
 
     escapeHtml(text) {
-        const div = document.createElement("div");
+        const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }

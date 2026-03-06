@@ -1,16 +1,36 @@
 import { Controller } from '@hotwired/stimulus';
 
-const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS_OF_WEEK = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+];
 
 export default class extends Controller {
-    static targets = ['frequency', 'timeFields', 'dayField', 'hourSelect', 'minuteSelect', 'daySelect', 'customField', 'customInput', 'cronInput', 'preview'];
+    static targets = [
+        'frequency',
+        'timeFields',
+        'dayField',
+        'hourSelect',
+        'minuteSelect',
+        'daySelect',
+        'customField',
+        'customInput',
+        'cronInput',
+        'preview',
+    ];
     static values = { cron: String };
 
     connect() {
         const parsed = this.parseCron(this.cronValue);
         this.frequencyTarget.value = parsed.frequency;
         if (parsed.hour !== null) this.hourSelectTarget.value = parsed.hour;
-        if (parsed.minute !== null) this.minuteSelectTarget.value = parsed.minute;
+        if (parsed.minute !== null)
+            this.minuteSelectTarget.value = parsed.minute;
         if (parsed.day !== null) this.daySelectTarget.value = parsed.day;
         if (parsed.raw !== null) this.customInputTarget.value = parsed.raw;
         this.updateVisibility();
@@ -77,12 +97,19 @@ export default class extends Controller {
             case 'hourly':
                 return 'Every hour at :00';
             case 'daily': {
-                const time = this.formatTime(this.hourSelectTarget.value, this.minuteSelectTarget.value);
+                const time = this.formatTime(
+                    this.hourSelectTarget.value,
+                    this.minuteSelectTarget.value,
+                );
                 return `Every day at ${time}`;
             }
             case 'weekly': {
-                const time = this.formatTime(this.hourSelectTarget.value, this.minuteSelectTarget.value);
-                const day = DAYS_OF_WEEK[this.daySelectTarget.value] || 'Sunday';
+                const time = this.formatTime(
+                    this.hourSelectTarget.value,
+                    this.minuteSelectTarget.value,
+                );
+                const day =
+                    DAYS_OF_WEEK[this.daySelectTarget.value] || 'Sunday';
                 return `Every ${day} at ${time}`;
             }
             case 'custom':
@@ -103,7 +130,13 @@ export default class extends Controller {
     }
 
     parseCron(expr) {
-        const result = { frequency: 'manual', hour: null, minute: null, day: null, raw: null };
+        const result = {
+            frequency: 'manual',
+            hour: null,
+            minute: null,
+            day: null,
+            raw: null,
+        };
 
         if (!expr || expr.trim() === '') {
             return result;
@@ -122,7 +155,9 @@ export default class extends Controller {
         }
 
         // Match daily: min hour * * *
-        const dailyMatch = trimmed.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/);
+        const dailyMatch = trimmed.match(
+            /^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/,
+        );
         if (dailyMatch) {
             result.frequency = 'daily';
             result.minute = parseInt(dailyMatch[1]);
@@ -131,7 +166,9 @@ export default class extends Controller {
         }
 
         // Match weekly: min hour * * day
-        const weeklyMatch = trimmed.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(\d)$/);
+        const weeklyMatch = trimmed.match(
+            /^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(\d)$/,
+        );
         if (weeklyMatch) {
             result.frequency = 'weekly';
             result.minute = parseInt(weeklyMatch[1]);
