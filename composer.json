@@ -21,7 +21,7 @@
         "guzzlehttp/guzzle": "^7.0",
         "symfony/asset-mapper": "^7.2",
         "symfony/console": "^7.2",
-        "symfony/doctrine-messenger": "^7.2",
+        "symfony/doctrine-messenger": "^8.0",
         "symfony/dotenv": "^7.2",
         "symfony/flex": "^2",
         "symfony/form": "^7.2",
