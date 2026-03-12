@@ -507,8 +507,8 @@ class SetupCommandTest extends MockeryTestCase
         $stubCommand = $this->createMigrateConfigStub($migrateCommand);
 
         $application = new Application();
-        $application->add($command);
-        $application->add($stubCommand);
+        $application->addCommand($command);
+        $application->addCommand($stubCommand);
 
         $reflection = new \ReflectionMethod(
             $command,
@@ -887,7 +887,7 @@ class SetupCommandTest extends MockeryTestCase
     private function createCommandTester(SetupCommand $command): CommandTester
     {
         $application = new Application();
-        $application->add($command);
+        $application->addCommand($command);
 
         return new CommandTester($application->find('app:setup'));
     }
