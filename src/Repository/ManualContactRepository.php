@@ -6,7 +6,6 @@ use App\Entity\ManualContact;
 use App\Entity\SyncList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 
 /**
  * @extends ServiceEntityRepository<ManualContact>
@@ -28,7 +27,7 @@ class ManualContactRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('mc')
             ->innerJoin('mc.syncLists', 'sl')
             ->where('sl = :syncList')
-            ->setParameter('syncList', $syncList->getId(), UuidType::NAME)
+            ->setParameter('syncList', $syncList->getId())
             ->orderBy('mc.email', 'ASC')
             ->getQuery()
             ->getResult();
