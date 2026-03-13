@@ -29,6 +29,7 @@ class SetupCommand extends Command
     private string $databaseUrl = '';
     private string $encryptionKey = '';
     private string $mailerDsn = '';
+    private string $mailerFrom = '';
     private ?string $adminEmail = null;
 
     public function __construct(
@@ -371,6 +372,7 @@ class SetupCommand extends Command
             if ($keepExisting) {
                 $this->mailerDsn = $existingDsn;
                 $this->io->text(' Keeping existing email configuration... <info>✓</info>');
+                $this->promptMailerFrom();
 
                 return;
             }
@@ -390,7 +392,33 @@ class SetupCommand extends Command
 
         $this->mailerDsn =
             $this->io->ask('Mailer DSN', 'null://null') ?? 'null://null';
+
+        if ($this->mailerDsn !== 'null://null') {
+            $this->promptMailerFrom();
+        }
+
         $this->io->text(' Email configuration... <info>✓</info>');
+    }
+
+    private function promptMailerFrom(): void
+    {
+        $existingFrom = $this->readEnvLocalValue('MAILER_FROM');
+
+        if ($existingFrom !== null && $existingFrom !== '' && $existingFrom !== 'noreply@example.com') {
+            $keepExisting = $this->io->confirm(
+                sprintf('Existing sender address found (%s). Keep it?', $existingFrom),
+                true,
+            );
+
+            if ($keepExisting) {
+                $this->mailerFrom = $existingFrom;
+
+                return;
+            }
+        }
+
+        $this->mailerFrom =
+            $this->io->ask('Sender email address (From)', '') ?? '';
     }
 
     private function stepWriteEnvAndMigrate(
@@ -406,6 +434,10 @@ class SetupCommand extends Command
             'APP_ENCRYPTION_KEY' => $this->encryptionKey,
             'MAILER_DSN' => $this->mailerDsn,
         ];
+
+        if ($this->mailerFrom !== '') {
+            $newValues['MAILER_FROM'] = $this->mailerFrom;
+        }
 
         $this->writeEnvLocal($envLocalPath, $newValues);
         $this->io->text(' Writing .env.local... <info>✓</info>');
@@ -646,6 +678,7 @@ class SetupCommand extends Command
                 $this->encryptionKey !== '' ? 'stored' : 'not configured',
             ),
             sprintf('Email: %s', $this->mailerDsn),
+            sprintf('Sender: %s', $this->mailerFrom !== '' ? $this->mailerFrom : '(not configured)'),
         ];
 
         if ($this->adminEmail !== null) {

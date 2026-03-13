@@ -85,7 +85,7 @@ bin/console source:refresh all
 - PostgreSQL 16+ or MySQL 8.0+
 - A web server (nginx + php-fpm, Caddy, or Apache)
 - SSL/TLS certificate (required for secure cookies and OAuth callbacks)
-- SMTP server or transactional email service for outbound email
+- SMTP server or transactional email service for outbound email (see [Email Configuration](#email-configuration))
 
 ### Deployment Checklist
 
@@ -193,6 +193,26 @@ To rotate keys, set the old key as a previous key and generate a new current key
 php bin/console app:rotate-encryption-keys --force
 ```
 
+### Email Configuration
+
+The application sends notification emails after sync runs. Two environment variables control email delivery:
+
+| Variable | Description |
+|----------|-------------|
+| `MAILER_DSN` | The Symfony Mailer transport DSN (e.g. `smtp://user:pass@smtp.example.com:465`). Set to `null://null` to disable email. |
+| `MAILER_FROM` | The sender address used for all outbound emails. Must be an address authorized by your SMTP server. |
+
+Both are configured by the `app:setup` wizard. If you configure email manually in `.env.local`, make sure to set both:
+
+```bash
+MAILER_DSN="smtp://user:pass@smtp.example.com:465"
+MAILER_FROM=noreply@yourdomain.com
+```
+
+**Note:** If `MAILER_FROM` is missing or set to the default `noreply@example.com`, most SMTP servers will silently reject the email. Use an address that your SMTP server is authorized to send from.
+
+If your SMTP username or password contains special characters (`@`, `%`, `:`, etc.), they must be URL-encoded in the DSN (e.g. `@` becomes `%40`).
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -201,6 +221,7 @@ php bin/console app:rotate-encryption-keys --force
 | Google token keeps expiring | Re-run `sync:configure` to get a new refresh token with offline access. |
 | `The list 'X' could not be found` | The list name does not match any source provider list. Verify the exact name in the source system. |
 | `Unknown list specified: X` | The list name passed to `source:refresh` is not a configured sync list. Use `all` or a valid list name. |
+| Notification emails not received | Verify `MAILER_FROM` is set in `.env.local` to an address authorized by your SMTP server. The default `noreply@example.com` will be silently rejected by most providers. |
 
 ## Technical Documentation
 
