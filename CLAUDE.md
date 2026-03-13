@@ -35,6 +35,8 @@ composer run-script cs-fix
 
 ## Workflow Requirements
 
+Before making any commits, verify you are on a feature branch — never commit directly to `main`.
+
 After ANY code change, always run both tests and code style checking:
 ```
 composer run-script test && composer run-script cs
@@ -46,6 +48,8 @@ If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-
 
 After pushing to a branch with an open PR, monitor the CI checks using `gh pr checks`. If any checks fail, investigate the failure, fix the issue, push the fix, and continue monitoring until all checks pass. Repeat this cycle as needed — do not consider the push complete until all CI checks are green.
 
+When additional commits significantly change the scope or impact of a PR, update the PR title and description to reflect the full set of changes.
+
 ## Testing Conventions
 
 - Tests live in `tests/` and mirror the `src/` directory structure (e.g. `src/Contact/ContactListAnalyzer.php` → `tests/Contact/ContactListAnalyzerTest.php`).
@@ -54,6 +58,7 @@ After pushing to a branch with an open PR, monitor the CI checks using `gh pr ch
 - Command tests use Symfony's `CommandTester` to execute commands and assert on output/status codes.
 - Data-driven tests use PHPUnit's `#[DataProvider]` attribute with a static provider method.
 - When adding a new class, add a corresponding test file. When modifying a class, update or extend its existing tests.
+- After writing or updating tests, re-evaluate by asking: (1) Are there any high-value cases we're missing? (2) Can the tests be simplified or consolidated? (3) Are there any low-value tests we can remove?
 
 ## Code Style
 

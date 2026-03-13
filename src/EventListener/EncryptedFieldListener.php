@@ -6,12 +6,14 @@ use App\Attribute\Encrypted;
 use App\Security\EncryptionService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PostLoadEventArgs;
+use Doctrine\ORM\Event\PostUpdateEventArgs;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
 
 #[AsDoctrineListener(event: Events::prePersist)]
 #[AsDoctrineListener(event: Events::preUpdate)]
+#[AsDoctrineListener(event: Events::postUpdate)]
 #[AsDoctrineListener(event: Events::postLoad)]
 class EncryptedFieldListener
 {
@@ -44,6 +46,14 @@ class EncryptedFieldListener
         $em = $args->getObjectManager();
         $classMetadata = $em->getClassMetadata($entity::class);
         $em->getUnitOfWork()->recomputeSingleEntityChangeSet($classMetadata, $entity);
+    }
+
+    public function postUpdate(PostUpdateEventArgs $args): void
+    {
+        // After preUpdate encrypts the in-memory fields, re-decrypt so the entity
+        // remains usable within the same request (e.g. when multiple sync lists
+        // share the same ProviderCredential and a token refresh triggers a flush).
+        $this->decryptFields($args->getObject());
     }
 
     public function postLoad(PostLoadEventArgs $args): void

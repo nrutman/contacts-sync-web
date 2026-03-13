@@ -6,6 +6,7 @@ use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
 use App\Message\SyncMessage;
+use App\Notification\SyncNotificationService;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -16,6 +17,7 @@ class SyncMessageHandler
     public function __construct(
         private readonly SyncService $syncService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly SyncNotificationService $notificationService,
     ) {
     }
 
@@ -37,12 +39,16 @@ class SyncMessageHandler
             ? $this->entityManager->getRepository(SyncRun::class)->find($message->syncRunId)
             : null;
 
-        $this->syncService->executeSync(
+        $result = $this->syncService->executeSync(
             $syncList,
             $message->dryRun,
             $user,
             $message->trigger,
             $existingSyncRun,
         );
+
+        if ($result->syncRun !== null) {
+            $this->notificationService->sendBatchNotification([$result->syncRun]);
+        }
     }
 }

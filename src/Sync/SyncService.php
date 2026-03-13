@@ -197,6 +197,7 @@ class SyncService
                 removedCount: count($contactsToRemove),
                 log: $log,
                 success: true,
+                syncRun: $syncRun,
             );
 
             // Update SyncRun with results
@@ -237,6 +238,7 @@ class SyncService
                 log: $log,
                 success: false,
                 errorMessage: $e->getMessage(),
+                syncRun: $syncRun,
             );
 
             $syncRun->setStatus('failed');

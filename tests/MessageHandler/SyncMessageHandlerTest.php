@@ -7,6 +7,7 @@ use App\Entity\SyncRun;
 use App\Entity\User;
 use App\Message\SyncMessage;
 use App\MessageHandler\SyncMessageHandler;
+use App\Notification\SyncNotificationService;
 use App\Sync\SyncResult;
 use App\Sync\SyncService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,6 +22,7 @@ class SyncMessageHandlerTest extends MockeryTestCase
     private EntityRepository|m\LegacyMockInterface $syncListRepository;
     private EntityRepository|m\LegacyMockInterface $userRepository;
     private EntityRepository|m\LegacyMockInterface $syncRunRepository;
+    private SyncNotificationService|m\LegacyMockInterface $notificationService;
     private SyncMessageHandler $handler;
 
     protected function setUp(): void
@@ -30,6 +32,8 @@ class SyncMessageHandlerTest extends MockeryTestCase
         $this->syncListRepository = m::mock(EntityRepository::class);
         $this->userRepository = m::mock(EntityRepository::class);
         $this->syncRunRepository = m::mock(EntityRepository::class);
+        $this->notificationService = m::mock(SyncNotificationService::class);
+        $this->notificationService->shouldReceive('sendBatchNotification')->byDefault();
 
         $this->entityManager
             ->shouldReceive('getRepository')
@@ -49,6 +53,7 @@ class SyncMessageHandlerTest extends MockeryTestCase
         $this->handler = new SyncMessageHandler(
             $this->syncService,
             $this->entityManager,
+            $this->notificationService,
         );
     }
 
@@ -93,7 +98,13 @@ class SyncMessageHandlerTest extends MockeryTestCase
                 removedCount: 0,
                 log: 'test log',
                 success: true,
+                syncRun: $syncRun,
             ));
+
+        $this->notificationService
+            ->shouldReceive('sendBatchNotification')
+            ->once()
+            ->with([$syncRun]);
 
         $message = new SyncMessage(
             syncListId: 'list-123',
