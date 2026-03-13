@@ -5,10 +5,7 @@ namespace App\Repository;
 use App\Entity\Organization;
 use App\Entity\SyncList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Bridge\Doctrine\Types\UuidType;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<SyncList>
@@ -29,7 +26,7 @@ class SyncListRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('org', $organization->getId())
             ->orderBy('sl.name', 'ASC')
             ->getQuery()
             ->getResult();
@@ -45,7 +42,7 @@ class SyncListRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('sl')
             ->where('sl.organization = :org')
             ->andWhere('sl.isEnabled = :enabled')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('org', $organization->getId())
             ->setParameter('enabled', true)
             ->orderBy('sl.name', 'ASC')
             ->getQuery()
@@ -65,13 +62,11 @@ class SyncListRepository extends ServiceEntityRepository
             return [];
         }
 
-        $uuids = array_map(static fn (string $id) => Uuid::fromString($id)->toBinary(), $ids);
-
         return $this->createQueryBuilder('sl')
             ->where('sl.organization = :org')
             ->andWhere('sl.id IN (:ids)')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
-            ->setParameter('ids', $uuids, ArrayParameterType::BINARY)
+            ->setParameter('org', $organization->getId())
+            ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
     }
@@ -84,7 +79,7 @@ class SyncListRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('sl')
             ->select('COUNT(sl.id)')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('org', $organization->getId())
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -98,7 +93,7 @@ class SyncListRepository extends ServiceEntityRepository
             ->select('COUNT(sl.id)')
             ->where('sl.organization = :org')
             ->andWhere('sl.isEnabled = :enabled')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('org', $organization->getId())
             ->setParameter('enabled', true)
             ->getQuery()
             ->getSingleScalarResult();
