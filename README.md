@@ -211,7 +211,20 @@ MAILER_FROM=noreply@yourdomain.com
 
 **Note:** If `MAILER_FROM` is missing or set to the default `noreply@example.com`, most SMTP servers will silently reject the email. Use an address that your SMTP server is authorized to send from.
 
-If your SMTP username or password contains special characters (`@`, `%`, `:`, etc.), they must be URL-encoded in the DSN (e.g. `@` becomes `%40`).
+If your SMTP username or password contains special characters, they must be URL-encoded in the DSN:
+
+| Character | Encoded |
+|-----------|---------|
+| `@` | `%40` |
+| `:` | `%3A` |
+| `%` | `%25` |
+| `/` | `%2F` |
+
+For example, if your username is `user@example.com` and password is `p@ss:word`, the DSN would be:
+
+```bash
+MAILER_DSN="smtp://user%40example.com:p%40ss%3Aword@smtp.example.com:465"
+```
 
 ## Troubleshooting
 
