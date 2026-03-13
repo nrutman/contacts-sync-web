@@ -80,5 +80,11 @@ UUID columns are stored as `BINARY(16)` in MySQL. **Raw SQL queries via DBAL (`f
 
 1. **Parameters:** Passing `(string) $entity->getId()` as a query parameter won't match a `BINARY(16)` column. Always pass the `Uuid` object and declare the type: `$conn->fetchAllAssociative($sql, ['id' => $entity->getId()], ['id' => UuidType::NAME])`.
 2. **Results:** UUID columns come back as 16-byte binary strings, not the RFC 4122 hex format (`019ca770-05e6-...`) that `Uuid::__toString()` produces. If you use a raw UUID result as an array key and then look it up in Twig with `entity.id`, the keys won't match. Normalize with `Uuid::fromBinary()` — see `SyncRunRepository::normalizeUuid()`.
+3. **`IN` clauses with UUID arrays:** Doctrine QueryBuilder does **not** auto-convert `Uuid` objects in array parameters for `IN` clauses. Passing `Uuid` objects with `setParameter('ids', $uuids)` sends their string representation, which won't match `BINARY(16)` columns. Convert to binary and declare the array type explicitly:
+   ```php
+   $uuids = array_map(static fn (string $id) => Uuid::fromString($id)->toBinary(), $ids);
+   // ...
+   ->setParameter('ids', $uuids, ArrayParameterType::BINARY)
+   ```
 
-**Prefer Doctrine QueryBuilder/DQL over raw SQL when possible**, as it handles UUID conversion automatically via `UuidType::NAME`.
+**Prefer Doctrine QueryBuilder/DQL over raw SQL when possible**, as it handles UUID conversion automatically via `UuidType::NAME` for single-value parameters.

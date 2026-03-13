@@ -5,8 +5,10 @@ namespace App\Repository;
 use App\Entity\Organization;
 use App\Entity\SyncList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<SyncList>
@@ -63,11 +65,13 @@ class SyncListRepository extends ServiceEntityRepository
             return [];
         }
 
+        $uuids = array_map(static fn (string $id) => Uuid::fromString($id)->toBinary(), $ids);
+
         return $this->createQueryBuilder('sl')
             ->where('sl.organization = :org')
             ->andWhere('sl.id IN (:ids)')
             ->setParameter('org', $organization->getId(), UuidType::NAME)
-            ->setParameter('ids', $ids)
+            ->setParameter('ids', $uuids, ArrayParameterType::BINARY)
             ->getQuery()
             ->getResult();
     }
