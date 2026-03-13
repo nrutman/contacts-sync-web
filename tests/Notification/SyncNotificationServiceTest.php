@@ -345,6 +345,66 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         // Should not throw — exception is caught and logged
         $this->service->__invoke(new SyncCompletedEvent($syncRun));
+
+        $results = $this->service->getLastResults();
+        self::assertCount(1, $results);
+        self::assertFalse($results[0]['success']);
+        self::assertSame('SMTP connection failed', $results[0]['error']);
+    }
+
+    public function testGetLastResultsTracksSuccessAndFailure(): void
+    {
+        $syncRun = $this->makeSyncRun('failed');
+
+        $user1 = $this->makeUser('alice@example.com', notifyOnFailure: true);
+        $user2 = $this->makeUser('bob@example.com', notifyOnFailure: true);
+
+        $this->userRepository
+            ->shouldReceive('findAll')
+            ->once()
+            ->andReturn([$user1, $user2]);
+
+        $this->twig
+            ->shouldReceive('render')
+            ->twice()
+            ->andReturn('<html>notification</html>');
+
+        $this->mailer
+            ->shouldReceive('send')
+            ->once()
+            ->ordered();
+
+        $this->mailer
+            ->shouldReceive('send')
+            ->once()
+            ->ordered()
+            ->andThrow(new \RuntimeException('Connection refused'));
+
+        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+
+        $results = $this->service->getLastResults();
+        self::assertCount(2, $results);
+        self::assertSame('alice@example.com', $results[0]['email']);
+        self::assertTrue($results[0]['success']);
+        self::assertNull($results[0]['error']);
+        self::assertSame('bob@example.com', $results[1]['email']);
+        self::assertFalse($results[1]['success']);
+        self::assertSame('Connection refused', $results[1]['error']);
+    }
+
+    public function testGetLastResultsResetsOnEachInvocation(): void
+    {
+        $syncRun = $this->makeSyncRun('success', addedCount: 0, removedCount: 0);
+
+        $this->userRepository
+            ->shouldReceive('findAll')
+            ->andReturn([]);
+
+        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        self::assertSame([], $this->service->getLastResults());
+
+        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        self::assertSame([], $this->service->getLastResults());
     }
 
     private function makeSyncRun(

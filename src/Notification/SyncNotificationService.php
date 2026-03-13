@@ -15,6 +15,13 @@ use Twig\Environment;
 #[AsEventListener(event: SyncCompletedEvent::class)]
 class SyncNotificationService
 {
+    /**
+     * Results from the most recent notification dispatch.
+     *
+     * @var list<array{email: string, success: bool, error: ?string}>
+     */
+    private array $lastResults = [];
+
     public function __construct(
         private readonly UserRepository $userRepository,
         private readonly MailerInterface $mailer,
@@ -25,12 +32,23 @@ class SyncNotificationService
 
     public function __invoke(SyncCompletedEvent $event): void
     {
+        $this->lastResults = [];
         $syncRun = $event->syncRun;
         $recipients = $this->resolveRecipients($syncRun);
 
         foreach ($recipients as $user) {
             $this->sendNotification($user, $syncRun);
         }
+    }
+
+    /**
+     * Returns results from the most recent notification dispatch.
+     *
+     * @return list<array{email: string, success: bool, error: ?string}>
+     */
+    public function getLastResults(): array
+    {
+        return $this->lastResults;
     }
 
     /**
@@ -93,7 +111,9 @@ class SyncNotificationService
 
         try {
             $this->mailer->send($email);
+            $this->lastResults[] = ['email' => $user->getEmail(), 'success' => true, 'error' => null];
         } catch (\Throwable $e) {
+            $this->lastResults[] = ['email' => $user->getEmail(), 'success' => false, 'error' => $e->getMessage()];
             $this->logger->error('Failed to send sync notification to {email}: {error}', [
                 'email' => $user->getEmail(),
                 'error' => $e->getMessage(),

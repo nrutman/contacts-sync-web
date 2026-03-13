@@ -6,6 +6,7 @@ use App\Command\RunSyncCommand;
 use App\Entity\Organization;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
+use App\Notification\SyncNotificationService;
 use App\Repository\SyncRunRepository;
 use App\Sync\SyncResult;
 use App\Sync\SyncService;
@@ -32,12 +33,17 @@ class RunSyncCommandTest extends MockeryTestCase
     /** @var SyncRunRepository|m\LegacyMockInterface|m\MockInterface */
     private $syncRunRepository;
 
+    /** @var SyncNotificationService|m\LegacyMockInterface|m\MockInterface */
+    private $notificationService;
+
     public function setUp(): void
     {
         $this->syncService = m::mock(SyncService::class);
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->syncListRepository = m::mock(EntityRepository::class);
         $this->syncRunRepository = m::mock(SyncRunRepository::class);
+        $this->notificationService = m::mock(SyncNotificationService::class);
+        $this->notificationService->shouldReceive('getLastResults')->andReturn([])->byDefault();
 
         $this->entityManager
             ->shouldReceive('getRepository')
@@ -340,6 +346,7 @@ class RunSyncCommandTest extends MockeryTestCase
             $this->syncService,
             $this->entityManager,
             $this->syncRunRepository,
+            $this->notificationService,
         );
 
         $tester = new CommandTester($command);
@@ -390,6 +397,34 @@ class RunSyncCommandTest extends MockeryTestCase
             log: '',
             success: true,
         );
+    }
+
+    public function testDisplaysNotificationResults(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE);
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->andReturn($this->makeSuccessResult());
+
+        $this->notificationService
+            ->shouldReceive('getLastResults')
+            ->andReturn([
+                ['email' => 'user@example.com', 'success' => true, 'error' => null],
+                ['email' => 'admin@example.com', 'success' => false, 'error' => 'Connection timed out'],
+            ]);
+
+        $tester = $this->executeCommand();
+        $display = $tester->getDisplay();
+
+        self::assertStringContainsString('Notification sent to user@example.com', $display);
+        self::assertStringContainsString('Notification to admin@example.com failed: Connection timed out', $display);
     }
 
     public function testScheduledSkipsListsWithoutCronExpression(): void
