@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
+use App\Notification\SyncNotificationService;
 use App\Sync\SyncService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,6 +18,7 @@ class SyncRunApiController extends AbstractController
 {
     public function __construct(
         private readonly SyncService $syncService,
+        private readonly SyncNotificationService $notificationService,
     ) {
     }
 
@@ -38,6 +40,10 @@ class SyncRunApiController extends AbstractController
             triggeredBy: $user,
             trigger: 'manual',
         );
+
+        if ($result->syncRun !== null) {
+            $this->notificationService->sendBatchNotification([$result->syncRun]);
+        }
 
         return $this->json([
             'success' => $result->success,

@@ -2,6 +2,8 @@
 
 namespace App\Sync;
 
+use App\Entity\SyncRun;
+
 class SyncResult
 {
     public function __construct(
@@ -12,6 +14,7 @@ class SyncResult
         public readonly string $log,
         public readonly bool $success,
         public readonly ?string $errorMessage = null,
+        public readonly ?SyncRun $syncRun = null,
     ) {
     }
 }

@@ -5,7 +5,6 @@ namespace App\Tests\Notification;
 use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use App\Entity\User;
-use App\Event\SyncCompletedEvent;
 use App\Notification\SyncNotificationService;
 use App\Repository\UserRepository;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
@@ -57,7 +56,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('render')
             ->once()
             ->with('email/sync_notification.html.twig', m::on(function (array $args) use ($user, $syncRun) {
-                return $args['user'] === $user && $args['syncRun'] === $syncRun;
+                return $args['user'] === $user && $args['syncRuns'] === [$syncRun];
             }))
             ->andReturn('<html>notification</html>');
 
@@ -70,7 +69,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
                     && str_contains($email->getSubject(), 'test-list');
             }));
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testSuccessWithChangesDoesNotNotifyUsersWithNotifyOnSuccessDisabled(): void
@@ -86,7 +85,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         $this->mailer->shouldNotReceive('send');
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testSuccessWithNoChangesNotifiesUsersWithNotifyOnNoChanges(): void
@@ -112,7 +111,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
                 return $email->getTo()[0]->getAddress() === 'carol@example.com';
             }));
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testSuccessWithNoChangesDoesNotNotifyUsersWithOnlyNotifyOnSuccess(): void
@@ -128,7 +127,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         $this->mailer->shouldNotReceive('send');
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testFailureNotifiesUsersWithNotifyOnFailure(): void
@@ -155,7 +154,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
                     && str_contains($email->getSubject(), 'Failed');
             }));
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testFailureDoesNotNotifyUsersWithNotifyOnFailureDisabled(): void
@@ -171,7 +170,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         $this->mailer->shouldNotReceive('send');
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testUnverifiedUsersAreNeverNotified(): void
@@ -191,7 +190,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         $this->mailer->shouldNotReceive('send');
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testMultipleRecipientsEachReceiveAnEmail(): void
@@ -216,7 +215,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('send')
             ->twice();
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testNoRecipientsResultsInNoEmails(): void
@@ -230,7 +229,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         $this->mailer->shouldNotReceive('send');
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testAllPreferencesDisabledReceivesNoEmails(): void
@@ -251,7 +250,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
 
         $this->mailer->shouldNotReceive('send');
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testSuccessWithOnlyAddsCountsAsChanges(): void
@@ -274,7 +273,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('send')
             ->once();
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testSuccessWithOnlyRemovesCountsAsChanges(): void
@@ -297,7 +296,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('send')
             ->once();
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testNullCountsTreatedAsZeroForNoChangesNotification(): void
@@ -320,7 +319,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('send')
             ->once();
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
     }
 
     public function testMailerExceptionIsHandledGracefully(): void
@@ -344,7 +343,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->andThrow(new \RuntimeException('SMTP connection failed'));
 
         // Should not throw — exception is caught and logged
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
 
         $results = $this->service->getLastResults();
         self::assertCount(1, $results);
@@ -380,7 +379,7 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->ordered()
             ->andThrow(new \RuntimeException('Connection refused'));
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
 
         $results = $this->service->getLastResults();
         self::assertCount(2, $results);
@@ -400,11 +399,47 @@ class SyncNotificationServiceTest extends MockeryTestCase
             ->shouldReceive('findAll')
             ->andReturn([]);
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
         self::assertSame([], $this->service->getLastResults());
 
-        $this->service->__invoke(new SyncCompletedEvent($syncRun));
+        $this->service->sendBatchNotification([$syncRun]);
         self::assertSame([], $this->service->getLastResults());
+    }
+
+    public function testBatchWithMixedResultsNotifiesBothPreferences(): void
+    {
+        $successRun = $this->makeSyncRun('success', addedCount: 2, removedCount: 0);
+        $failedRun = $this->makeSyncRun('failed');
+
+        // User only wants failure notifications — should receive because batch has a failure
+        $failureUser = $this->makeUser('fail-watcher@example.com', notifyOnFailure: true);
+        // User only wants success notifications — should receive because batch has success with changes
+        $successUser = $this->makeUser('success-watcher@example.com', notifyOnSuccess: true);
+
+        $this->userRepository
+            ->shouldReceive('findAll')
+            ->once()
+            ->andReturn([$failureUser, $successUser]);
+
+        $this->twig
+            ->shouldReceive('render')
+            ->twice()
+            ->andReturn('<html>batch</html>');
+
+        $sentTo = [];
+        $this->mailer
+            ->shouldReceive('send')
+            ->twice()
+            ->with(m::on(function (Email $email) use (&$sentTo) {
+                $sentTo[] = $email->getTo()[0]->getAddress();
+
+                return str_contains($email->getSubject(), '2 lists');
+            }));
+
+        $this->service->sendBatchNotification([$successRun, $failedRun]);
+
+        self::assertContains('fail-watcher@example.com', $sentTo);
+        self::assertContains('success-watcher@example.com', $sentTo);
     }
 
     private function makeSyncRun(

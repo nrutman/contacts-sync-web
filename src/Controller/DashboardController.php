@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Notification\SyncNotificationService;
 use App\Repository\OrganizationRepository;
 use App\Repository\SyncListRepository;
 use App\Repository\SyncRunRepository;
@@ -20,6 +21,7 @@ class DashboardController extends AbstractController
         private readonly SyncListRepository $syncListRepository,
         private readonly SyncRunRepository $syncRunRepository,
         private readonly SyncService $syncService,
+        private readonly SyncNotificationService $notificationService,
     ) {
     }
 
@@ -107,6 +109,7 @@ class DashboardController extends AbstractController
 
         $successCount = 0;
         $failCount = 0;
+        $syncRuns = [];
 
         foreach ($enabledLists as $syncList) {
             $result = $this->syncService->executeSync(
@@ -115,11 +118,19 @@ class DashboardController extends AbstractController
                 trigger: 'manual',
             );
 
+            if ($result->syncRun !== null) {
+                $syncRuns[] = $result->syncRun;
+            }
+
             if ($result->success) {
                 ++$successCount;
             } else {
                 ++$failCount;
             }
+        }
+
+        if ($syncRuns !== []) {
+            $this->notificationService->sendBatchNotification($syncRuns);
         }
 
         if ($failCount === 0) {

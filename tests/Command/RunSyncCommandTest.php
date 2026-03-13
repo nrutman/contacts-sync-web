@@ -43,6 +43,7 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncListRepository = m::mock(EntityRepository::class);
         $this->syncRunRepository = m::mock(SyncRunRepository::class);
         $this->notificationService = m::mock(SyncNotificationService::class);
+        $this->notificationService->shouldReceive('sendBatchNotification')->byDefault();
         $this->notificationService->shouldReceive('getLastResults')->andReturn([])->byDefault();
 
         $this->entityManager
@@ -402,6 +403,7 @@ class RunSyncCommandTest extends MockeryTestCase
     public function testDisplaysNotificationResults(): void
     {
         $syncList = $this->makeSyncList(self::LIST_ONE);
+        $syncRun = $this->makeSyncRun($syncList, new \DateTimeImmutable());
 
         $this->syncListRepository
             ->shouldReceive('findBy')
@@ -411,7 +413,20 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->andReturn($this->makeSuccessResult());
+            ->andReturn(new SyncResult(
+                sourceCount: 3,
+                destinationCount: 3,
+                addedCount: 0,
+                removedCount: 0,
+                log: '',
+                success: true,
+                syncRun: $syncRun,
+            ));
+
+        $this->notificationService
+            ->shouldReceive('sendBatchNotification')
+            ->once()
+            ->with([$syncRun]);
 
         $this->notificationService
             ->shouldReceive('getLastResults')
