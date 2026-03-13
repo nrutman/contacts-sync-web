@@ -186,16 +186,31 @@ Replace the `UuidType` import with `StringUuidType` in each entity. The `Uuid` i
 
 ---
 
-## 5. CLAUDE.md Update
+## 5. Documentation
 
-Replace the "Database & UUID Pitfall" section with:
+### `src/Doctrine/README.md` (new file)
+
+Create a README for the new `Doctrine` namespace explaining the custom type, why it exists, and how to use it:
+
+- **Why:** Symfony's `UuidType` stores as `BINARY(16)` on MySQL, which causes silent bugs (binary/string mismatches in raw SQL, `IN` clause failures, need for `normalizeUuid()` on results). `StringUuidType` forces RFC 4122 string storage on all platforms.
+- **How it works:** Extends Symfony's `UuidType` to override `getSQLDeclaration()` (forces GUID column type) and `convertToDatabaseValue()` (forces `toRfc4122()` output). Inherits `convertToPHPValue()` which hydrates `Uuid` objects from strings.
+- **Usage:** Entities use `#[ORM\Column(type: StringUuidType::NAME)]`. Registered in `config/packages/doctrine.yaml` as `uuid_string`.
+- **Guidelines for repositories:** No `UuidType::NAME` type hints needed on `setParameter()`. No binary conversion for `IN` clauses. Raw DBAL results return RFC 4122 strings directly.
+
+### `src/README.md` update
+
+Add `App\Doctrine` to the Namespaces table:
+
+| `App\Doctrine` | Custom Doctrine DBAL types (`StringUuidType` for RFC 4122 string UUID storage) | [Doctrine README](Doctrine/README.md) |
+
+### `CLAUDE.md` update
+
+Replace the "Database & UUID Pitfall" section with a shorter section that references the README:
 
 ```markdown
 ## Database & UUIDs
 
-UUID columns use the custom `StringUuidType` (registered as `uuid_string`), which extends Symfony's `UuidType` to always store as RFC 4122 strings — `CHAR(36)` on MySQL, native `UUID` on PostgreSQL. Entities use `private Uuid $id` properties; Doctrine hydrates `Uuid` objects automatically.
-
-No binary conversion, `UuidType::NAME` type hints, or `normalizeUuid()` calls are needed. String UUIDs work natively in raw DBAL queries. For `IN` clauses with UUID arrays, pass string arrays directly — no `ArrayParameterType::BINARY` needed.
+UUID columns use the custom `StringUuidType` (registered as `uuid_string`), which stores UUIDs as RFC 4122 strings (`CHAR(36)` on MySQL, native `UUID` on PostgreSQL) and hydrates `Uuid` objects automatically. No binary conversion or special type hints are needed anywhere — see [src/Doctrine/README.md](src/Doctrine/README.md) for details.
 ```
 
 ---
@@ -209,3 +224,12 @@ No binary conversion, `UuidType::NAME` type hints, or `normalizeUuid()` calls ar
 - Run the full test suite after entity and repository changes
 - Update any tests that reference `UuidType::NAME` — change to `StringUuidType::NAME`
 - Entity `getId()` still returns `Uuid` objects, so tests calling `->equals()`, `->toRfc4122()`, etc. are unaffected
+
+---
+
+## 7. Cleanup
+
+After all changes are verified and tests pass:
+
+- Delete the design spec file `docs/superpowers/specs/2026-03-13-uuid-char36-migration-design.md`
+- Remove the `docs/superpowers/` directory if empty
