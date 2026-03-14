@@ -139,6 +139,35 @@ class ExportCommandTest extends MockeryTestCase
         self::assertStringContainsString('export.json', $tester->getDisplay());
     }
 
+    public function testExportsListWithNullCredentials(): void
+    {
+        $org = new Organization();
+        $org->setName('Minimal Org');
+
+        $list = new SyncList();
+        $list->setOrganization($org);
+        $list->setName('no-creds-list');
+        $list->setIsEnabled(false);
+        $org->addSyncList($list);
+
+        $this->orgRepository
+            ->shouldReceive('findOne')
+            ->andReturn($org);
+
+        $exportPath = $this->tempDir.'/export.json';
+        $tester = $this->executeCommand($exportPath);
+
+        self::assertSame(0, $tester->getStatusCode());
+
+        $data = json_decode(file_get_contents($exportPath), true, 512, JSON_THROW_ON_ERROR);
+        $listData = $data['syncLists'][0];
+
+        self::assertNull($listData['sourceCredentialId']);
+        self::assertNull($listData['destinationCredentialId']);
+        self::assertFalse($listData['isEnabled']);
+        self::assertSame([], $listData['manualContactIds']);
+    }
+
     private function executeCommand(string $path): CommandTester
     {
         $command = new ExportCommand($this->orgRepository);

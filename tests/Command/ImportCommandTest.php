@@ -236,6 +236,101 @@ class ImportCommandTest extends MockeryTestCase
         self::assertStringContainsString('Import failed', $tester->getDisplay());
     }
 
+    public function testFailsOnUnresolvableCredentialReference(): void
+    {
+        $path = $this->tempDir.'/bad-ref.json';
+        file_put_contents($path, json_encode([
+            'version' => 1,
+            'exportedAt' => '2026-03-14T00:00:00+00:00',
+            'organization' => [
+                'id' => '01234567-89ab-7def-8000-000000000001',
+                'name' => 'Test Org',
+                'retentionDays' => null,
+            ],
+            'providerCredentials' => [],
+            'syncLists' => [
+                [
+                    'id' => '01234567-89ab-7def-8000-000000000040',
+                    'name' => 'broken-list',
+                    'sourceCredentialId' => '01234567-89ab-7def-8000-999999999999',
+                    'sourceListIdentifier' => null,
+                    'destinationCredentialId' => null,
+                    'destinationListIdentifier' => null,
+                    'isEnabled' => true,
+                    'cronExpression' => null,
+                    'manualContactIds' => [],
+                ],
+            ],
+            'manualContacts' => [],
+        ]));
+
+        $this->orgRepository
+            ->shouldReceive('findOne')
+            ->andReturn(null);
+
+        $this->entityManager->shouldReceive('beginTransaction')->once();
+        $this->entityManager->shouldReceive('persist')->andReturnNull();
+        $this->entityManager->shouldNotReceive('commit');
+        $this->entityManager->shouldReceive('rollback')->once();
+
+        $tester = $this->executeCommand($path);
+
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('references unknown source', $tester->getDisplay());
+    }
+
+    public function testImportsOrganizationOnlyWithEmptyArrays(): void
+    {
+        $path = $this->writeValidExportFile();
+
+        $this->orgRepository
+            ->shouldReceive('findOne')
+            ->andReturn(null);
+
+        $this->entityManager->shouldReceive('beginTransaction')->once();
+
+        $persistedEntities = [];
+        $this->entityManager
+            ->shouldReceive('persist')
+            ->andReturnUsing(function ($entity) use (&$persistedEntities) {
+                $persistedEntities[] = $entity;
+            });
+
+        $this->entityManager->shouldReceive('flush')->once();
+        $this->entityManager->shouldReceive('commit')->once();
+
+        $tester = $this->executeCommand($path);
+
+        self::assertSame(0, $tester->getStatusCode());
+        self::assertCount(1, $persistedEntities);
+        self::assertInstanceOf(Organization::class, $persistedEntities[0]);
+    }
+
+    public function testImportWithInteractiveConfirmation(): void
+    {
+        $path = $this->writeFullExportFile();
+
+        $existingOrg = m::mock(Organization::class);
+
+        $this->orgRepository
+            ->shouldReceive('findOne')
+            ->andReturn($existingOrg);
+
+        $this->entityManager->shouldReceive('beginTransaction')->once();
+        $this->entityManager
+            ->shouldReceive('remove')
+            ->with($existingOrg)
+            ->once();
+
+        $this->entityManager->shouldReceive('flush')->twice();
+        $this->entityManager->shouldReceive('persist')->andReturnNull();
+        $this->entityManager->shouldReceive('commit')->once();
+
+        $tester = $this->executeCommand($path, interactive: true, inputs: ['yes']);
+
+        self::assertSame(0, $tester->getStatusCode());
+    }
+
     private function findEntityByProperty(array $entities, callable $predicate): mixed
     {
         foreach ($entities as $entity) {
