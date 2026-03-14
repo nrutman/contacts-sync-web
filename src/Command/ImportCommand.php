@@ -71,6 +71,29 @@ class ImportCommand extends Command
             return Command::FAILURE;
         }
 
+        $existingOrg = $this->orgRepository->findOne();
+
+        if ($existingOrg !== null) {
+            if (!$input->getOption('force')) {
+                if (!$input->isInteractive()) {
+                    $io->error('Existing data already exists. Use --force to overwrite in non-interactive mode.');
+
+                    return Command::FAILURE;
+                }
+
+                $confirm = $io->confirm(
+                    'Existing data will be permanently deleted and replaced. Continue?',
+                    false,
+                );
+
+                if (!$confirm) {
+                    $io->warning('Import aborted.');
+
+                    return self::ABORT;
+                }
+            }
+        }
+
         return Command::SUCCESS;
     }
 }

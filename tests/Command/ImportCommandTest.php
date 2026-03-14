@@ -81,6 +81,53 @@ class ImportCommandTest extends MockeryTestCase
         self::assertStringContainsString('Missing required', $tester->getDisplay());
     }
 
+    public function testAbortsInNonInteractiveModeWhenDataExists(): void
+    {
+        $path = $this->writeValidExportFile();
+
+        $this->orgRepository
+            ->shouldReceive('findOne')
+            ->andReturn(m::mock(\App\Entity\Organization::class));
+
+        $tester = $this->executeCommand($path, interactive: false);
+
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringContainsString('already exists', $tester->getDisplay());
+    }
+
+    public function testAbortsWhenUserDeclinesConfirmation(): void
+    {
+        $path = $this->writeValidExportFile();
+
+        $this->orgRepository
+            ->shouldReceive('findOne')
+            ->andReturn(m::mock(\App\Entity\Organization::class));
+
+        $tester = $this->executeCommand($path, interactive: true, inputs: ['no']);
+
+        self::assertSame(2, $tester->getStatusCode());
+        self::assertStringContainsString('aborted', $tester->getDisplay());
+    }
+
+    private function writeValidExportFile(): string
+    {
+        $path = $this->tempDir.'/valid.json';
+        file_put_contents($path, json_encode([
+            'version' => 1,
+            'exportedAt' => '2026-03-14T00:00:00+00:00',
+            'organization' => [
+                'id' => '01234567-89ab-7def-8000-000000000001',
+                'name' => 'Test Org',
+                'retentionDays' => null,
+            ],
+            'providerCredentials' => [],
+            'syncLists' => [],
+            'manualContacts' => [],
+        ]));
+
+        return $path;
+    }
+
     private function executeCommand(string $path, bool $interactive = false, array $inputs = [], bool $force = false): CommandTester
     {
         $command = new ImportCommand($this->orgRepository, $this->entityManager);
