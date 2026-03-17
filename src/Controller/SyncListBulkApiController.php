@@ -80,13 +80,12 @@ class SyncListBulkApiController extends AbstractController
             return $error;
         }
 
-        $data = json_decode($request->getContent(), true) ?? [];
-        $ids = $data['ids'] ?? null;
-
-        if (!is_array($ids) || $ids === []) {
+        $ids = $this->getIds($request);
+        if ($ids === null) {
             return $this->json(['error' => 'Missing or invalid "ids" array.'], Response::HTTP_BAD_REQUEST);
         }
 
+        $data = json_decode($request->getContent(), true) ?? [];
         $cronExpression = $data['cronExpression'] ?? null;
 
         // Allow empty string or null to clear the schedule
@@ -95,7 +94,6 @@ class SyncListBulkApiController extends AbstractController
         }
 
         $lists = $this->findLists($ids);
-
         $normalizedCron = ($cronExpression === '' || $cronExpression === null) ? null : $cronExpression;
 
         foreach ($lists as $list) {

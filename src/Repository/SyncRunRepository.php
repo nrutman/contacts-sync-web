@@ -7,8 +7,6 @@ use App\Entity\SyncList;
 use App\Entity\SyncRun;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Bridge\Doctrine\Types\UuidType;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<SyncRun>
@@ -30,7 +28,7 @@ class SyncRunRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('sr')
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('org', $organization->getId())
             ->orderBy('sr.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -46,7 +44,7 @@ class SyncRunRepository extends ServiceEntityRepository
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
             ->andWhere('sr.status IN (:statuses)')
-            ->setParameter('org', $organization->getId(), UuidType::NAME)
+            ->setParameter('org', $organization->getId())
             ->setParameter('statuses', ['success', 'failed'])
             ->orderBy('sr.completedAt', 'DESC')
             ->setMaxResults(1)
@@ -63,7 +61,7 @@ class SyncRunRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('sr')
             ->where('sr.syncList = :syncList')
-            ->setParameter('syncList', $syncList->getId(), UuidType::NAME)
+            ->setParameter('syncList', $syncList->getId())
             ->orderBy('sr.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->setFirstResult($offset)
@@ -87,11 +85,11 @@ class SyncRunRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('sr')
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization->getId(), UuidType::NAME);
+            ->setParameter('org', $organization->getId());
 
         if ($syncList !== null) {
             $qb->andWhere('sr.syncList = :syncList')
-                ->setParameter('syncList', $syncList->getId(), UuidType::NAME);
+                ->setParameter('syncList', $syncList->getId());
         }
 
         if ($status !== null) {
@@ -113,7 +111,7 @@ class SyncRunRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('sr')
             ->where('sr.syncList = :syncList')
-            ->setParameter('syncList', $syncList->getId(), UuidType::NAME)
+            ->setParameter('syncList', $syncList->getId())
             ->orderBy('sr.createdAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
@@ -146,13 +144,11 @@ class SyncRunRepository extends ServiceEntityRepository
 
         $results = $conn->fetchAllAssociative($sql, [
             'org' => $organization->getId(),
-        ], [
-            'org' => UuidType::NAME,
         ]);
 
         $counts = [];
         foreach ($results as $row) {
-            $counts[self::normalizeUuid($row['list_id'])] = (int) $row['destination_count'];
+            $counts[$row['list_id']] = (int) $row['destination_count'];
         }
 
         return $counts;
@@ -187,32 +183,14 @@ class SyncRunRepository extends ServiceEntityRepository
 
         $results = $conn->fetchAllAssociative($sql, [
             'org' => $organization->getId(),
-        ], [
-            'org' => UuidType::NAME,
         ]);
 
         $counts = [];
         foreach ($results as $row) {
-            $counts[self::normalizeUuid($row['list_id'])] = (int) $row['source_count'];
+            $counts[$row['list_id']] = (int) $row['source_count'];
         }
 
         return $counts;
-    }
-
-    /**
-     * Converts a raw UUID value from a DBAL result to its RFC 4122 string representation.
-     *
-     * Raw SQL via DBAL bypasses Doctrine's type system, so BINARY(16) UUID columns
-     * come back as 16-byte binary strings instead of formatted UUIDs. This normalizes
-     * them so they can be used as array keys matched against Uuid::__toString().
-     */
-    private static function normalizeUuid(string $value): string
-    {
-        if (strlen($value) === 16) {
-            return (string) Uuid::fromBinary($value);
-        }
-
-        return $value;
     }
 
     /**
@@ -254,7 +232,6 @@ class SyncRunRepository extends ServiceEntityRepository
             'org' => $organization->getId(),
             'cutoff' => $cutoff,
         ], [
-            'org' => UuidType::NAME,
             'cutoff' => 'datetime_immutable',
         ]);
 
@@ -272,7 +249,6 @@ class SyncRunRepository extends ServiceEntityRepository
             'org' => $organization->getId(),
             'cutoff' => $cutoff,
         ], [
-            'org' => UuidType::NAME,
             'cutoff' => 'datetime_immutable',
         ]);
     }
@@ -289,11 +265,11 @@ class SyncRunRepository extends ServiceEntityRepository
             ->select('COUNT(sr.id)')
             ->innerJoin('sr.syncList', 'sl')
             ->where('sl.organization = :org')
-            ->setParameter('org', $organization->getId(), UuidType::NAME);
+            ->setParameter('org', $organization->getId());
 
         if ($syncList !== null) {
             $qb->andWhere('sr.syncList = :syncList')
-                ->setParameter('syncList', $syncList->getId(), UuidType::NAME);
+                ->setParameter('syncList', $syncList->getId());
         }
 
         if ($status !== null) {

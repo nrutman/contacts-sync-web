@@ -4,7 +4,7 @@ namespace App\Entity;
 
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Types\UuidType;
+use App\Doctrine\Type\StringUuidType;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
@@ -16,7 +16,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
-    #[ORM\Column(type: UuidType::NAME, unique: true)]
+    #[ORM\Column(type: StringUuidType::NAME, unique: true)]
     private Uuid $id;
 
     #[ORM\Column(length: 180, unique: true)]
@@ -218,10 +218,5 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function updateTimestamp(): void
     {
         $this->updatedAt = new \DateTimeImmutable();
-    }
-
-    public function eraseCredentials(): void
-    {
-        // If you store any temporary, sensitive data on the user, clear it here.
     }
 }

@@ -30,6 +30,7 @@ Syncs can be triggered three ways: manually from the web UI, on a cron schedule 
 | Namespace | Description | Details |
 |-----------|-------------|---------|
 | `App\Attribute` | Custom PHP attributes (`#[Encrypted]` marker for Doctrine field encryption) | — |
+| `App\Doctrine` | Custom Doctrine DBAL types (`StringUuidType` for RFC 4122 string UUID storage) | [Doctrine README](Doctrine/README.md) |
 | `App\Client` | API client interfaces and implementations for reading/writing contact lists | [Client README](Client/README.md) |
 | `App\Client\Provider` | Provider abstraction layer (registry, interfaces, capability enum) | [Provider README](Client/Provider/README.md) |
 | `App\Client\Google` | Google Workspace Directory API integration (OAuth, token management, group membership) | [Google README](Client/Google/README.md) |

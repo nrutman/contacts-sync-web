@@ -19,7 +19,7 @@
     {% endif %}
 
     <form method="post">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}" data-controller="csrf-protection">
 
         <div class="mb-4">
             <twig:Label for="input-email" class="mb-1">Email</twig:Label>
