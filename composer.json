@@ -19,6 +19,7 @@
         "dragonmantank/cron-expression": "^3.4",
         "google/apiclient": "^2.16",
         "guzzlehttp/guzzle": "^7.0",
+        "symfony/apache-pack": "*",
         "symfony/asset-mapper": "^7.2",
         "symfony/console": "^7.2",
         "symfony/doctrine-messenger": "^7.2",
