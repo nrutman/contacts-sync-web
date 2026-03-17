@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Entity\SyncList;
+use App\Notification\SyncNotificationService;
 use App\Repository\SyncRunRepository;
 use App\Sync\SyncService;
 use Cron\CronExpression;
@@ -24,6 +25,7 @@ class RunSyncCommand extends Command
         private readonly SyncService $syncService,
         private readonly EntityManagerInterface $entityManager,
         private readonly SyncRunRepository $syncRunRepository,
+        private readonly SyncNotificationService $notificationService,
     ) {
         parent::__construct();
     }
@@ -92,6 +94,7 @@ class RunSyncCommand extends Command
 
         $trigger = $scheduled ? 'schedule' : 'cli';
         $hasFailure = false;
+        $syncRuns = [];
 
         foreach ($syncLists as $listIndex => $syncList) {
             if ($listIndex > 0) {
@@ -113,6 +116,10 @@ class RunSyncCommand extends Command
                 trigger: $trigger,
             );
 
+            if ($result->syncRun !== null) {
+                $syncRuns[] = $result->syncRun;
+            }
+
             // Display the sync result summary
             $io->table(
                 ['Source', 'Destination', 'To Remove', 'To Add'],
@@ -132,6 +139,19 @@ class RunSyncCommand extends Command
             if (!$result->success) {
                 $io->error(sprintf('Sync failed: %s', $result->errorMessage));
                 $hasFailure = true;
+            }
+        }
+
+        // Send batch notification and display results
+        if ($syncRuns !== []) {
+            $this->notificationService->sendBatchNotification($syncRuns);
+
+            foreach ($this->notificationService->getLastResults() as $notification) {
+                if ($notification['success']) {
+                    $io->writeln(sprintf('<info>Notification sent to %s</info>', $notification['email']));
+                } else {
+                    $io->writeln(sprintf('<error>Notification to %s failed: %s</error>', $notification['email'], $notification['error']));
+                }
             }
         }
 
