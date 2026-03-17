@@ -214,6 +214,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->updatedAt;
     }
 
+    public function eraseCredentials(): void
+    {
+        // No plain-text credentials stored in memory to clear
+    }
+
     #[ORM\PreUpdate]
     public function updateTimestamp(): void
     {
