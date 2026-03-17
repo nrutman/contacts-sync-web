@@ -96,7 +96,8 @@
             "importmap:install": "symfony-cmd"
         },
         "post-install-cmd": [
-            "@auto-scripts"
+            "@auto-scripts",
+            "pnpm install"
         ],
         "post-update-cmd": [
             "@auto-scripts"
