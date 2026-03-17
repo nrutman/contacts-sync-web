@@ -69,7 +69,7 @@ When additional commits significantly change the scope or impact of a PR, update
 
 ## Architecture Notes
 
-- PHP 8.5 with Symfony 7.2. Use constructor promotion and PHP 8+ features (attributes, named arguments, readonly properties, etc.) where appropriate.
+- PHP >=8.3 with Symfony 7.2. Use constructor promotion and PHP 8+ features (attributes, named arguments, readonly properties, etc.) where appropriate, but avoid features requiring PHP 8.4+ (property hooks, asymmetric visibility, `array_find()`, etc.).
 - PSR-4 autoloading: `App\` → `src/`, `App\Tests\` → `tests/`.
 - Symfony autowiring and autoconfigure are enabled. New services placed in `src/` are registered automatically — no manual service definitions needed unless non-standard wiring is required.
 - Doctrine ORM entities live in `src/Entity/` and are excluded from the service container. Repositories in `src/Repository/` are auto-registered. When adding, removing, or changing entities, update both the Mermaid ERD and the entity descriptions in [src/Entity/README.md](src/Entity/README.md) to match.
