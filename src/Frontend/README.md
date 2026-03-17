@@ -100,7 +100,7 @@ The theme maps Symfony form types to Shadcn components:
 - Help text → `<twig:Field:Description>`
 - Each row → `<twig:Field>` wrapper
 
-Most forms just need `{{ form_row(form.fieldName) }}` — no manual class attributes.
+Most forms just need `{{ form_row(form.fieldName) }}` — no manual class attributes. The form theme renders extra `attr` entries (e.g. `data-*`, `placeholder`, `class` additions) on all widget types — see the comment at the top of `shadcn_theme.html.twig` for the required pattern when adding new blocks.
 
 ## Stimulus Controllers
 

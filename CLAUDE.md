@@ -35,6 +35,8 @@ composer run-script cs-fix
 
 ## Workflow Requirements
 
+Before making any commits, verify you are on a feature branch — never commit directly to `main`.
+
 After ANY code change, always run both tests and code style checking:
 ```
 composer run-script test && composer run-script cs
@@ -46,6 +48,8 @@ If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-
 
 After pushing to a branch with an open PR, monitor the CI checks using `gh pr checks`. If any checks fail, investigate the failure, fix the issue, push the fix, and continue monitoring until all checks pass. Repeat this cycle as needed — do not consider the push complete until all CI checks are green.
 
+When additional commits significantly change the scope or impact of a PR, update the PR title and description to reflect the full set of changes.
+
 ## Testing Conventions
 
 - Tests live in `tests/` and mirror the `src/` directory structure (e.g. `src/Contact/ContactListAnalyzer.php` → `tests/Contact/ContactListAnalyzerTest.php`).
@@ -54,6 +58,7 @@ After pushing to a branch with an open PR, monitor the CI checks using `gh pr ch
 - Command tests use Symfony's `CommandTester` to execute commands and assert on output/status codes.
 - Data-driven tests use PHPUnit's `#[DataProvider]` attribute with a static provider method.
 - When adding a new class, add a corresponding test file. When modifying a class, update or extend its existing tests.
+- After writing or updating tests, re-evaluate by asking: (1) Are there any high-value cases we're missing? (2) Can the tests be simplified or consolidated? (3) Are there any low-value tests we can remove?
 
 ## Code Style
 
@@ -74,11 +79,6 @@ After pushing to a branch with an open PR, monitor the CI checks using `gh pr ch
 - Symfony Scheduler reads cron expressions from `SyncList` entities via `SyncScheduleProvider`. The `ScheduleCacheInvalidator` listener clears the scheduler cache when lists change.
 - `var/` contains runtime artifacts and is not committed to version control.
 
-## Database & UUID Pitfall
+## Database & UUIDs
 
-UUID columns are stored as `BINARY(16)` in MySQL. **Raw SQL queries via DBAL (`fetchAllAssociative`, etc.) bypass Doctrine's type system**, which causes two problems:
-
-1. **Parameters:** Passing `(string) $entity->getId()` as a query parameter won't match a `BINARY(16)` column. Always pass the `Uuid` object and declare the type: `$conn->fetchAllAssociative($sql, ['id' => $entity->getId()], ['id' => UuidType::NAME])`.
-2. **Results:** UUID columns come back as 16-byte binary strings, not the RFC 4122 hex format (`019ca770-05e6-...`) that `Uuid::__toString()` produces. If you use a raw UUID result as an array key and then look it up in Twig with `entity.id`, the keys won't match. Normalize with `Uuid::fromBinary()` — see `SyncRunRepository::normalizeUuid()`.
-
-**Prefer Doctrine QueryBuilder/DQL over raw SQL when possible**, as it handles UUID conversion automatically via `UuidType::NAME`.
+UUID columns use the custom `StringUuidType` (registered as `uuid_string`), which stores UUIDs as RFC 4122 strings (`CHAR(36)` on MySQL, native `UUID` on PostgreSQL) and hydrates `Uuid` objects automatically. No binary conversion or special type hints are needed anywhere — see [src/Doctrine/README.md](src/Doctrine/README.md) for details.

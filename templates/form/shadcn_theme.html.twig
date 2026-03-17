@@ -1,9 +1,25 @@
 {% use 'form_div_layout.html.twig' %}
 
+{# ─────────────────────────────────────────────────────────────────────────────
+   IMPORTANT: Every widget block MUST render extra `attr` using the macro below.
+   Symfony forms pass data-* attributes, class overrides, placeholder, etc.
+   through the `attr` bag. If a block doesn't render them, they are silently
+   dropped and Stimulus targets/actions on form fields will break.
+
+   Usage: {{ _self.extra_attrs(attr, ['id', 'name', 'value', 'class']) }}
+          The second arg lists keys already rendered explicitly (to avoid dupes).
+          Extra `class` values should be merged with defaults, not ignored.
+   ───────────────────────────────────────────────────────────────────────────── #}
+
+{# ── Macro to render extra attr, excluding keys already rendered explicitly ── #}
+{% macro extra_attrs(attr, exclude) %}
+    {%- for attrname, attrvalue in attr %}{% if attrname not in exclude %} {{ attrname }}="{{ attrvalue }}"{% endif %}{% endfor -%}
+{% endmacro %}
+
 {# ── CSRF token: add data-controller so csrf_protection_controller.js can set up
       the double-submit cookie required by SameOriginCsrfTokenManager ── #}
 {% block hidden_widget %}
-    <input type="hidden" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if name == '_token' %} data-controller="csrf-protection"{% endif %}>
+    <input type="hidden" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"{% if name == '_token' %} data-controller="csrf-protection"{% endif %}{{ _self.extra_attrs(attr, ['id', 'name', 'value']) }}>
 {% endblock %}
 
 {# ── Row wrapper ── #}
@@ -33,23 +49,26 @@
 {# ── Text-like inputs ── #}
 {% block form_widget_simple %}
     {% set type = type|default('text') %}
+    {% set extra_class = attr.class|default('') %}
     <input type="{{ type }}" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"
-           class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-           {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}{% if attr.readonly is defined and attr.readonly %} readonly{% endif %}>
+           class="{{ ('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ' ~ extra_class)|trim }}"
+           {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{{ _self.extra_attrs(attr, ['id', 'name', 'value', 'class']) }}>
 {% endblock %}
 
 {# ── Textarea ── #}
 {% block textarea_widget %}
+    {% set extra_class = attr.class|default('') %}
     <textarea id="{{ id }}" name="{{ full_name }}"
-              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-              {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if attr.placeholder is defined %} placeholder="{{ attr.placeholder }}"{% endif %}>{{ value }}</textarea>
+              class="{{ ('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm ' ~ extra_class)|trim }}"
+              {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{{ _self.extra_attrs(attr, ['id', 'name', 'class']) }}>{{ value }}</textarea>
 {% endblock %}
 
 {# ── Select (choice as dropdown) ── #}
 {% block choice_widget_collapsed %}
+    {% set extra_class = attr.class|default('') %}
     <select id="{{ id }}" name="{{ full_name }}{% if multiple %}[]{% endif %}"
-            class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
-            {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if multiple %} multiple{% endif %}>
+            class="{{ ('flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 ' ~ extra_class)|trim }}"
+            {% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{% if multiple %} multiple{% endif %}{{ _self.extra_attrs(attr, ['id', 'name', 'class']) }}>
         {% if placeholder is not none %}
             <option value="">{{ placeholder != '' ? (translation_domain is same as(false) ? placeholder : placeholder|trans({}, translation_domain)) : '' }}</option>
         {% endif %}
@@ -85,9 +104,10 @@
 
 {# ── Checkbox (single) ── #}
 {% block checkbox_widget %}
+    {% set extra_class = attr.class|default('') %}
     <input type="checkbox" id="{{ id }}" name="{{ full_name }}" value="{{ value }}"
-           class="peer size-4 inline-block align-middle accent-primary"
-           {% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}>
+           class="{{ ('peer size-4 inline-block align-middle accent-primary ' ~ extra_class)|trim }}"
+           {% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}{% if required %} required{% endif %}{{ _self.extra_attrs(attr, ['id', 'name', 'value', 'class']) }}>
 {% endblock %}
 
 {# ── Checkbox row: horizontal layout ── #}
@@ -132,9 +152,10 @@
 
 {# ── Button ── #}
 {% block button_widget %}
+    {% set extra_class = attr.class|default('') %}
     <button type="{{ type|default('submit') }}"
-            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3"
-            {% if disabled %} disabled{% endif %}>
+            class="{{ ('inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 ' ~ extra_class)|trim }}"
+            {% if disabled %} disabled{% endif %}{{ _self.extra_attrs(attr, ['class']) }}>
         {{- label is not null ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) : name|humanize -}}
     </button>
 {% endblock %}

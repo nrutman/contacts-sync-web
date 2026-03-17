@@ -6,7 +6,7 @@ use App\Repository\SyncRunRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Types\UuidType;
+use App\Doctrine\Type\StringUuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: SyncRunRepository::class)]
@@ -14,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 class SyncRun
 {
     #[ORM\Id]
-    #[ORM\Column(type: UuidType::NAME, unique: true)]
+    #[ORM\Column(type: StringUuidType::NAME, unique: true)]
     private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: SyncList::class, inversedBy: 'syncRuns')]

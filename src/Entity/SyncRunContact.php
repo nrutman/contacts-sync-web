@@ -5,14 +5,14 @@ namespace App\Entity;
 use App\Contact\ContactInterface;
 use App\Repository\SyncRunContactRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Types\UuidType;
+use App\Doctrine\Type\StringUuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: SyncRunContactRepository::class)]
 class SyncRunContact implements ContactInterface
 {
     #[ORM\Id]
-    #[ORM\Column(type: UuidType::NAME, unique: true)]
+    #[ORM\Column(type: StringUuidType::NAME, unique: true)]
     private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: SyncRun::class, inversedBy: 'syncRunContacts')]

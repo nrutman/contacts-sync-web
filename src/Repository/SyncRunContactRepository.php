@@ -6,7 +6,6 @@ use App\Entity\SyncList;
 use App\Entity\SyncRunContact;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 
 /**
  * @extends ServiceEntityRepository<SyncRunContact>
@@ -34,7 +33,7 @@ class SyncRunContactRepository extends ServiceEntityRepository
             ->orderBy('sr.completedAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
-            ->setParameter('syncList', $syncList->getId(), UuidType::NAME)
+            ->setParameter('syncList', $syncList->getId())
             ->setParameter('status', 'success')
             ->getOneOrNullResult();
 
@@ -44,7 +43,7 @@ class SyncRunContactRepository extends ServiceEntityRepository
 
         return $this->createQueryBuilder('src')
             ->where('src.syncRun = :runId')
-            ->setParameter('runId', $latestRunId['id'], UuidType::NAME)
+            ->setParameter('runId', $latestRunId['id'])
             ->orderBy('src.name', 'ASC')
             ->getQuery()
             ->getResult();

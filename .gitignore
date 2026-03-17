@@ -6,6 +6,7 @@
 
 # Editor settings
 /.idea
+/.claude/settings.local.json
 
 ###> symfony/framework-bundle ###
 /.env.local

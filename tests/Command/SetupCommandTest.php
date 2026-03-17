@@ -507,8 +507,8 @@ class SetupCommandTest extends MockeryTestCase
         $stubCommand = $this->createMigrateConfigStub($migrateCommand);
 
         $application = new Application();
-        $application->add($command);
-        $application->add($stubCommand);
+        $application->addCommand($command);
+        $application->addCommand($stubCommand);
 
         $reflection = new \ReflectionMethod(
             $command,
@@ -707,6 +707,99 @@ class SetupCommandTest extends MockeryTestCase
         self::assertSame('null://null', $dsnProperty->getValue($command));
     }
 
+    public function testStepEmailConfigurationPromptsForMailerFrom(): void
+    {
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+
+        $stream = fopen('php://memory', 'r+');
+        // DSN prompt, then From address prompt
+        fwrite($stream, "smtp://user:pass@smtp.example.com:587\nnoreply@example.com\n");
+        rewind($stream);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(true);
+        $input->setStream($stream);
+
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $io = new \Symfony\Component\Console\Style\SymfonyStyle($input, $output);
+
+        $ioProperty = new \ReflectionProperty($command, 'io');
+        $ioProperty->setValue($command, $io);
+
+        $reflection = new \ReflectionMethod($command, 'stepEmailConfiguration');
+        $reflection->invoke($command, $input);
+
+        $fromProperty = new \ReflectionProperty($command, 'mailerFrom');
+        self::assertSame('noreply@example.com', $fromProperty->getValue($command));
+    }
+
+    public function testStepEmailConfigurationKeepsExistingMailerFrom(): void
+    {
+        $envLocalPath = $this->tempDir.'/.env.local';
+        file_put_contents(
+            $envLocalPath,
+            "MAILER_DSN=\"smtp://user:pass@smtp.example.com:587\"\nMAILER_FROM=sender@example.com\n",
+        );
+
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+
+        $stream = fopen('php://memory', 'r+');
+        // "yes" to keep existing DSN, "yes" to keep existing From
+        fwrite($stream, "yes\nyes\n");
+        rewind($stream);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(true);
+        $input->setStream($stream);
+
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
+        $io = new \Symfony\Component\Console\Style\SymfonyStyle($input, $output);
+
+        $ioProperty = new \ReflectionProperty($command, 'io');
+        $ioProperty->setValue($command, $io);
+
+        $reflection = new \ReflectionMethod($command, 'stepEmailConfiguration');
+        $reflection->invoke($command, $input);
+
+        $fromProperty = new \ReflectionProperty($command, 'mailerFrom');
+        self::assertSame('sender@example.com', $fromProperty->getValue($command));
+    }
+
+    public function testStepEmailConfigurationSkipsMailerFromWhenDsnIsNull(): void
+    {
+        $command = $this->createSetupCommand();
+        $this->setProjectDir($command);
+        $this->initializeIo($command);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $input->setInteractive(false);
+
+        $reflection = new \ReflectionMethod($command, 'stepEmailConfiguration');
+        $reflection->invoke($command, $input);
+
+        $fromProperty = new \ReflectionProperty($command, 'mailerFrom');
+        self::assertSame('', $fromProperty->getValue($command));
+    }
+
+    public function testMailerFromIsWrittenToEnvLocal(): void
+    {
+        $command = $this->createSetupCommand();
+        $envLocalPath = $this->tempDir.'/.env.local';
+
+        $reflection = new \ReflectionMethod($command, 'writeEnvLocal');
+        $reflection->invoke($command, $envLocalPath, [
+            'DATABASE_URL' => 'postgresql://localhost/db',
+            'APP_ENCRYPTION_KEY' => 'abc123',
+            'MAILER_DSN' => 'smtp://user:pass@smtp.example.com:587',
+            'MAILER_FROM' => 'noreply@example.com',
+        ]);
+
+        $contents = file_get_contents($envLocalPath);
+        self::assertStringContainsString('MAILER_FROM=noreply@example.com', $contents);
+    }
+
     public function testDatabaseConnectionTestWithInvalidHost(): void
     {
         $command = $this->createSetupCommand();
@@ -887,7 +980,7 @@ class SetupCommandTest extends MockeryTestCase
     private function createCommandTester(SetupCommand $command): CommandTester
     {
         $application = new Application();
-        $application->add($command);
+        $application->addCommand($command);
 
         return new CommandTester($application->find('app:setup'));
     }
