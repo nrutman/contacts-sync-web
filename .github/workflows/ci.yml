@@ -26,8 +26,7 @@ jobs:
             - name: Run test suite
               run: vendor/bin/phpunit
 
-    css:
-        name: Tailwind CSS up-to-date
+    css-build:
         runs-on: ubuntu-latest
 
         steps:
