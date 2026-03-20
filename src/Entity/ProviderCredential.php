@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-use App\Attribute\Encrypted;
+use App\Doctrine\Type\EncryptedType;
 use App\Repository\ProviderCredentialRepository;
 use Doctrine\ORM\Mapping as ORM;
 use App\Doctrine\Type\StringUuidType;
@@ -29,8 +29,7 @@ class ProviderCredential
     #[Assert\Length(max: 255)]
     private ?string $label = null;
 
-    #[Encrypted]
-    #[ORM\Column(type: 'text')]
+    #[ORM\Column(type: EncryptedType::NAME)]
     private string $credentials = '{}';
 
     #[ORM\Column(type: 'json', nullable: true)]
