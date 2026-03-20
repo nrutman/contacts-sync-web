@@ -2,12 +2,13 @@
 
 namespace App\Tests\Command;
 
-use App\Attribute\Encrypted;
 use App\Command\RotateEncryptionKeysCommand;
+use App\Doctrine\Type\EncryptedType;
 use App\Security\EncryptionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
+use Doctrine\ORM\Mapping\FieldMapping;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -50,14 +51,12 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
         $tester->execute(['--dry-run' => true]);
 
         $tester->assertCommandIsSuccessful();
-        $this->assertStringContainsString('No entities with #[Encrypted] fields found', $tester->getDisplay());
+        $this->assertStringContainsString('No entities with encrypted fields found', $tester->getDisplay());
     }
 
     public function testDryRunDiscoverEncryptedEntities(): void
     {
-        $metadata = m::mock(ClassMetadata::class);
-        $metadata->shouldReceive('getName')
-            ->andReturn(EntityWithEncrypted::class);
+        $metadata = $this->createMetadataWithEncryptedField('App\Entity\ProviderCredential', 'credentials');
 
         $this->metadataFactory
             ->shouldReceive('getAllMetadata')
@@ -71,7 +70,7 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
 
         $this->entityManager
             ->shouldReceive('getRepository')
-            ->with(EntityWithEncrypted::class)
+            ->with('App\Entity\ProviderCredential')
             ->andReturn($repository);
 
         $this->entityManager
@@ -93,16 +92,14 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
         $tester->assertCommandIsSuccessful();
         $display = $tester->getDisplay();
         $this->assertStringContainsString('1 entity class(es)', $display);
-        $this->assertStringContainsString('EntityWithEncrypted', $display);
-        $this->assertStringContainsString('secretField', $display);
+        $this->assertStringContainsString('ProviderCredential', $display);
+        $this->assertStringContainsString('credentials', $display);
         $this->assertStringContainsString('Dry run complete', $display);
     }
 
     public function testAbortWhenNotConfirmed(): void
     {
-        $metadata = m::mock(ClassMetadata::class);
-        $metadata->shouldReceive('getName')
-            ->andReturn(EntityWithEncrypted::class);
+        $metadata = $this->createMetadataWithEncryptedField('App\Entity\ProviderCredential', 'credentials');
 
         $this->metadataFactory
             ->shouldReceive('getAllMetadata')
@@ -124,9 +121,7 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
 
     public function testForceSkipsConfirmationPrompt(): void
     {
-        $metadata = m::mock(ClassMetadata::class);
-        $metadata->shouldReceive('getName')
-            ->andReturn(EntityWithEncrypted::class);
+        $metadata = $this->createMetadataWithEncryptedField('App\Entity\ProviderCredential', 'credentials');
 
         $this->metadataFactory
             ->shouldReceive('getAllMetadata')
@@ -140,7 +135,7 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
 
         $this->entityManager
             ->shouldReceive('getRepository')
-            ->with(EntityWithEncrypted::class)
+            ->with('App\Entity\ProviderCredential')
             ->andReturn($repository);
 
         $this->entityManager
@@ -190,13 +185,14 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
 
     public function testSkipsEntityClassesWithoutEncryptedFields(): void
     {
-        $metadataWithEncrypted = m::mock(ClassMetadata::class);
-        $metadataWithEncrypted->shouldReceive('getName')
-            ->andReturn(EntityWithEncrypted::class);
+        $metadataWithEncrypted = $this->createMetadataWithEncryptedField('App\Entity\ProviderCredential', 'credentials');
 
         $metadataWithout = m::mock(ClassMetadata::class);
         $metadataWithout->shouldReceive('getName')
-            ->andReturn(EntityWithoutEncrypted::class);
+            ->andReturn('App\Entity\SyncList');
+        $metadataWithout->fieldMappings = [
+            'name' => new FieldMapping(fieldName: 'name', type: 'string', columnName: 'name'),
+        ];
 
         $this->metadataFactory
             ->shouldReceive('getAllMetadata')
@@ -210,13 +206,13 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
 
         $this->entityManager
             ->shouldReceive('getRepository')
-            ->with(EntityWithEncrypted::class)
+            ->with('App\Entity\ProviderCredential')
             ->andReturn($repository);
 
-        // Should NOT call getRepository for EntityWithoutEncrypted
+        // Should NOT call getRepository for SyncList
         $this->entityManager
             ->shouldNotReceive('getRepository')
-            ->with(EntityWithoutEncrypted::class);
+            ->with('App\Entity\SyncList');
 
         $this->entityManager
             ->shouldReceive('beginTransaction')
@@ -237,14 +233,12 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
         $tester->assertCommandIsSuccessful();
         $display = $tester->getDisplay();
         $this->assertStringContainsString('1 entity class(es)', $display);
-        $this->assertStringNotContainsString('EntityWithoutEncrypted', $display);
+        $this->assertStringNotContainsString('SyncList', $display);
     }
 
     public function testRollsBackOnException(): void
     {
-        $metadata = m::mock(ClassMetadata::class);
-        $metadata->shouldReceive('getName')
-            ->andReturn(EntityWithEncrypted::class);
+        $metadata = $this->createMetadataWithEncryptedField('App\Entity\ProviderCredential', 'credentials');
 
         $this->metadataFactory
             ->shouldReceive('getAllMetadata')
@@ -258,7 +252,7 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
 
         $this->entityManager
             ->shouldReceive('getRepository')
-            ->with(EntityWithEncrypted::class)
+            ->with('App\Entity\ProviderCredential')
             ->andReturn($repository);
 
         $this->entityManager
@@ -281,23 +275,16 @@ class RotateEncryptionKeysCommandTest extends MockeryTestCase
         $this->assertStringContainsString('Key rotation failed', $tester->getDisplay());
         $this->assertStringContainsString('Database error', $tester->getDisplay());
     }
-}
 
-/**
- * Stub entity with an #[Encrypted] field for discovery tests.
- */
-class EntityWithEncrypted
-{
-    #[Encrypted]
-    public string $secretField = '';
+    private function createMetadataWithEncryptedField(string $className, string $fieldName): ClassMetadata|m\LegacyMockInterface
+    {
+        $metadata = m::mock(ClassMetadata::class);
+        $metadata->shouldReceive('getName')
+            ->andReturn($className);
+        $metadata->fieldMappings = [
+            $fieldName => new FieldMapping(fieldName: $fieldName, type: EncryptedType::NAME, columnName: $fieldName),
+        ];
 
-    public string $normalField = '';
-}
-
-/**
- * Stub entity without any #[Encrypted] fields.
- */
-class EntityWithoutEncrypted
-{
-    public string $plainField = '';
+        return $metadata;
+    }
 }

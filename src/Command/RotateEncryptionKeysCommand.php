@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Attribute\Encrypted;
+use App\Doctrine\Type\EncryptedType;
 use App\Security\EncryptionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -45,22 +45,18 @@ class RotateEncryptionKeysCommand extends Command
             $io->note('Dry run mode — no changes will be made.');
         }
 
-        // Discover all entity classes with #[Encrypted] properties
         $entityClasses = $this->discoverEncryptedEntities();
 
         if ($entityClasses === []) {
-            $io->success('No entities with #[Encrypted] fields found.');
+            $io->success('No entities with encrypted fields found.');
 
             return Command::SUCCESS;
         }
 
         $io->text(sprintf('Found %d entity class(es) with encrypted fields:', count($entityClasses)));
 
-        foreach ($entityClasses as $className => $properties) {
-            $io->text(sprintf('  • %s (%s)', $className, implode(', ', array_map(
-                static fn (\ReflectionProperty $p) => $p->getName(),
-                $properties,
-            ))));
+        foreach ($entityClasses as $className => $fieldNames) {
+            $io->text(sprintf('  • %s (%s)', $this->shortClassName($className), implode(', ', $fieldNames)));
         }
 
         $io->newLine();
@@ -82,7 +78,7 @@ class RotateEncryptionKeysCommand extends Command
         $this->entityManager->beginTransaction();
 
         try {
-            foreach ($entityClasses as $className => $properties) {
+            foreach ($entityClasses as $className => $fieldNames) {
                 $entities = $this->entityManager->getRepository($className)->findAll();
                 $io->text(sprintf('Processing %d %s entities...', count($entities), $this->shortClassName($className)));
 
@@ -90,29 +86,28 @@ class RotateEncryptionKeysCommand extends Command
                     ++$totalEntities;
                     $entityRotated = false;
 
-                    foreach ($properties as $property) {
+                    foreach ($fieldNames as $fieldName) {
                         ++$totalFields;
-                        $rawValue = $this->getRawColumnValue($entity, $property);
+                        $rawValue = $this->getRawColumnValue($entity, $fieldName);
 
                         if ($rawValue === null || $rawValue === '') {
                             continue;
                         }
 
-                        // Check if already encrypted with the current key version
                         if ($this->encryptionService->isCurrentVersion($rawValue)) {
                             continue;
                         }
 
                         if (!$dryRun) {
-                            // Decrypt with the old key, re-encrypt with the current key.
                             // The entity's in-memory value is already decrypted by the
-                            // Doctrine postLoad listener, so we can read the plaintext
-                            // directly and re-encrypt it.
+                            // EncryptedType DBAL type, so read the plaintext directly
+                            // and re-encrypt it.
+                            $property = new \ReflectionProperty($entity, $fieldName);
                             $plaintext = $property->getValue($entity);
                             $reEncrypted = $this->encryptionService->encrypt($plaintext);
 
-                            // Write the re-encrypted value directly to the property
-                            // so the prePersist/preUpdate listener doesn't double-encrypt.
+                            // Write the re-encrypted value directly so the DBAL type
+                            // doesn't double-encrypt on flush.
                             $property->setValue($entity, $reEncrypted);
                         }
 
@@ -123,7 +118,7 @@ class RotateEncryptionKeysCommand extends Command
                             $io->text(sprintf(
                                 '    Rotating %s::%s (entity %s)',
                                 $this->shortClassName($className),
-                                $property->getName(),
+                                $fieldName,
                                 method_exists($entity, 'getId') ? $entity->getId() : '?',
                             ));
                         }
@@ -170,9 +165,9 @@ class RotateEncryptionKeysCommand extends Command
     }
 
     /**
-     * Discovers all Doctrine entity classes that have properties marked with #[Encrypted].
+     * Discovers all Doctrine entity classes that have fields using the 'encrypted' DBAL type.
      *
-     * @return array<class-string, \ReflectionProperty[]>
+     * @return array<class-string, string[]> Map of class name to field names
      */
     private function discoverEncryptedEntities(): array
     {
@@ -180,18 +175,16 @@ class RotateEncryptionKeysCommand extends Command
         $allMetadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
 
         foreach ($allMetadata as $metadata) {
-            $className = $metadata->getName();
-            $reflection = new \ReflectionClass($className);
-            $encryptedProperties = [];
+            $encryptedFields = [];
 
-            foreach ($reflection->getProperties() as $property) {
-                if ($property->getAttributes(Encrypted::class) !== []) {
-                    $encryptedProperties[] = $property;
+            foreach ($metadata->fieldMappings as $fieldMapping) {
+                if ($fieldMapping->type === EncryptedType::NAME) {
+                    $encryptedFields[] = $fieldMapping->fieldName;
                 }
             }
 
-            if ($encryptedProperties !== []) {
-                $result[$className] = $encryptedProperties;
+            if ($encryptedFields !== []) {
+                $result[$metadata->getName()] = $encryptedFields;
             }
         }
 
@@ -199,14 +192,13 @@ class RotateEncryptionKeysCommand extends Command
     }
 
     /**
-     * Gets the raw database column value for a property, bypassing the Doctrine
-     * postLoad decryption. We use the UnitOfWork's original entity data.
+     * Gets the raw database column value for a field, bypassing the DBAL type
+     * decryption. We use the UnitOfWork's original entity data.
      */
-    private function getRawColumnValue(object $entity, \ReflectionProperty $property): ?string
+    private function getRawColumnValue(object $entity, string $fieldName): ?string
     {
         $uow = $this->entityManager->getUnitOfWork();
         $originalData = $uow->getOriginalEntityData($entity);
-        $fieldName = $property->getName();
 
         return $originalData[$fieldName] ?? null;
     }
