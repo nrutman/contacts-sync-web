@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Rebuild Tailwind CSS and stage the output so every commit includes up-to-date styles.
+# The production host cannot run the Tailwind CLI binary, so the built CSS is committed.
+
+echo "[pre-commit] Building Tailwind CSS..."
+php bin/console tailwind:build --minify --quiet
+
+git add var/tailwind/app.built.css

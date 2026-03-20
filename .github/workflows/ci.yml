@@ -26,6 +26,27 @@ jobs:
             - name: Run test suite
               run: vendor/bin/phpunit
 
+    css:
+        name: Tailwind CSS up-to-date
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.5"
+
+            - name: Install dependencies
+              run: composer install --prefer-dist --no-progress --no-scripts
+
+            - name: Build Tailwind CSS
+              run: php bin/console tailwind:build --minify
+
+            - name: Check for uncommitted CSS changes
+              run: git diff --exit-code var/tailwind/app.built.css
+
     format:
         runs-on: ubuntu-latest
 

@@ -13,7 +13,14 @@
 /.env.local.php
 /.env.*.local
 /public/bundles/
-/var/
+# Use /var/* (not /var/) so nested negation patterns work — git won't
+# descend into a fully-ignored directory to check for child exceptions.
+/var/*
+# Pre-built Tailwind CSS — production host cannot run the Tailwind CLI binary.
+# Three lines are needed: un-ignore parent dir, re-ignore its contents, then exempt the file.
+!/var/tailwind/
+/var/tailwind/*
+!/var/tailwind/app.built.css
 /vendor/
 ###< symfony/framework-bundle ###
 
