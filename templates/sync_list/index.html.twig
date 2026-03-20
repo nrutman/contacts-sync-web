@@ -131,9 +131,10 @@
                             {% endif %}
                         </twig:Table:Cell>
                         <twig:Table:Cell>
-                            {% if contactCounts[list.id] is defined and contactCounts[list.id] is not null %}
+                            {% set listId = list.id ~ '' %}
+                            {% if contactCounts[listId] is defined and contactCounts[listId] is not null %}
                                 <a href="{{ path('app_sync_list_contacts', { id: list.id }) }}" class="text-primary hover:underline">
-                                    {{ contactCounts[list.id] }} contacts
+                                    {{ contactCounts[listId] }} contacts
                                 </a>
                             {% endif %}
                             {% if list.manualContacts|length > 0 %}
