@@ -58,3 +58,12 @@ DirectoryIndex index.php
         RedirectMatch 307 ^/$ /index.php/
     </IfModule>
 </IfModule>
+
+# Log PHP errors alongside Symfony logs. The path is relative to the
+# document root (public/), so ../var/log reaches the project's var/log.
+<IfModule mod_php.c>
+    php_value error_log ../var/log/php_errors.log
+</IfModule>
+<IfModule mod_php8.c>
+    php_value error_log ../var/log/php_errors.log
+</IfModule>
