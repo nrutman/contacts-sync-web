@@ -17,10 +17,10 @@
 # descend into a fully-ignored directory to check for child exceptions.
 /var/*
 # Pre-built Tailwind CSS — production host cannot run the Tailwind CLI binary.
-# Three lines are needed: un-ignore parent dir, re-ignore its contents, then exempt the file.
+# Three lines are needed: un-ignore parent dir, re-ignore its contents, then exempt the files.
 !/var/tailwind/
 /var/tailwind/*
-!/var/tailwind/app.built.css
+!/var/tailwind/*.built.css
 /vendor/
 ###< symfony/framework-bundle ###
 

@@ -44,7 +44,7 @@ jobs:
               run: php bin/console tailwind:build --minify
 
             - name: Check for uncommitted CSS changes
-              run: git diff --exit-code var/tailwind/app.built.css
+              run: git diff --exit-code var/tailwind/
 
     format:
         runs-on: ubuntu-latest
