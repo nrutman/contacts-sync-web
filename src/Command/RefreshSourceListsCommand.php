@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\Provider\ProviderRegistry;
 use App\Entity\SyncList;
 use Doctrine\ORM\EntityManagerInterface;
@@ -67,7 +67,7 @@ class RefreshSourceListsCommand extends Command
 
             $provider = $this->providerRegistry->get($sourceCredential->getProviderName());
 
-            if (!$provider instanceof PlanningCenterProvider) {
+            if (!$provider instanceof RefreshableProviderInterface) {
                 $io->note(sprintf('Refresh not supported for provider "%s" — skipping "%s".', $provider->getDisplayName(), $syncList->getName()));
 
                 continue;

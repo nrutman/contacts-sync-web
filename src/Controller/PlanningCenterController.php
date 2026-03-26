@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\Provider\ProviderRegistry;
 use App\Entity\SyncList;
 use Psr\Log\LoggerInterface;
@@ -59,7 +59,7 @@ class PlanningCenterController extends AbstractController
         try {
             $provider = $this->providerRegistry->get($sourceCredential->getProviderName());
 
-            if ($provider instanceof PlanningCenterProvider) {
+            if ($provider instanceof RefreshableProviderInterface) {
                 $provider->refreshList(
                     $sourceCredential,
                     $syncList->getSourceListIdentifier() ?? $syncList->getName(),

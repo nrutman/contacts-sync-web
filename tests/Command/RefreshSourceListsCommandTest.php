@@ -2,8 +2,9 @@
 
 namespace App\Tests\Command;
 
-use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\ProviderInterface;
 use App\Client\Provider\ProviderRegistry;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Command\RefreshSourceListsCommand;
 use App\Entity\Organization;
 use App\Entity\ProviderCredential;
@@ -20,7 +21,7 @@ class RefreshSourceListsCommandTest extends MockeryTestCase
     private const LIST_TWO = 'list2@domain.com';
 
     private ProviderRegistry|m\LegacyMockInterface $providerRegistry;
-    private PlanningCenterProvider|m\LegacyMockInterface $planningCenterProvider;
+    private RefreshableProviderInterface|m\LegacyMockInterface $refreshableProvider;
     private EntityManagerInterface|m\LegacyMockInterface $entityManager;
     private EntityRepository|m\LegacyMockInterface $syncListRepository;
     private Organization $organization;
@@ -29,8 +30,8 @@ class RefreshSourceListsCommandTest extends MockeryTestCase
     public function setUp(): void
     {
         $this->providerRegistry = m::mock(ProviderRegistry::class);
-        $this->planningCenterProvider = m::mock(PlanningCenterProvider::class);
-        $this->planningCenterProvider->shouldReceive('getDisplayName')->andReturn('Planning Center')->byDefault();
+        $this->refreshableProvider = m::mock(ProviderInterface::class, RefreshableProviderInterface::class);
+        $this->refreshableProvider->shouldReceive('getDisplayName')->andReturn('Planning Center')->byDefault();
         $this->entityManager = m::mock(EntityManagerInterface::class);
         $this->syncListRepository = m::mock(EntityRepository::class);
 
@@ -60,9 +61,9 @@ class RefreshSourceListsCommandTest extends MockeryTestCase
         $this->providerRegistry
             ->shouldReceive('get')
             ->with('planning_center')
-            ->andReturn($this->planningCenterProvider);
+            ->andReturn($this->refreshableProvider);
 
-        $this->planningCenterProvider
+        $this->refreshableProvider
             ->shouldReceive('refreshList')
             ->once()
             ->with($this->sourceCredential, 'source-id-1');
@@ -87,14 +88,14 @@ class RefreshSourceListsCommandTest extends MockeryTestCase
         $this->providerRegistry
             ->shouldReceive('get')
             ->with('planning_center')
-            ->andReturn($this->planningCenterProvider);
+            ->andReturn($this->refreshableProvider);
 
-        $this->planningCenterProvider
+        $this->refreshableProvider
             ->shouldReceive('refreshList')
             ->once()
             ->with($this->sourceCredential, 'source-id-1');
 
-        $this->planningCenterProvider
+        $this->refreshableProvider
             ->shouldReceive('refreshList')
             ->once()
             ->with($this->sourceCredential, 'source-id-2');
@@ -130,7 +131,7 @@ class RefreshSourceListsCommandTest extends MockeryTestCase
             ->with(['isEnabled' => true])
             ->andReturn([]);
 
-        $this->planningCenterProvider->shouldNotReceive('refreshList');
+        $this->refreshableProvider->shouldNotReceive('refreshList');
 
         $tester = $this->executeCommand('all');
 
