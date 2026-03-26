@@ -56,6 +56,13 @@ class RunSyncCommand extends Command
             InputOption::VALUE_NONE,
             'Only sync lists that are due according to their cron expression. Use this with system-level cron.',
         );
+
+        $this->addOption(
+            'no-refresh',
+            null,
+            InputOption::VALUE_NONE,
+            'Skip refreshing source lists before syncing.',
+        );
     }
 
     protected function execute(
@@ -66,6 +73,7 @@ class RunSyncCommand extends Command
         $dryRun = (bool) $input->getOption('dry-run');
         $listFilter = $input->getOption('list');
         $scheduled = (bool) $input->getOption('scheduled');
+        $skipRefresh = (bool) $input->getOption('no-refresh');
 
         if ($dryRun) {
             $io->success(
@@ -114,6 +122,7 @@ class RunSyncCommand extends Command
                 syncList: $syncList,
                 dryRun: $dryRun,
                 trigger: $trigger,
+                skipRefresh: $skipRefresh,
             );
 
             if ($result->syncRun !== null) {
