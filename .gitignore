@@ -50,3 +50,6 @@
 
 # Node dependencies
 /node_modules/
+
+# Design specs (temporary, local-only)
+/docs/superpowers/

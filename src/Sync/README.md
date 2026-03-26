@@ -18,12 +18,14 @@ The central service that executes the sync pipeline. It is consumed by three ent
 
 1. Creates or resumes a `SyncRun` entity (status → `running`).
 2. Looks up the source and destination providers via `ProviderRegistry` using the `SyncList`'s credential references.
-3. Builds API clients by calling `createClient()` on each provider with the appropriate `ProviderCredential`.
-4. Fetches source contacts from the source provider, merges with `ManualContact` entities for the list, and deduplicates by email.
-5. Fetches destination contacts from the destination provider.
-6. Computes the diff via `ContactListAnalyzer`.
-7. Applies additions and removals (or skips them in dry-run mode).
-8. Records results to the `SyncRun` and dispatches a `SyncCompletedEvent`.
+3. Resolves source and destination list identifiers from the `SyncList`.
+4. If the source provider implements `RefreshableProviderInterface` and `$skipRefresh` is false, calls `refreshList()` to ensure source data is current.
+5. Builds API clients by calling `createClient()` on each provider with the appropriate `ProviderCredential`.
+6. Fetches source contacts from the source provider, merges with `ManualContact` entities for the list, and deduplicates by email.
+7. Fetches destination contacts from the destination provider.
+8. Computes the diff via `ContactListAnalyzer`.
+9. Applies additions and removals (or skips them in dry-run mode).
+10. Records results to the `SyncRun` and dispatches a `SyncCompletedEvent`.
 
 On any exception, the `SyncRun` is marked `failed` with the error message, the event is still dispatched (so failure notifications are sent), and the error is returned in the `SyncResult`.
 

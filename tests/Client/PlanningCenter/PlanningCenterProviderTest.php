@@ -5,6 +5,7 @@ namespace App\Tests\Client\PlanningCenter;
 use App\Client\PlanningCenter\PlanningCenterClient;
 use App\Client\PlanningCenter\PlanningCenterProvider;
 use App\Client\Provider\ListDiscoverableInterface;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\Provider\ProviderCapability;
 use App\Client\WebClientFactoryInterface;
 use App\Entity\Organization;
@@ -61,6 +62,11 @@ class PlanningCenterProviderTest extends MockeryTestCase
     public function testImplementsListDiscoverableInterface(): void
     {
         self::assertInstanceOf(ListDiscoverableInterface::class, $this->provider);
+    }
+
+    public function testImplementsRefreshableProviderInterface(): void
+    {
+        self::assertInstanceOf(RefreshableProviderInterface::class, $this->provider);
     }
 
     public function testCreateClientReturnsPlanningCenterClient(): void

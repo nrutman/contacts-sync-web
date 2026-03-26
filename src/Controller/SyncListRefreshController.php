@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\Provider\ProviderRegistry;
 use App\Entity\SyncList;
 use Psr\Log\LoggerInterface;
@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-class PlanningCenterController extends AbstractController
+class SyncListRefreshController extends AbstractController
 {
     public function __construct(
         private readonly ProviderRegistry $providerRegistry,
@@ -59,17 +59,22 @@ class PlanningCenterController extends AbstractController
         try {
             $provider = $this->providerRegistry->get($sourceCredential->getProviderName());
 
-            if ($provider instanceof PlanningCenterProvider) {
+            if ($provider instanceof RefreshableProviderInterface) {
                 $provider->refreshList(
                     $sourceCredential,
                     $syncList->getSourceListIdentifier() ?? $syncList->getName(),
                 );
-            }
 
-            $this->addFlash(
-                'success',
-                sprintf('Source list "%s" refreshed successfully.', $syncList->getName()),
-            );
+                $this->addFlash(
+                    'success',
+                    sprintf('Source list "%s" refreshed successfully.', $syncList->getName()),
+                );
+            } else {
+                $this->addFlash(
+                    'warning',
+                    sprintf('Provider "%s" does not support refreshing source lists.', $provider->getDisplayName()),
+                );
+            }
         } catch (\Throwable $e) {
             $this->logger->error('Failed to refresh source list "{name}": {error}', [
                 'name' => $syncList->getName(),

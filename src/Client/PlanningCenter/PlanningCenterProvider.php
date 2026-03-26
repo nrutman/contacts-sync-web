@@ -6,13 +6,14 @@ use App\Client\Provider\CredentialFieldDefinition;
 use App\Client\Provider\ListDiscoverableInterface;
 use App\Client\Provider\ProviderCapability;
 use App\Client\Provider\ProviderInterface;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\ReadableListClientInterface;
 use App\Client\WebClientFactoryInterface;
 use App\Entity\ProviderCredential;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
 #[AutoconfigureTag('app.provider')]
-class PlanningCenterProvider implements ProviderInterface, ListDiscoverableInterface
+class PlanningCenterProvider implements ProviderInterface, ListDiscoverableInterface, RefreshableProviderInterface
 {
     public function __construct(
         private readonly WebClientFactoryInterface $webClientFactory,

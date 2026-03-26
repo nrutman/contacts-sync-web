@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Client\PlanningCenter\PlanningCenterProvider;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\Provider\ProviderRegistry;
 use App\Entity\SyncList;
 use Doctrine\ORM\EntityManagerInterface;
@@ -56,6 +56,8 @@ class RefreshSourceListsCommand extends Command
             return Command::SUCCESS;
         }
 
+        $hasFailure = false;
+
         foreach ($lists as $syncList) {
             $sourceCredential = $syncList->getSourceCredential();
 
@@ -67,7 +69,7 @@ class RefreshSourceListsCommand extends Command
 
             $provider = $this->providerRegistry->get($sourceCredential->getProviderName());
 
-            if (!$provider instanceof PlanningCenterProvider) {
+            if (!$provider instanceof RefreshableProviderInterface) {
                 $io->note(sprintf('Refresh not supported for provider "%s" — skipping "%s".', $provider->getDisplayName(), $syncList->getName()));
 
                 continue;
@@ -77,12 +79,20 @@ class RefreshSourceListsCommand extends Command
             $io->writeln(
                 sprintf('Refreshing list <comment>%s</comment> (%s)', $syncList->getName(), $listId),
             );
-            $provider->refreshList($sourceCredential, $listId);
+
+            try {
+                $provider->refreshList($sourceCredential, $listId);
+            } catch (\Throwable $e) {
+                $io->error(sprintf('Failed to refresh "%s": %s', $syncList->getName(), $e->getMessage()));
+                $hasFailure = true;
+
+                continue;
+            }
         }
 
         $io->success('Done.');
 
-        return Command::SUCCESS;
+        return $hasFailure ? Command::FAILURE : Command::SUCCESS;
     }
 
     /**

@@ -64,15 +64,13 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() ===
-                        self::LIST_ONE,
-                ),
-                false,
-                null,
-                'cli',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger, ?object $syncRun, bool $skipRefresh) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'cli'
+                    && $skipRefresh === false;
+            })
             ->andReturn(
                 new SyncResult(
                     sourceCount: 5,
@@ -106,15 +104,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() ===
-                        self::LIST_ONE,
-                ),
-                true,
-                null,
-                'cli',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === true
+                    && $user === null
+                    && $trigger === 'cli';
+            })
             ->andReturn(
                 new SyncResult(
                     sourceCount: 2,
@@ -254,15 +249,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() ===
-                        self::LIST_ONE,
-                ),
-                false,
-                null,
-                'cli',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'cli';
+            })
             ->andReturn(
                 new SyncResult(
                     sourceCount: 3,
@@ -277,15 +269,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() ===
-                        self::LIST_TWO,
-                ),
-                false,
-                null,
-                'cli',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_TWO
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'cli';
+            })
             ->andReturn(
                 new SyncResult(
                     sourceCount: 0,
@@ -442,6 +431,41 @@ class RunSyncCommandTest extends MockeryTestCase
         self::assertStringContainsString('Notification to admin@example.com failed: Connection timed out', $display);
     }
 
+    public function testExecuteWithNoRefreshFlag(): void
+    {
+        $syncList = $this->makeSyncList(self::LIST_ONE);
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList]);
+
+        $this->syncService
+            ->shouldReceive('executeSync')
+            ->once()
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger, ?object $syncRun, bool $skipRefresh) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'cli'
+                    && $skipRefresh === true;
+            })
+            ->andReturn(
+                new SyncResult(
+                    sourceCount: 3,
+                    destinationCount: 3,
+                    addedCount: 0,
+                    removedCount: 0,
+                    log: '',
+                    success: true,
+                ),
+            );
+
+        $tester = $this->executeCommand(['--no-refresh' => true]);
+
+        self::assertEquals(0, $tester->getStatusCode());
+    }
+
     public function testScheduledSkipsListsWithoutCronExpression(): void
     {
         $syncList = $this->makeSyncList(self::LIST_ONE);
@@ -475,14 +499,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
-                ),
-                false,
-                null,
-                'schedule',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'schedule';
+            })
             ->andReturn($this->makeSuccessResult());
 
         $tester = $this->executeCommand(['--scheduled' => true]);
@@ -538,14 +560,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
-                ),
-                false,
-                null,
-                'schedule',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'schedule';
+            })
             ->andReturn($this->makeSuccessResult());
 
         $tester = $this->executeCommand(['--scheduled' => true]);
@@ -571,14 +591,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
-                ),
-                false,
-                null,
-                'schedule',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'schedule';
+            })
             ->andReturn($this->makeSuccessResult());
 
         $tester = $this->executeCommand([
@@ -606,14 +624,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
-                ),
-                true,
-                null,
-                'schedule',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === true
+                    && $user === null
+                    && $trigger === 'schedule';
+            })
             ->andReturn($this->makeSuccessResult());
 
         $tester = $this->executeCommand([
@@ -658,14 +674,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->with(
-                m::on(
-                    static fn (SyncList $sl) => $sl->getName() === self::LIST_ONE,
-                ),
-                false,
-                null,
-                'schedule',
-            )
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+                return $sl->getName() === self::LIST_ONE
+                    && $dryRun === false
+                    && $user === null
+                    && $trigger === 'schedule';
+            })
             ->andReturn($this->makeSuccessResult());
 
         $tester = $this->executeCommand(['--scheduled' => true]);

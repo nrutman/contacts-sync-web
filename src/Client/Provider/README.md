@@ -23,6 +23,10 @@ classDiagram
         <<interface>>
         +getAvailableLists(ProviderCredential) array
     }
+    class RefreshableProviderInterface {
+        <<interface>>
+        +refreshList(ProviderCredential, listName) void
+    }
     class ProviderRegistry {
         +get(name) ProviderInterface
         +all() ProviderInterface[]
@@ -33,6 +37,7 @@ classDiagram
     ProviderInterface <|.. PlanningCenterProvider
     ProviderInterface <|.. GoogleGroupsProvider
     OAuthProviderInterface <|.. GoogleGroupsProvider
+    RefreshableProviderInterface <|.. PlanningCenterProvider
     ProviderRegistry --> ProviderInterface : collects
 ```
 
@@ -73,13 +78,22 @@ For providers that require OAuth authentication (e.g. Google Groups):
 
 For providers that can enumerate their available lists. Not currently implemented by any built-in provider but available for future use.
 
+### RefreshableProviderInterface
+
+For providers whose source lists can become stale and need explicit refresh before syncing (e.g. Planning Center, where lists are computed on-demand):
+
+- **`refreshList(ProviderCredential, string)`** — triggers server-side list recomputation so the next `getContacts()` call returns current data
+
+`SyncService` checks for this interface automatically and refreshes before each sync unless `$skipRefresh` is set.
+
 ## Adding a New Provider
 
 1. Create a new class implementing `ProviderInterface` (and optionally `OAuthProviderInterface` or `ListDiscoverableInterface`).
 2. Tag it with `#[AutoconfigureTag('app.provider')]`.
 3. Implement `getCredentialFields()` to describe the fields needed.
 4. Implement `createClient()` to build a `ReadableListClientInterface` and/or `WriteableListClientInterface`.
-5. The provider will be automatically discovered by `ProviderRegistry` and available in the UI.
+5. Optionally implement `RefreshableProviderInterface` if the provider's lists can become stale.
+6. The provider will be automatically discovered by `ProviderRegistry` and available in the UI.
 
 Example skeleton:
 
