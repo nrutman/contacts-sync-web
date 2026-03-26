@@ -3,6 +3,7 @@
 namespace App\Sync;
 
 use App\Client\Provider\ProviderRegistry;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Client\ReadableListClientInterface;
 use App\Client\WriteableListClientInterface;
 use App\Contact\Contact;
@@ -38,6 +39,7 @@ class SyncService
         ?User $triggeredBy = null,
         string $trigger = 'manual',
         ?SyncRun $existingSyncRun = null,
+        bool $skipRefresh = false,
     ): SyncResult {
         $listName = $syncList->getName();
         $log = '';
@@ -80,6 +82,17 @@ class SyncService
             $sourceProvider = $this->providerRegistry->get($sourceCredential->getProviderName());
             $destProvider = $this->providerRegistry->get($destinationCredential->getProviderName());
 
+            $sourceListId = $syncList->getSourceListIdentifier() ?? $listName;
+            $destListId = $syncList->getDestinationListIdentifier() ?? $listName;
+
+            // Refresh source list if the provider supports it
+            if (!$skipRefresh && $sourceProvider instanceof RefreshableProviderInterface) {
+                $log .= $this->logLine(
+                    sprintf('Refreshing source list on %s...', $sourceProvider->getDisplayName()),
+                );
+                $sourceProvider->refreshList($sourceCredential, $sourceListId);
+            }
+
             $sourceClient = $sourceProvider->createClient($sourceCredential);
             $destClient = $destProvider->createClient($destinationCredential);
 
@@ -93,9 +106,6 @@ class SyncService
 
             // Persist any token refreshes that happened during client creation
             $this->entityManager->flush();
-
-            $sourceListId = $syncList->getSourceListIdentifier() ?? $listName;
-            $destListId = $syncList->getDestinationListIdentifier() ?? $listName;
 
             // Fetch source contacts
             $log .= $this->logLine(

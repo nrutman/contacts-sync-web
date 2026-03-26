@@ -6,6 +6,7 @@ use App\Client\Google\GoogleClient;
 use App\Client\PlanningCenter\PlanningCenterClient;
 use App\Client\Provider\ProviderInterface;
 use App\Client\Provider\ProviderRegistry;
+use App\Client\Provider\RefreshableProviderInterface;
 use App\Contact\Contact;
 use App\Entity\ManualContact;
 use App\Entity\Organization;
@@ -567,6 +568,147 @@ class SyncServiceTest extends MockeryTestCase
         $result = $this->syncService->executeSync($this->syncList);
 
         self::assertTrue($result->success);
+    }
+
+    public function testExecuteSyncRefreshesSourceWhenProviderIsRefreshable(): void
+    {
+        $refreshableProvider = m::mock(ProviderInterface::class, RefreshableProviderInterface::class);
+        $refreshableProvider->shouldReceive('getDisplayName')->andReturn('Planning Center');
+        $refreshableProvider->shouldReceive('createClient')
+            ->with($this->sourceCredential)
+            ->andReturn($this->planningCenterClient);
+
+        $refreshableProvider->shouldReceive('refreshList')
+            ->once()
+            ->with($this->sourceCredential, self::SOURCE_LIST_ID);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($refreshableProvider);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
+
+        $this->destProvider
+            ->shouldReceive('createClient')
+            ->with($this->destCredential)
+            ->andReturn($this->googleClient);
+
+        $this->planningCenterClient
+            ->shouldReceive('getContacts')
+            ->with(self::SOURCE_LIST_ID)
+            ->andReturn([]);
+
+        $this->manualContactRepository
+            ->shouldReceive('findBySyncList')
+            ->with($this->syncList)
+            ->andReturn([]);
+
+        $this->googleClient
+            ->shouldReceive('getContacts')
+            ->with(self::DEST_LIST_ID)
+            ->andReturn([]);
+
+        $this->entityManager->shouldReceive('persist')->once()->with(m::type(SyncRun::class));
+        $this->entityManager->shouldReceive('flush')->atLeast()->once();
+        $this->eventDispatcher->shouldReceive('dispatch')->once()->with(m::type(SyncCompletedEvent::class));
+
+        $result = $this->syncService->executeSync($this->syncList);
+
+        self::assertTrue($result->success);
+        self::assertStringContainsString('Refreshing source list', $result->log);
+    }
+
+    public function testExecuteSyncSkipsRefreshWhenProviderIsNotRefreshable(): void
+    {
+        $this->setupDefaultExpectations(sourceContacts: [], destContacts: []);
+
+        $result = $this->syncService->executeSync($this->syncList);
+
+        self::assertTrue($result->success);
+        self::assertStringNotContainsString('Refreshing source list', $result->log);
+    }
+
+    public function testExecuteSyncSkipsRefreshWhenSkipRefreshIsTrue(): void
+    {
+        $refreshableProvider = m::mock(ProviderInterface::class, RefreshableProviderInterface::class);
+        $refreshableProvider->shouldReceive('getDisplayName')->andReturn('Planning Center');
+        $refreshableProvider->shouldReceive('createClient')
+            ->with($this->sourceCredential)
+            ->andReturn($this->planningCenterClient);
+
+        $refreshableProvider->shouldNotReceive('refreshList');
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($refreshableProvider);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
+
+        $this->destProvider
+            ->shouldReceive('createClient')
+            ->with($this->destCredential)
+            ->andReturn($this->googleClient);
+
+        $this->planningCenterClient
+            ->shouldReceive('getContacts')
+            ->with(self::SOURCE_LIST_ID)
+            ->andReturn([]);
+
+        $this->manualContactRepository
+            ->shouldReceive('findBySyncList')
+            ->with($this->syncList)
+            ->andReturn([]);
+
+        $this->googleClient
+            ->shouldReceive('getContacts')
+            ->with(self::DEST_LIST_ID)
+            ->andReturn([]);
+
+        $this->entityManager->shouldReceive('persist')->once()->with(m::type(SyncRun::class));
+        $this->entityManager->shouldReceive('flush')->atLeast()->once();
+        $this->eventDispatcher->shouldReceive('dispatch')->once()->with(m::type(SyncCompletedEvent::class));
+
+        $result = $this->syncService->executeSync($this->syncList, skipRefresh: true);
+
+        self::assertTrue($result->success);
+    }
+
+    public function testExecuteSyncFailsWhenRefreshThrowsException(): void
+    {
+        $refreshableProvider = m::mock(ProviderInterface::class, RefreshableProviderInterface::class);
+        $refreshableProvider->shouldReceive('getDisplayName')->andReturn('Planning Center');
+
+        $refreshableProvider->shouldReceive('refreshList')
+            ->once()
+            ->with($this->sourceCredential, self::SOURCE_LIST_ID)
+            ->andThrow(new \RuntimeException('Refresh API error'));
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($refreshableProvider);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('google_groups')
+            ->andReturn($this->destProvider);
+
+        $this->entityManager->shouldReceive('persist')->once()->with(m::type(SyncRun::class));
+        $this->entityManager->shouldReceive('flush')->atLeast()->once();
+        $this->eventDispatcher->shouldReceive('dispatch')->once()->with(m::type(SyncCompletedEvent::class));
+
+        $result = $this->syncService->executeSync($this->syncList);
+
+        self::assertFalse($result->success);
+        self::assertEquals('Refresh API error', $result->errorMessage);
     }
 
     /**
