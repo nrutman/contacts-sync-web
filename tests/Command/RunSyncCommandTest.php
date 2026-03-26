@@ -64,11 +64,12 @@ class RunSyncCommandTest extends MockeryTestCase
         $this->syncService
             ->shouldReceive('executeSync')
             ->once()
-            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger) {
+            ->withArgs(function (SyncList $sl, bool $dryRun, ?object $user, string $trigger, ?object $syncRun, bool $skipRefresh) {
                 return $sl->getName() === self::LIST_ONE
                     && $dryRun === false
                     && $user === null
-                    && $trigger === 'cli';
+                    && $trigger === 'cli'
+                    && $skipRefresh === false;
             })
             ->andReturn(
                 new SyncResult(

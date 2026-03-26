@@ -157,6 +157,40 @@ class RefreshSourceListsCommandTest extends MockeryTestCase
         self::assertStringContainsString('no source credential', $tester->getDisplay());
     }
 
+    public function testExecuteContinuesAfterRefreshFailure(): void
+    {
+        $syncList1 = $this->makeSyncList(self::LIST_ONE, 'source-id-1');
+        $syncList2 = $this->makeSyncList(self::LIST_TWO, 'source-id-2');
+
+        $this->syncListRepository
+            ->shouldReceive('findBy')
+            ->with(['isEnabled' => true])
+            ->andReturn([$syncList1, $syncList2]);
+
+        $this->providerRegistry
+            ->shouldReceive('get')
+            ->with('planning_center')
+            ->andReturn($this->refreshableProvider);
+
+        $this->refreshableProvider
+            ->shouldReceive('refreshList')
+            ->once()
+            ->with($this->sourceCredential, 'source-id-1')
+            ->andThrow(new \RuntimeException('API timeout'));
+
+        $this->refreshableProvider
+            ->shouldReceive('refreshList')
+            ->once()
+            ->with($this->sourceCredential, 'source-id-2');
+
+        $tester = $this->executeCommand('all');
+
+        self::assertEquals(1, $tester->getStatusCode());
+        self::assertStringContainsString('Failed to refresh', $tester->getDisplay());
+        self::assertStringContainsString('API timeout', $tester->getDisplay());
+        self::assertStringContainsString(self::LIST_TWO, $tester->getDisplay());
+    }
+
     private function executeCommand(string $listName): CommandTester
     {
         $command = new RefreshSourceListsCommand(

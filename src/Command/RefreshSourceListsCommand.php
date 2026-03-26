@@ -56,6 +56,8 @@ class RefreshSourceListsCommand extends Command
             return Command::SUCCESS;
         }
 
+        $hasFailure = false;
+
         foreach ($lists as $syncList) {
             $sourceCredential = $syncList->getSourceCredential();
 
@@ -77,12 +79,20 @@ class RefreshSourceListsCommand extends Command
             $io->writeln(
                 sprintf('Refreshing list <comment>%s</comment> (%s)', $syncList->getName(), $listId),
             );
-            $provider->refreshList($sourceCredential, $listId);
+
+            try {
+                $provider->refreshList($sourceCredential, $listId);
+            } catch (\Throwable $e) {
+                $io->error(sprintf('Failed to refresh "%s": %s', $syncList->getName(), $e->getMessage()));
+                $hasFailure = true;
+
+                continue;
+            }
         }
 
         $io->success('Done.');
 
-        return Command::SUCCESS;
+        return $hasFailure ? Command::FAILURE : Command::SUCCESS;
     }
 
     /**

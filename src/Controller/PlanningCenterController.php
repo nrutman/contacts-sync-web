@@ -64,12 +64,17 @@ class PlanningCenterController extends AbstractController
                     $sourceCredential,
                     $syncList->getSourceListIdentifier() ?? $syncList->getName(),
                 );
-            }
 
-            $this->addFlash(
-                'success',
-                sprintf('Source list "%s" refreshed successfully.', $syncList->getName()),
-            );
+                $this->addFlash(
+                    'success',
+                    sprintf('Source list "%s" refreshed successfully.', $syncList->getName()),
+                );
+            } else {
+                $this->addFlash(
+                    'warning',
+                    sprintf('Provider "%s" does not support refreshing source lists.', $provider->getDisplayName()),
+                );
+            }
         } catch (\Throwable $e) {
             $this->logger->error('Failed to refresh source list "{name}": {error}', [
                 'name' => $syncList->getName(),
