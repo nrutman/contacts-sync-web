@@ -7664,7 +7664,7 @@
         },
         {
             "name": "symfony/ux-icons",
-            "version": "v2.33.0",
+            "version": "v2.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/ux-icons.git",
@@ -7733,7 +7733,7 @@
                 "twig"
             ],
             "support": {
-                "source": "https://github.com/symfony/ux-icons/tree/v2.33.0"
+                "source": "https://github.com/symfony/ux-icons/tree/v2.34.0"
             },
             "funding": [
                 {
