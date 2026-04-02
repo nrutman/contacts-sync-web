@@ -23,6 +23,7 @@ class UserInvitationService
             'app_verify_email',
             (string) $user->getId(),
             $user->getEmail(),
+            ['id' => (string) $user->getId()],
         );
 
         $html = $this->twig->render('email/user_invitation.html.twig', [
