@@ -64,6 +64,7 @@ class UserInvitationServiceTest extends MockeryTestCase
                 'app_verify_email',
                 (string) $user->getId(),
                 'jane@example.com',
+                ['id' => (string) $user->getId()],
             )
             ->andReturn($signatureComponents);
 
@@ -126,7 +127,7 @@ class UserInvitationServiceTest extends MockeryTestCase
         $this->verifyEmailHelper
             ->shouldReceive('generateSignature')
             ->once()
-            ->with('app_verify_email', $userId, 'bob@example.com')
+            ->with('app_verify_email', $userId, 'bob@example.com', ['id' => $userId])
             ->andReturn($signatureComponents);
 
         $this->twig
