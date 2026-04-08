@@ -12398,16 +12398,16 @@
         },
         {
             "name": "symfony/ux-toolkit",
-            "version": "v2.32.0",
+            "version": "v2.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/ux-toolkit.git",
-                "reference": "cff57505d1d420fe52c77b9cedc637ecabc2dfcf"
+                "reference": "ee284e0f6eba1fcf88aeb33f04948420fe6dd4f1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/ux-toolkit/zipball/cff57505d1d420fe52c77b9cedc637ecabc2dfcf",
-                "reference": "cff57505d1d420fe52c77b9cedc637ecabc2dfcf",
+                "url": "https://api.github.com/repos/symfony/ux-toolkit/zipball/ee284e0f6eba1fcf88aeb33f04948420fe6dd4f1",
+                "reference": "ee284e0f6eba1fcf88aeb33f04948420fe6dd4f1",
                 "shasum": ""
             },
             "require": {
@@ -12482,7 +12482,7 @@
                 "ui"
             ],
             "support": {
-                "source": "https://github.com/symfony/ux-toolkit/tree/v2.32.0"
+                "source": "https://github.com/symfony/ux-toolkit/tree/v2.34.0"
             },
             "funding": [
                 {
@@ -12502,20 +12502,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-01-01T08:05:17+00:00"
+            "time": "2026-03-15T19:08:45+00:00"
         },
         {
             "name": "symfony/ux-twig-component",
-            "version": "v2.32.0",
+            "version": "v2.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/ux-twig-component.git",
-                "reference": "0a300088327d1b766733fdcd81ae4a77852d6177"
+                "reference": "f9942e32246fe3fa9d31f60cffc1ada4d274830a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/ux-twig-component/zipball/0a300088327d1b766733fdcd81ae4a77852d6177",
-                "reference": "0a300088327d1b766733fdcd81ae4a77852d6177",
+                "url": "https://api.github.com/repos/symfony/ux-twig-component/zipball/f9942e32246fe3fa9d31f60cffc1ada4d274830a",
+                "reference": "f9942e32246fe3fa9d31f60cffc1ada4d274830a",
                 "shasum": ""
             },
             "require": {
@@ -12569,7 +12569,7 @@
                 "twig"
             ],
             "support": {
-                "source": "https://github.com/symfony/ux-twig-component/tree/v2.32.0"
+                "source": "https://github.com/symfony/ux-twig-component/tree/v2.34.0"
             },
             "funding": [
                 {
@@ -12589,7 +12589,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-12-25T09:25:01+00:00"
+            "time": "2026-03-15T18:48:53+00:00"
         },
         {
             "name": "theseer/tokenizer",
