@@ -3,7 +3,9 @@
 {% block title %}Sync History — Contacts Sync{% endblock %}
 
 {% block body %}
-<div class="sm:flex sm:items-center sm:justify-between mb-8">
+{% set has_active_filters = current_list or current_status or current_changes %}
+
+<div class="flex items-start justify-between gap-4 mb-8">
     <div>
         <h1 class="text-2xl font-bold text-foreground">Sync History</h1>
         <p class="mt-1 text-sm text-muted-foreground">
@@ -17,54 +19,74 @@
             {% if current_changes %} with changes{% endif %}
         </p>
     </div>
-</div>
 
-{# Filters #}
-<twig:Card class="mb-6 p-4">
-    <form method="get" action="{{ path('app_history_index') }}" class="flex flex-wrap items-end gap-4">
-        <twig:Field>
-            <twig:Field:Label for="filter-list">Sync List</twig:Field:Label>
-            <twig:Field:Content>
-                <twig:Select id="filter-list" name="list">
-                    <option value="">All Lists</option>
-                    {% for list in all_lists %}
-                        <option value="{{ list.id }}" {% if current_list and current_list.id == list.id %}selected{% endif %}>
-                            {{ list.name }}
-                        </option>
-                    {% endfor %}
-                </twig:Select>
-            </twig:Field:Content>
-        </twig:Field>
-
-        <twig:Field>
-            <twig:Field:Label for="filter-status">Status</twig:Field:Label>
-            <twig:Field:Content>
-                <twig:Select id="filter-status" name="status">
-                    <option value="">All Statuses</option>
-                    <option value="success" {% if current_status == 'success' %}selected{% endif %}>Success</option>
-                    <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
-                    <option value="running" {% if current_status == 'running' %}selected{% endif %}>Running</option>
-                    <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
-                </twig:Select>
-            </twig:Field:Content>
-        </twig:Field>
-
-        <div class="flex items-center gap-2 self-center">
-            <twig:Checkbox id="filter-changes" name="changes" value="1" :checked="current_changes" />
-            <twig:Label for="filter-changes">With changes only</twig:Label>
-        </div>
-
-        <div class="flex basis-full items-end gap-x-2">
-            <twig:Button type="submit">
-                <twig:ux:icon name="lucide:filter" class="size-4" />
-                Filter
-            </twig:Button>
-            {% if current_list or current_status or current_changes %}
-                <twig:Button as="a" href="{{ path('app_history_index') }}" variant="outline">Clear</twig:Button>
+    {# Filters disclosure — collapsed by default, opens to a 384px popover #}
+    <div class="relative shrink-0"
+         data-controller="disclosure"
+         data-disclosure-open-value="{{ has_active_filters ? 'true' : 'false' }}"
+         data-action="click@window->disclosure#closeOnOutsideClick keydown@window->disclosure#closeOnEscape">
+        <twig:Button variant="outline"
+                     data-disclosure-target="trigger"
+                     data-action="click->disclosure#toggle"
+                     aria-haspopup="true"
+                     aria-expanded="false">
+            <twig:ux:icon name="lucide:filter" class="size-4" />
+            Filters
+            {% if has_active_filters %}
+                <span class="ml-1 inline-block size-2 rounded-full bg-primary" aria-label="filters active"></span>
             {% endif %}
+        </twig:Button>
+
+        <div data-disclosure-target="panel"
+             class="hidden absolute right-0 top-full z-10 mt-2 w-screen max-w-sm">
+            <twig:Card class="p-4 shadow-md">
+                <form method="get" action="{{ path('app_history_index') }}" class="flex flex-col gap-4">
+                    <twig:Field>
+                        <twig:Field:Label for="filter-list">Sync List</twig:Field:Label>
+                        <twig:Field:Content>
+                            <twig:Select id="filter-list" name="list">
+                                <option value="">All Lists</option>
+                                {% for list in all_lists %}
+                                    <option value="{{ list.id }}" {% if current_list and current_list.id == list.id %}selected{% endif %}>
+                                        {{ list.name }}
+                                    </option>
+                                {% endfor %}
+                            </twig:Select>
+                        </twig:Field:Content>
+                    </twig:Field>
+
+                    <twig:Field>
+                        <twig:Field:Label for="filter-status">Status</twig:Field:Label>
+                        <twig:Field:Content>
+                            <twig:Select id="filter-status" name="status">
+                                <option value="">All Statuses</option>
+                                <option value="success" {% if current_status == 'success' %}selected{% endif %}>Success</option>
+                                <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
+                                <option value="running" {% if current_status == 'running' %}selected{% endif %}>Running</option>
+                                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                            </twig:Select>
+                        </twig:Field:Content>
+                    </twig:Field>
+
+                    <div class="flex items-center gap-2">
+                        <twig:Checkbox id="filter-changes" name="changes" value="1" :checked="current_changes" />
+                        <twig:Label for="filter-changes">With changes only</twig:Label>
+                    </div>
+
+                    <div class="flex items-center gap-x-2 pt-2">
+                        <twig:Button type="submit">
+                            <twig:ux:icon name="lucide:filter" class="size-4" />
+                            Apply
+                        </twig:Button>
+                        {% if has_active_filters %}
+                            <twig:Button as="a" href="{{ path('app_history_index') }}" variant="outline">Clear</twig:Button>
+                        {% endif %}
+                    </div>
+                </form>
+            </twig:Card>
         </div>
-    </form>
-</twig:Card>
+    </div>
+</div>
 
 {% if sync_runs|length > 0 %}
     <twig:Card>
