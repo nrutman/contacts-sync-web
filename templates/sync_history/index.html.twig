@@ -25,7 +25,8 @@
          data-controller="disclosure"
          data-disclosure-open-value="{{ has_active_filters ? 'true' : 'false' }}"
          data-action="click@window->disclosure#closeOnOutsideClick keydown@window->disclosure#closeOnEscape">
-        <twig:Button variant="outline"
+        <twig:Button type="button"
+                     variant="outline"
                      data-disclosure-target="trigger"
                      data-action="click->disclosure#toggle"
                      aria-haspopup="true"
