@@ -39,6 +39,7 @@ class SyncHistoryController extends AbstractController
         // Optional filters
         $syncListId = $request->query->get('list');
         $status = $request->query->get('status');
+        $hasChanges = $request->query->getBoolean('changes');
 
         $syncList = null;
 
@@ -55,12 +56,14 @@ class SyncHistoryController extends AbstractController
             $offset,
             $syncList,
             $statusFilter,
+            $hasChanges,
         );
 
         $totalCount = $this->syncRunRepository->countByOrganization(
             $organization,
             $syncList,
             $statusFilter,
+            $hasChanges,
         );
 
         $totalPages = max(1, (int) ceil($totalCount / $limit));
@@ -71,6 +74,7 @@ class SyncHistoryController extends AbstractController
             'all_lists' => $allLists,
             'current_list' => $syncList,
             'current_status' => $statusFilter,
+            'current_changes' => $hasChanges,
             'page' => $page,
             'total_pages' => $totalPages,
             'total_count' => $totalCount,
