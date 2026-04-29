@@ -30,7 +30,7 @@
                                 {% elseif hasFailure %}
                                     &#x274C; Sync Failed
                                 {% else %}
-                                    &#x2705; Sync Completed
+                                    Sync Completed
                                 {% endif %}
                             </h1>
                         </td>
@@ -71,7 +71,7 @@
                                 {% for run in syncRuns %}
                                     <tr>
                                         <td style="padding: 10px 16px; font-size: 14px; color: #111827; font-weight: 500; {{ not loop.last ? 'border-bottom: 1px solid #e5e7eb;' }}">
-                                            {{ run.syncList.name }}
+                                            <a href="{{ url('app_history_show', {id: run.id}) }}" style="color: #4f46e5; text-decoration: none;">{{ run.syncList.name }}</a>
                                         </td>
                                         <td style="padding: 10px 16px; font-size: 14px; {{ not loop.last ? 'border-bottom: 1px solid #e5e7eb;' }}">
                                             {% if run.status == 'failed' %}
