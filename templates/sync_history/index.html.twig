@@ -23,7 +23,6 @@
     {# Filters disclosure — collapsed by default, opens to a 384px popover #}
     <div class="relative shrink-0"
          data-controller="disclosure"
-         data-disclosure-open-value="{{ has_active_filters ? 'true' : 'false' }}"
          data-action="click@window->disclosure#closeOnOutsideClick keydown@window->disclosure#closeOnEscape">
         <twig:Button type="button"
                      variant="outline"
@@ -34,7 +33,7 @@
             <twig:ux:icon name="lucide:filter" class="size-4" />
             Filters
             {% if has_active_filters %}
-                <span class="ml-1 inline-block size-2 rounded-full bg-primary" aria-label="filters active"></span>
+                <span class="ml-1 inline-block size-2 rounded-full bg-red-600" aria-label="filters active"></span>
             {% endif %}
         </twig:Button>
 
