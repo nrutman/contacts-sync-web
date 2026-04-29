@@ -81,6 +81,7 @@ class SyncRunRepository extends ServiceEntityRepository
         int $offset = 0,
         ?SyncList $syncList = null,
         ?string $status = null,
+        bool $hasChanges = false,
     ): array {
         $qb = $this->createQueryBuilder('sr')
             ->innerJoin('sr.syncList', 'sl')
@@ -95,6 +96,10 @@ class SyncRunRepository extends ServiceEntityRepository
         if ($status !== null) {
             $qb->andWhere('sr.status = :status')
                 ->setParameter('status', $status);
+        }
+
+        if ($hasChanges) {
+            $qb->andWhere('sr.addedCount > 0 OR sr.removedCount > 0');
         }
 
         return $qb->orderBy('sr.createdAt', 'DESC')
@@ -260,6 +265,7 @@ class SyncRunRepository extends ServiceEntityRepository
         Organization $organization,
         ?SyncList $syncList = null,
         ?string $status = null,
+        bool $hasChanges = false,
     ): int {
         $qb = $this->createQueryBuilder('sr')
             ->select('COUNT(sr.id)')
@@ -275,6 +281,10 @@ class SyncRunRepository extends ServiceEntityRepository
         if ($status !== null) {
             $qb->andWhere('sr.status = :status')
                 ->setParameter('status', $status);
+        }
+
+        if ($hasChanges) {
+            $qb->andWhere('sr.addedCount > 0 OR sr.removedCount > 0');
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();

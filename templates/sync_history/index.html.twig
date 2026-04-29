@@ -14,6 +14,7 @@
             {% endif %}
             {% if current_list %} for <strong>{{ current_list.name }}</strong>{% endif %}
             {% if current_status %} with status <strong>{{ current_status|capitalize }}</strong>{% endif %}
+            {% if current_changes %} with changes{% endif %}
         </p>
     </div>
 </div>
@@ -48,12 +49,17 @@
             </twig:Field:Content>
         </twig:Field>
 
+        <div class="flex items-center gap-2 self-center">
+            <twig:Checkbox id="filter-changes" name="changes" value="1" :checked="current_changes" />
+            <twig:Label for="filter-changes">With changes only</twig:Label>
+        </div>
+
         <div class="flex items-end gap-x-2">
             <twig:Button type="submit">
                 <twig:ux:icon name="lucide:filter" class="size-4" />
                 Filter
             </twig:Button>
-            {% if current_list or current_status %}
+            {% if current_list or current_status or current_changes %}
                 <twig:Button as="a" href="{{ path('app_history_index') }}" variant="outline">Clear</twig:Button>
             {% endif %}
         </div>
@@ -149,13 +155,13 @@
             </div>
             <div class="flex flex-1 justify-between sm:justify-end gap-x-3">
                 {% if page > 1 %}
-                    <twig:Button as="a" href="{{ path('app_history_index', { page: page - 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}" variant="outline">
+                    <twig:Button as="a" href="{{ path('app_history_index', { page: page - 1, list: current_list ? current_list.id : '', status: current_status ?? '', changes: current_changes ? 1 : '' }) }}" variant="outline">
                         <twig:ux:icon name="lucide:chevron-left" class="size-4" />
                         Previous
                     </twig:Button>
                 {% endif %}
                 {% if page < total_pages %}
-                    <twig:Button as="a" href="{{ path('app_history_index', { page: page + 1, list: current_list ? current_list.id : '', status: current_status ?? '' }) }}" variant="outline">
+                    <twig:Button as="a" href="{{ path('app_history_index', { page: page + 1, list: current_list ? current_list.id : '', status: current_status ?? '', changes: current_changes ? 1 : '' }) }}" variant="outline">
                         Next
                         <twig:ux:icon name="lucide:chevron-right" class="size-4" />
                     </twig:Button>
@@ -168,7 +174,7 @@
         <twig:ux:icon name="lucide:clock" class="mx-auto h-12 w-12 text-muted-foreground" />
         <h3 class="mt-2 text-sm font-semibold text-foreground">No sync runs found</h3>
         <p class="mt-1 text-sm text-muted-foreground">
-            {% if current_list or current_status %}
+            {% if current_list or current_status or current_changes %}
                 No sync runs match the current filters. Try adjusting or <a href="{{ path('app_history_index') }}" class="text-primary underline">clearing the filters</a>.
             {% else %}
                 Sync history will appear here after a sync is triggered.
