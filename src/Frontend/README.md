@@ -78,7 +78,7 @@ The theme uses semantic color tokens that map to CSS variables:
 - `--destructive` / `--destructive-foreground` — Danger/delete actions
 - `--border` — Border color
 - `--ring` — Focus ring color
-- `--sidebar` — Sidebar background
+- `--sidebar` / `--sidebar-foreground` — Sidebar background and text
 
 Use these in Tailwind classes: `text-foreground`, `bg-primary`, `text-muted-foreground`, `border-border`, etc.
 
