@@ -15,6 +15,7 @@ use Google\Service\Directory\Member;
 use Google\Service\Directory\Members;
 use Google\Service\Directory\Resource\Groups as ResourceGroups;
 use Google\Service\Directory\Resource\Members as ResourceMembers;
+use Google\Service\Exception as GoogleServiceException;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
@@ -403,6 +404,198 @@ class GoogleClientTest extends MockeryTestCase
         $result = $this->target->initialize();
 
         self::assertSame($this->target, $result);
+    }
+
+    public function testGetAvailableGroupsThrowsOnApiError(): void
+    {
+        $this->service->groups = m::mock(ResourceGroups::class);
+        $this->service->groups
+            ->shouldReceive('listGroups')
+            ->with(['domain' => self::DOMAIN])
+            ->andThrow(new GoogleServiceException('Backend error', 503));
+
+        $this->expectException(GoogleServiceException::class);
+
+        $this->target->getAvailableGroups();
+    }
+
+    public function testGetAvailableGroupsHandlesGroupWithMissingName(): void
+    {
+        // Directory API may return a group whose getName() is null; the client
+        // currently maps email => name so a null name produces an entry with
+        // null. Verify it does not throw.
+        $group = m::mock(Group::class, [
+            'getEmail' => 'group@domain',
+            'getName' => null,
+        ]);
+
+        $this->service->groups = m::mock(ResourceGroups::class);
+        $this->service->groups
+            ->shouldReceive('listGroups')
+            ->with(['domain' => self::DOMAIN])
+            ->andReturn(
+                m::mock(Groups::class, [
+                    'getGroups' => [$group],
+                    'getNextPageToken' => null,
+                ]),
+            );
+
+        $result = $this->target->getAvailableGroups();
+
+        self::assertSame(['group@domain' => null], $result);
+    }
+
+    public function testGetContactsThrowsOnApiError(): void
+    {
+        $this->service->members = m::mock(ResourceMembers::class);
+        $this->service->members
+            ->shouldReceive('listMembers')
+            ->with(self::GROUP_ID)
+            ->andThrow(new GoogleServiceException('Not found', 404));
+
+        $this->expectException(GoogleServiceException::class);
+
+        $this->target->getContacts(self::GROUP_ID);
+    }
+
+    public function testGetContactsHandlesMemberWithMissingEmail(): void
+    {
+        // A Member without an email address should still hydrate to a Contact
+        // (with null email) — verifies map handles unexpected null fields.
+        $member = new Member();
+
+        $this->service->members = m::mock(ResourceMembers::class);
+        $this->service->members
+            ->shouldReceive('listMembers')
+            ->with(self::GROUP_ID)
+            ->andReturn(
+                m::mock(Members::class, [
+                    'getMembers' => [$member],
+                ]),
+            );
+
+        $result = $this->target->getContacts(self::GROUP_ID);
+
+        self::assertCount(1, $result);
+        self::assertNull($result[0]->email);
+    }
+
+    public function testGetContactsHandlesNullMembersList(): void
+    {
+        // Directory API returns null when group has zero members — the client
+        // casts to array, so we should get an empty result.
+        $this->service->members = m::mock(ResourceMembers::class);
+        $this->service->members
+            ->shouldReceive('listMembers')
+            ->with(self::GROUP_ID)
+            ->andReturn(
+                m::mock(Members::class, [
+                    'getMembers' => null,
+                ]),
+            );
+
+        $result = $this->target->getContacts(self::GROUP_ID);
+
+        self::assertSame([], $result);
+    }
+
+    public function testAddContactThrowsOnApiError(): void
+    {
+        $contact = new Contact();
+        $contact->email = self::MEMBER_EMAIL;
+
+        $this->service->members = m::mock(ResourceMembers::class);
+        $this->service->members
+            ->shouldReceive('insert')
+            ->with(self::GROUP_ID, m::type(Member::class))
+            ->andThrow(new GoogleServiceException('Conflict', 409));
+
+        $this->expectException(GoogleServiceException::class);
+
+        $this->target->addContact(self::GROUP_ID, $contact);
+    }
+
+    public function testRemoveContactThrowsOnApiError(): void
+    {
+        $contact = new Contact();
+        $contact->email = self::MEMBER_EMAIL;
+
+        $this->service->members = m::mock(ResourceMembers::class);
+        $this->service->members
+            ->shouldReceive('delete')
+            ->with(self::GROUP_ID, self::MEMBER_EMAIL)
+            ->andThrow(new GoogleServiceException('Not found', 404));
+
+        $this->expectException(GoogleServiceException::class);
+
+        $this->target->removeContact(self::GROUP_ID, $contact);
+    }
+
+    public function testInitializeRefreshTokenFetchFailurePropagates(): void
+    {
+        // When fetchAccessTokenWithRefreshToken throws (network error,
+        // invalid_grant from Google), the exception propagates — distinct from
+        // initial-auth failure where setAccessToken throws.
+        $this->setupInitializeExpectations([
+            'isAccessTokenExpired' => true,
+            'getRefreshToken' => self::TOKEN_REFRESH,
+        ]);
+
+        $this->client->shouldReceive('setAccessToken')->with(self::TOKEN_ARRAY);
+
+        $this->fileProvider
+            ->shouldReceive('getContents')
+            ->with(self::TEMP_PATH.'/'.self::TOKEN_FILENAME)
+            ->andReturn(self::TOKEN_STRING);
+
+        $this->client
+            ->shouldReceive('fetchAccessTokenWithRefreshToken')
+            ->with(self::TOKEN_REFRESH)
+            ->andThrow(new \RuntimeException('refresh failed'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('refresh failed');
+
+        $this->target->initialize();
+    }
+
+    public function testGetAvailableGroupsPaginates(): void
+    {
+        // Multi-page domain: first page sets a pageToken, second page clears it.
+        $group1 = new Group();
+        $group1->setEmail('group1@domain');
+        $group1->setName('Group One');
+
+        $group2 = new Group();
+        $group2->setEmail('group2@domain');
+        $group2->setName('Group Two');
+
+        $this->service->groups = m::mock(ResourceGroups::class);
+        $this->service->groups
+            ->shouldReceive('listGroups')
+            ->with(['domain' => self::DOMAIN])
+            ->andReturn(
+                m::mock(Groups::class, [
+                    'getGroups' => [$group1],
+                    'getNextPageToken' => 'token-2',
+                ]),
+            );
+        $this->service->groups
+            ->shouldReceive('listGroups')
+            ->with(['domain' => self::DOMAIN, 'pageToken' => 'token-2'])
+            ->andReturn(
+                m::mock(Groups::class, [
+                    'getGroups' => [$group2],
+                    'getNextPageToken' => null,
+                ]),
+            );
+
+        $result = $this->target->getAvailableGroups();
+
+        self::assertEquals(
+            ['group1@domain' => 'Group One', 'group2@domain' => 'Group Two'],
+            $result,
+        );
     }
 
     private function setupInitializeExpectations(array $overrides = []): void
