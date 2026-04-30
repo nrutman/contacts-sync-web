@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Production deploy steps — run after pulling new code on the prod server.
 #
-# Either invoke directly:
-#     ./scripts/deploy.sh
-# or wire it up as a git post-merge hook on the prod server (not committed,
-# server-local). See README.md "Production Deployment" for the one-liner.
+# Invoked automatically by .githooks/post-merge after `git pull` / `git merge`,
+# gated on APP_ENV=prod. Can also be run manually: `./scripts/deploy.sh`.
 
 set -euo pipefail
 
