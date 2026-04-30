@@ -116,15 +116,16 @@ For local development, use `composer run-script dev` instead — it clears the c
 
 After the initial deploy, subsequent updates use [`scripts/deploy.sh`](scripts/deploy.sh), which runs the post-pull steps in order: `composer install --no-dev --optimize-autoloader`, database migrations, and `composer run-script build` (cache clear + asset compile). It refuses to run unless `APP_ENV=prod`.
 
+A committed `post-merge` git hook ([`.githooks/post-merge`](.githooks/post-merge)) invokes the deploy script automatically after every `git pull` / `git merge`, gated on `APP_ENV=prod` so it's a silent no-op on developer machines. On prod, just pull:
+
 ```bash
 git pull origin main
-./scripts/deploy.sh
 ```
 
-To run it automatically after every pull, install it as a `post-merge` git hook on the prod server (one-time setup, server-local — not committed):
+You can also run the deploy script manually any time:
 
 ```bash
-ln -s ../../scripts/deploy.sh .git/hooks/post-merge
+./scripts/deploy.sh
 ```
 
 After deploy, restart any long-running processes so they pick up the new code — most importantly the Symfony Messenger worker (`messenger:consume`) if you run one under systemd, supervisor, or similar. The deploy script prints a reminder when it finishes.
