@@ -10,6 +10,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Symfony reads APP_ENV from .env.local at runtime, but the shell (and git
+# hooks) don't — so fall back to parsing it out when it's not in the env.
+if [ -z "${APP_ENV:-}" ] && [ -f .env.local ]; then
+    APP_ENV=$(grep -E '^\s*APP_ENV\s*=' .env.local | tail -1 \
+        | sed -E "s/^\s*APP_ENV\s*=\s*//; s/^[\"']//; s/[\"']$//")
+fi
+
 if [ "${APP_ENV:-}" != "prod" ]; then
     echo "[deploy] APP_ENV is '${APP_ENV:-unset}', not 'prod' — refusing to run."
     echo "[deploy] Set APP_ENV=prod (in .env.local or the shell) before running deploy."
