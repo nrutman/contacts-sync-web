@@ -5,11 +5,13 @@ namespace App\Tests\Client\Google;
 use App\Client\Google\GoogleGroupsProvider;
 use App\Client\Google\GoogleServiceFactory;
 use App\Client\Provider\ProviderCapability;
+use App\Client\WebClientFactoryInterface;
 use App\Entity\Organization;
 use App\Entity\ProviderCredential;
 use App\File\FileProvider;
 use Google\Client;
 use Google\Service\Directory;
+use GuzzleHttp\Client as GuzzleClient;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery as m;
 
@@ -17,21 +19,28 @@ class GoogleGroupsProviderTest extends MockeryTestCase
 {
     private FileProvider|m\LegacyMockInterface $fileProvider;
     private GoogleServiceFactory|m\LegacyMockInterface $googleServiceFactory;
+    private WebClientFactoryInterface|m\LegacyMockInterface $webClientFactory;
     private GoogleGroupsProvider $provider;
 
     protected function setUp(): void
     {
         $this->fileProvider = m::mock(FileProvider::class);
         $this->googleServiceFactory = m::mock(GoogleServiceFactory::class);
+        $this->webClientFactory = m::mock(WebClientFactoryInterface::class);
 
         $this->googleServiceFactory
             ->shouldReceive('create')
             ->with(m::type(Client::class))
             ->andReturn(m::mock(Directory::class));
 
+        $this->webClientFactory
+            ->shouldReceive('create')
+            ->andReturn(new GuzzleClient());
+
         $this->provider = new GoogleGroupsProvider(
             $this->fileProvider,
             $this->googleServiceFactory,
+            $this->webClientFactory,
         );
     }
 
