@@ -7,6 +7,7 @@ use App\Client\Provider\ListDiscoverableInterface;
 use App\Client\Provider\OAuthProviderInterface;
 use App\Client\Provider\ProviderCapability;
 use App\Client\Provider\ProviderInterface;
+use App\Client\WebClientFactoryInterface;
 use App\Client\WriteableListClientInterface;
 use App\Entity\ProviderCredential;
 use App\File\FileProvider;
@@ -19,7 +20,21 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface,
     public function __construct(
         private readonly FileProvider $fileProvider,
         private readonly GoogleServiceFactory $googleServiceFactory,
+        private readonly WebClientFactoryInterface $webClientFactory,
     ) {
+    }
+
+    /**
+     * Creates a Google API client backed by our retry-enabled Guzzle client,
+     * so transient 429 / Retry-After responses are handled the same way as
+     * the other providers.
+     */
+    private function createGoogleApiClient(): Client
+    {
+        $client = new Client();
+        $client->setHttpClient($this->webClientFactory->create());
+
+        return $client;
     }
 
     public function getName(): string
@@ -67,7 +82,7 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface,
         $domain = $creds['domain'] ?? $credential->getMetadataValue('domain', '');
 
         $googleClient = new GoogleClient(
-            new Client(),
+            $this->createGoogleApiClient(),
             $this->googleServiceFactory,
             $this->fileProvider,
             $oauthConfig,
@@ -116,7 +131,7 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface,
         $oauthConfig = $this->normalizeOAuthConfig($oauthConfig, $callbackUrl);
 
         $googleClient = new GoogleClient(
-            new Client(),
+            $this->createGoogleApiClient(),
             $this->googleServiceFactory,
             $this->fileProvider,
             $oauthConfig,
@@ -137,7 +152,7 @@ class GoogleGroupsProvider implements ProviderInterface, OAuthProviderInterface,
         $oauthConfig = $this->normalizeOAuthConfig($oauthConfig, $callbackUrl);
 
         $googleClient = new GoogleClient(
-            new Client(),
+            $this->createGoogleApiClient(),
             $this->googleServiceFactory,
             $this->fileProvider,
             $oauthConfig,
