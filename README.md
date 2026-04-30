@@ -112,6 +112,23 @@ composer run-script build
 
 For local development, use `composer run-script dev` instead — it clears the cache without `--env=prod`, builds unminified Tailwind CSS, installs importmap dependencies, compiles the asset map, and runs database migrations.
 
+### Updating an Existing Deployment
+
+After the initial deploy, subsequent updates use [`scripts/deploy.sh`](scripts/deploy.sh), which runs the post-pull steps in order: `composer install --no-dev --optimize-autoloader`, database migrations, and `composer run-script build` (cache clear + asset compile). It refuses to run unless `APP_ENV=prod`.
+
+```bash
+git pull origin main
+./scripts/deploy.sh
+```
+
+To run it automatically after every pull, install it as a `post-merge` git hook on the prod server (one-time setup, server-local — not committed):
+
+```bash
+ln -s ../../scripts/deploy.sh .git/hooks/post-merge
+```
+
+After deploy, restart any long-running processes so they pick up the new code — most importantly the Symfony Messenger worker (`messenger:consume`) if you run one under systemd, supervisor, or similar. The deploy script prints a reminder when it finishes.
+
 ### Sync Execution
 
 Syncs and source refreshes triggered from the web UI run **synchronously** during the HTTP request — no background worker is required for the web interface to function. The "Sync All" dashboard action uses AJAX to sync each list sequentially with a progress dialog, falling back to a single synchronous POST if JavaScript is unavailable.
