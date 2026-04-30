@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Production deploy steps — run after pulling new code on the prod server.
+#
+# Either invoke directly:
+#     ./scripts/deploy.sh
+# or wire it up as a git post-merge hook on the prod server (not committed,
+# server-local). See README.md "Production Deployment" for the one-liner.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [ "${APP_ENV:-}" != "prod" ]; then
+    echo "[deploy] APP_ENV is '${APP_ENV:-unset}', not 'prod' — refusing to run."
+    echo "[deploy] Set APP_ENV=prod (in .env.local or the shell) before running deploy."
+    exit 1
+fi
+
+echo "[deploy] Installing PHP dependencies (no dev, optimized autoloader)..."
+composer install --no-dev --optimize-autoloader --no-interaction
+
+echo "[deploy] Running database migrations..."
+php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+echo "[deploy] Building (clears cache, compiles assets)..."
+composer run-script build
+
+echo
+echo "[deploy] Done."
+echo "[deploy] If the messenger worker (messenger:consume) is running under"
+echo "[deploy] systemd / supervisor / similar, restart it now so it picks up"
+echo "[deploy] the new code. Example:"
+echo "[deploy]   sudo systemctl restart contacts-sync-worker"
