@@ -25,4 +25,7 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    'p-map' => [
+        'version' => '7.0.4',
+    ],
 ];

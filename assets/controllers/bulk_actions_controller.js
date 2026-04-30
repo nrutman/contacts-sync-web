@@ -1,4 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
+import pMap from 'p-map';
+
+const CONCURRENCY = 3;
 
 export default class extends Controller {
     static values = {
@@ -170,43 +173,43 @@ export default class extends Controller {
         this.syncCloseButtonTarget.disabled = true;
         this.syncDialogTarget.showModal();
 
-        for (let i = 0; i < ids.length; i++) {
-            this.updateSyncRow(ids[i], 'syncing');
-
-            try {
-                const response = await fetch(`/api/sync-lists/${ids[i]}/sync`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-Token': this.syncCsrfTokenValue,
-                        'Content-Type': 'application/json',
-                    },
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    this.updateSyncRow(
-                        ids[i],
-                        'done',
-                        `+${data.addedCount} / -${data.removedCount}`,
-                    );
-                } else {
-                    this.updateSyncRow(
-                        ids[i],
-                        'failed',
-                        data.errorMessage || 'Unknown error',
-                    );
-                }
-            } catch (error) {
-                this.updateSyncRow(
-                    ids[i],
-                    'failed',
-                    error.message || 'Network error',
-                );
-            }
-        }
+        await pMap(ids, (id) => this.syncOneRow(id), {
+            concurrency: CONCURRENCY,
+        });
 
         this.syncCloseButtonTarget.disabled = false;
+    }
+
+    async syncOneRow(id) {
+        this.updateSyncRow(id, 'syncing');
+
+        try {
+            const response = await fetch(`/api/sync-lists/${id}/sync`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': this.syncCsrfTokenValue,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.updateSyncRow(
+                    id,
+                    'done',
+                    `+${data.addedCount} / -${data.removedCount}`,
+                );
+            } else {
+                this.updateSyncRow(
+                    id,
+                    'failed',
+                    data.errorMessage || 'Unknown error',
+                );
+            }
+        } catch (error) {
+            this.updateSyncRow(id, 'failed', error.message || 'Network error');
+        }
     }
 
     closeSyncDialog() {
