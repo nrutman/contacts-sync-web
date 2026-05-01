@@ -130,9 +130,19 @@ You can also run the deploy script manually any time:
 
 After deploy, restart any long-running processes so they pick up the new code — most importantly the Symfony Messenger worker (`messenger:consume`) if you run one under systemd, supervisor, or similar. The deploy script prints a reminder when it finishes.
 
+#### How JavaScript dependencies reach prod
+
+This project uses Symfony AssetMapper with [`importmap.php`](importmap.php) — there is no `npm`, no bundler, and no `node_modules`. JS packages are version-pinned in `importmap.php`, and the actual files live under `assets/vendor/` (which is `.gitignore`'d). Prod re-fetches them at every deploy:
+
+1. `composer install` (in the deploy script) triggers `post-install-cmd` → `@auto-scripts`, which includes `importmap:install`.
+2. `importmap:install` reads `importmap.php` and downloads each entry from the JSPM CDN into `assets/vendor/`.
+3. `asset-map:compile` (also part of `composer build`) copies them into `public/assets/`.
+
+Practical implications: the prod server needs outbound network access to `ga.jspm.io` at deploy time, and adding a new JS package locally (`bin/console importmap:require <pkg>`) is enough — committing `importmap.php` is the whole change, prod fetches the files automatically.
+
 ### Sync Execution
 
-Syncs and source refreshes triggered from the web UI run **synchronously** during the HTTP request — no background worker is required for the web interface to function. The "Sync All" dashboard action uses AJAX to sync each list sequentially with a progress dialog, falling back to a single synchronous POST if JavaScript is unavailable.
+Syncs and source refreshes triggered from the web UI run **synchronously** during the HTTP request — no background worker is required for the web interface to function. The "Sync All" dashboard action and "Sync Selected" on `/lists` use AJAX with a fixed concurrency cap of 3 (so several lists run in parallel, capped to keep API rate limits comfortable), falling back to a single synchronous POST if JavaScript is unavailable.
 
 ### Scheduled Syncs
 
