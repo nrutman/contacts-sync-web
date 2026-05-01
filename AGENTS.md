@@ -23,26 +23,43 @@ Run tests:
 composer run-script test
 ```
 
-Check code style:
+Check PHP code style:
 ```
 composer run-script cs
 ```
 
-Fix code style:
+Fix PHP code style:
 ```
 composer run-script cs-fix
+```
+
+Check JS / CSS formatting (Prettier):
+```
+pnpm format:check
+```
+
+Auto-format JS / CSS:
+```
+pnpm format
 ```
 
 ## Workflow Requirements
 
 Before making any commits, verify you are on a feature branch — never commit directly to `main`.
 
-After ANY code change, always run both tests and code style checking:
+After ANY PHP change, always run tests and PHP code style:
 ```
 composer run-script test && composer run-script cs
 ```
 
 If `cs` reports violations, fix them with `composer run-script cs-fix`, then re-run tests to confirm nothing broke.
+
+After ANY change to JS or CSS files under `assets/`, also run the Prettier check:
+```
+pnpm format:check
+```
+
+If it reports drift, fix with `pnpm format` and re-run. CI runs `pnpm format:check` as a separate job, so JS formatting issues won't surface in `composer cs`.
 
 ## PR CI Monitoring
 
