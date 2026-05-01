@@ -86,17 +86,14 @@ export default class extends Controller {
         this.abortControllers.add(abortController);
 
         try {
-            const response = await fetch(
-                `/api/sync-lists/${list.id}/sync`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-Token': this.csrfTokenValue,
-                        'Content-Type': 'application/json',
-                    },
-                    signal: abortController.signal,
+            const response = await fetch(`/api/sync-lists/${list.id}/sync`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': this.csrfTokenValue,
+                    'Content-Type': 'application/json',
                 },
-            );
+                signal: abortController.signal,
+            });
 
             const data = await response.json();
 
